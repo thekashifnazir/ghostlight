@@ -7,7 +7,7 @@ Scope boundaries for every task below:
 - Keep the live path and the replay path identical from `parseA11yLine` onward: do not change the `EngineAdapter` interface, the A11Y types in `src/engine/adapter.ts`, or `src/engine/a11y-lines.ts`.
 - Confirm current Emscripten, Cloudflare Workers/R2, Wrangler, and Playwright APIs via the Context7 power as each is first used.
 
-- [ ] 1. Write `scripts/build-web.sh` (reproducible macOS Emscripten build)
+- [x] 1. Write `scripts/build-web.sh` (reproducible macOS Emscripten build)
   - Create `scripts/build-web.sh`: materialize a separate `vendor/scummvm-web` tree from the same pinned commit as `vendor/scummvm` (e.g. `git -C vendor/scummvm archive HEAD | tar -x -C vendor/scummvm-web`) and do all configure/build work there — never configure or build in `vendor/scummvm`, which holds the native chat's build.
   - In `vendor/scummvm-web`: preflight (source tree present, `engine/a11y.cpp`/`a11y.h`, `python3`), fetch emsdk pinned to 4.0.10 with `curl` (not `wget`) into `dists/emscripten` and install/activate it, reuse the `engine/`→ScummVM flow (copy `a11y.cpp`/`a11y.h`, register `a11y.o` idempotently, apply `hooks.patch` if it has hunks), then `build.sh configure --disable-all-engines --enable-engine=drascula --disable-debug --enable-ogg --enable-vorbis --enable-zlib`, then `emmake make -j"$JOBS"` and `emmake make dist-emscripten` with `$JOBS` from `sysctl -n hw.ncpu` and a safe fallback.
   - Populate the Emscripten `/data` tree from `vendor/game/drascula` and re-run `build-make_http_index.py`, by reference only — never stage or commit game data.
