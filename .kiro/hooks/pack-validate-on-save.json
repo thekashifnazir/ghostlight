@@ -1,0 +1,16 @@
+{
+  "version": "v1",
+  "hooks": [
+    {
+      "name": "Validate pack on save",
+      "enabled": true,
+      "trigger": "PostFileSave",
+      "description": "Runs the pack validator against drascula-en.json whenever a file under packs/ is saved.",
+      "matcher": "packs/",
+      "action": {
+        "type": "command",
+        "command": "cd packs/tools && node_modules/.bin/tsx src/cli.ts validate ../drascula-en.json ../schema.json"
+      }
+    }
+  ]
+}

@@ -162,3 +162,11 @@ Files changed: `.kiro/specs/pack/tasks.md`, `packs/tools/src/hints.ts`, `packs/t
 Time: about 15 minutes.
 What went wrong or surprised you: a shell gotcha, not a code one: `${PIPESTATUS[0]}` after piping the CLI through grep reported grep's status, not the CLI's, so the first exit-code read looked blank. Re-ran each command without a pipe and read `$?` directly to confirm 1 / 0 / 2.
 What was learned: keep the hint rule a pure function of the after graph and reached set so the no-spoiler property (task 16) is a statement about this one function, with live-flag latching left to the hints/ghost spec. When checking a program's exit code, do not read it through a pipe.
+
+## 19 · pack · Task 9a done (validate-on-save hook)
+What was asked: task 9a: a shell-command agent hook (enabled so it shows in the hooks panel) that runs the pack validator whenever a file under packs/ is saved.
+What Kiro did: created `.kiro/hooks/pack-validate-on-save.json` via the createHook tool (PostFileSave, matcher `packs/`, command `cd packs/tools && node_modules/.bin/tsx src/cli.ts validate ../drascula-en.json ../schema.json`), then added `"enabled": true` by hand so the panel shows it on.
+Files changed: `.kiro/specs/pack/tasks.md`, `.kiro/hooks/pack-validate-on-save.json`, `docs/kiro-process.md`.
+Time: a few minutes.
+What went wrong or surprised you: same as the engine hook in entry 03, createHook writes no `enabled` field, so it was added manually. The hook becomes active on the next session start.
+What was learned: the PostFileSave matcher tests against the file path, so `packs/` catches saves to the pack, the schema and the tools alike; validating the pack on any of those saves is the useful backstop.
