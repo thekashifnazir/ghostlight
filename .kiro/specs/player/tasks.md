@@ -34,17 +34,17 @@ All code lives under `src/` and `test/`. Do not edit `engine/`, `packs/` or `scr
   - Unit-test lookups and text-fix application against the real pack (read-only), including the fallback when a room or object is absent.
   - _Requirements: 8.1, 8.2, 8.3, 8.4, 15.2_
 
-- [ ] 7. Build the ordered hotspot list (pure)
+- [x] 7. Build the ordered hotspot list (pure)
   - Create `src/model/hotspot-list.ts` with `buildHotspotList(state, pack)`: take visible objects, resolve names and kinds via the pack with text fixes and fallbacks, split exits from objects/people, and sort strictly by rect left edge then top edge.
   - Assert one entry per engine hotspot number.
   - _Requirements: 1.1, 1.2, 1.3, 1.4_
 
-- [ ] 8. Make duplicate names unique (pure)
+- [x] 8. Make duplicate names unique (pure)
   - Create `src/model/naming.ts` with `uniquifyNames(hotspots)` that groups by base name and assigns position words (left/middle/right, then first/second/…) from rect left edge in visual order, prepending them to the base name.
   - Wire it into `buildHotspotList` as the final step.
   - _Requirements: 2.5_
 
-- [ ] 9. Property tests for list order and duplicate naming
+- [x] 9. Property tests for list order and duplicate naming
   - Add `test/hotspot-list.prop.test.ts`: a fast-check generator of `RoomState` with overlapping and equal rects; assert the list's `num`s equal exactly the visible hotspots each once, and order is non-decreasing by (left, top).
   - Add a property that `uniquifyNames` yields distinct names within every duplicate group.
   - _Requirements: 14.3, 1.3, 2.5_
