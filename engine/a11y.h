@@ -26,6 +26,7 @@
 #ifndef DRASCULA_A11Y_H
 #define DRASCULA_A11Y_H
 
+#include "common/array.h"
 #include "common/str.h"
 
 // Scaffold for the engine a11y layer. Implementation lands in tasks 3 onward.
@@ -55,8 +56,10 @@ public:
 	// in a later task calls this.
 	void dump();
 
-	// Called once per main-loop frame; reads and runs one queued command,
-	// then emits A11Y_CMD and A11Y_DIFF (or A11Y_ERR).
+	// Called once per main-loop frame; reads the command file, queues any new
+	// lines, and runs at most one queued command (emitting A11Y_CMD and, when a
+	// handler exists, A11Y_DIFF, or A11Y_ERR when it cannot run). Also re-emits
+	// the A11Y room state on a room/chapter change.
 	void poll();
 
 private:
@@ -69,6 +72,16 @@ private:
 	// per-frame poll() can tell when a room change has happened and emit again.
 	void emitRoomState();
 
+	// Read <savepath>/a11y-cmd.txt, append every non-blank, non-`#` line to the
+	// command queue, then truncate the file so each line is consumed exactly
+	// once. A missing or empty file is normal (nothing queued). (R2.1, R2.3)
+	void readCommandFile();
+
+	// Run one command string: echo it as A11Y_CMD (R2.4), then dispatch it.
+	// Dispatch for most verbs lands in later tasks (7-20); any command with no
+	// handler yet emits A11Y_ERR and the layer keeps running (R2.5).
+	void runCommand(const Common::String &cmd);
+
 	DrasculaEngine *_engine;
 
 	// Last chapter/room an `A11Y` room-state line was emitted for. poll()
@@ -78,6 +91,14 @@ private:
 	// (which the patch does not touch). -1 means "nothing emitted yet".
 	int _lastChapter;
 	int _lastRoom;
+
+	// Commands waiting to run. The command file is read every frame and its
+	// lines are appended here; poll() runs exactly one per frame, dequeuing the
+	// next only after the current one has settled (control has returned to the
+	// main loop with walking/speech/cutscene finished). _queueHead is the index
+	// of the next command to run; entries before it are spent. (R2.1, R2.2)
+	Common::Array<Common::String> _commandQueue;
+	uint _queueHead;
 };
 
 } // namespace Drascula

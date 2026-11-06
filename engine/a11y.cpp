@@ -22,6 +22,9 @@
  */
 
 #include "common/config-manager.h"
+#include "common/fs.h"
+#include "common/path.h"
+#include "common/stream.h"
 #include "common/str.h"
 #include "common/system.h"
 #include "common/textconsole.h"
@@ -71,7 +74,7 @@ static Common::String jsonEscape(const char *s) {
 }
 
 A11yLayer::A11yLayer(DrasculaEngine *engine)
-	: _engine(engine), _lastChapter(-1), _lastRoom(-1) {
+	: _engine(engine), _lastChapter(-1), _lastRoom(-1), _queueHead(0) {
 }
 
 // Called once at startup, after the intro has been skipped and the first
@@ -195,16 +198,121 @@ void A11yLayer::dump() {
 	emitRoomState();
 }
 
-// Called once per main-loop frame. For task 4 it watches for a room or chapter
-// change and emits the new room state, so the `A11Y` line prints on every room
-// change (R1.1). The actual transition happens inside exitRoom()/enterRoom() in
-// rooms.cpp, which runs its own walk loop; control returns here once the move
-// has settled, so detecting the change in the main-loop poll keeps all engine
-// hooks in drascula.cpp (R10.2) and lines up with the command-settle model.
+// The command file lives at <savepath>/a11y-cmd.txt (design.md, R2). savepath
+// is resolved through the config manager and joined with the file name via the
+// portable Common::Path / Common::FSNode APIs, so the same code finds the file
+// on a native run (real directory) and under Emscripten (MEMFS written by the
+// page with FS.writeFile) — no native-only or web-only path (design "same
+// source, two targets").
+static Common::FSNode commandFileNode() {
+	Common::Path savePath = ConfMan.getPath("savepath");
+	return Common::FSNode(savePath.appendComponent("a11y-cmd.txt"));
+}
+
+// Read the command file once, append each queued command to _commandQueue, then
+// truncate the file so every line is consumed exactly once (R2.1). Lines that
+// are blank or begin with `#` are dropped (R2.3). A missing file is the normal
+// idle case (the page has written nothing yet), so it is silent, not an error.
+void A11yLayer::readCommandFile() {
+	Common::FSNode node = commandFileNode();
+	if (!node.exists())
+		return;
+
+	Common::SeekableReadStream *in = node.createReadStream();
+	if (!in)
+		return;
+
+	bool sawAny = false;
+	while (!in->eos()) {
+		// readLine handles LF and CR/LF, so a file written on either platform
+		// splits the same way. A trailing partial line (no newline) is returned
+		// too, which is fine: the page writes whole lines.
+		Common::String line = in->readLine();
+		if (in->err())
+			break;
+
+		line.trim();                     // drop surrounding whitespace / stray CR
+		if (line.empty())                // blank line (R2.3)
+			continue;
+		if (line[0] == '#')              // comment line (R2.3)
+			continue;
+
+		_commandQueue.push_back(line);
+		sawAny = true;
+	}
+	delete in;
+
+	// Consume the file so the same commands are not re-read next frame. Only
+	// truncate when there was something to read, to avoid churning the FS every
+	// idle frame. createWriteStream with no bytes written leaves an empty file.
+	if (sawAny) {
+		Common::SeekableWriteStream *out = node.createWriteStream();
+		delete out;
+	}
+}
+
+// Run one queued command: echo it as A11Y_CMD (R2.4), then dispatch. The full
+// verb/walk/use dispatch is built in tasks 7-20; here only the room-state
+// commands have a handler. Anything else has no handler yet, so it emits
+// A11Y_ERR and the layer keeps running (R2.5) — exactly the behaviour a real,
+// still-unimplemented command should have until its task lands.
+void A11yLayer::runCommand(const Common::String &cmd) {
+	emitLine(Common::String("A11Y_CMD ") + cmd);
+
+	// Split off the first word as the verb; the remainder is the argument(s).
+	// A single-word command (no space) has an empty argument.
+	Common::String verb = cmd;
+	uint sp = 0;
+	while (sp < cmd.size() && cmd[sp] != ' ')
+		sp++;
+	if (sp < cmd.size())
+		verb = Common::String(cmd.c_str(), sp);
+
+	if (verb == "state" || verb == "dump") {
+		// Backed by the same room-state code as room entry (R1.5, task 4).
+		dump();
+		return;
+	}
+
+	// No handler yet (lands in a later task). Report and continue (R2.5).
+	emitLine(Common::String("A11Y_ERR no handler for command: ") + cmd);
+}
+
+// Called once per main-loop frame. Three jobs, in order:
 //
-// The command reader and queue (A11Y_CMD / A11Y_DIFF) land in task 5 and build
-// on this same per-frame entry point.
+//   1. Read the command file and append any new lines to the queue (R2.1).
+//   2. Run at most one queued command this frame, dequeuing the next only after
+//      the current one has settled (R2.2). Because dispatch calls the engine's
+//      own action code — which runs its own walk/speech/cutscene loops to
+//      completion before returning — control is back here only once the command
+//      has settled, so "one command per poll" is exactly "one at a time, next
+//      after the previous settles". Commands with no handler yet (this task)
+//      settle immediately.
+//   3. Re-emit the A11Y room state on a room/chapter change (R1.1). The
+//      transition itself happens inside exitRoom()/enterRoom() in rooms.cpp
+//      (which the patch does not touch); control returns here once the move has
+//      settled, so detecting the change in the main-loop poll keeps all engine
+//      hooks in drascula.cpp (R10.2) and lines up with the command-settle model.
+//
+// The room-change check runs after the command so that a command which changed
+// room (a later task) still produces its room-state line in the same frame.
 void A11yLayer::poll() {
+	readCommandFile();
+
+	if (_queueHead < _commandQueue.size()) {
+		Common::String cmd = _commandQueue[_queueHead];
+		_queueHead++;
+		runCommand(cmd);
+
+		// Reclaim the spent prefix once the queue has fully drained, so a long
+		// session does not grow the array without bound. Nothing is pending, so
+		// clearing is safe and keeps _queueHead meaningful.
+		if (_queueHead >= _commandQueue.size()) {
+			_commandQueue.clear();
+			_queueHead = 0;
+		}
+	}
+
 	if (_engine->currentChapter != _lastChapter || _engine->_roomNumber != _lastRoom)
 		emitRoomState();
 }
