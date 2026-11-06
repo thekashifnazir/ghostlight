@@ -138,3 +138,11 @@ Files changed: `.kiro/specs/pack/tasks.md`, `packs/tools/src/types.ts`, `packs/t
 Time: about 10 minutes.
 What went wrong or surprised you: nothing.
 What was learned: naming the condition shape as a recursive `Condition` type up front makes the later cross-reference walk (collecting flags and milestone refs through all/any/not) straightforward to type.
+
+## 16 · pack · Tasks 5 and 6 done (validator: schema + cross-refs)
+What was asked: tasks 5 and 6 of the pack spec: stage 1 schema validation with Ajv (2020-12, all errors), and stage 2 cross-reference checks (condition walk collecting flags and milestone refs; item (id, chapter) uniqueness; after ids exist; no after cycles; referenced milestone ids exist; flag indices 0 to 49 and in range for a milestone's chapter), merged into one error list.
+What Kiro did: wrote `packs/tools/src/validate.ts`. Stage 1 uses `Ajv2020` with `{ allErrors: true, strict: false }`, mapping each Ajv error to `{ path, message }`. Stage 2 has a recursive `walkCondition` through all/any/not, the item-uniqueness check, exits.opensWhen and milestone.when flag-range checks, after-id existence, referenced-milestone existence, and a DFS-with-visiting-set cycle detector that names every node in a cycle. `validatePack` merges both stages and never short-circuits. Typecheck clean. Smoke test against the draft pack: one error, `/formatVersion must match ^1\.[0-9]+$`, which is exactly the 0.1-to-v1 gap that task 10 fixes; everything else validates.
+Files changed: `.kiro/specs/pack/tasks.md`, `packs/tools/src/validate.ts`, `docs/kiro-process.md`.
+Time: about 25 minutes.
+What went wrong or surprised you: nothing broke. The draft pack validating cleanly against the v1 schema except for the version string is a good sign the v1 promotion changed nothing structural. tsx prints a `module.register()` deprecation warning from its loader; harmless.
+What was learned: running the real draft through the validator early (before the pack is migrated) is a cheap way to prove both the schema load and the cross-ref walk work, and it pre-confirms the only migration delta is the version string.

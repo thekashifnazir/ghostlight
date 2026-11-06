@@ -24,12 +24,12 @@ These tasks implement the design. Each cites the requirements it covers. All wor
   - Write `packs/tools/src/load.ts` to read and parse the schema, a pack, and `reference/census.json` as local files only, with no network calls.
   - _Requirements: 5.4, 5.5_
 
-- [ ] 5. Schema-validation stage
+- [x] 5. Schema-validation stage
   - Write `packs/tools/src/validate.ts` stage 1: compile `packs/schema.json` with Ajv (2020-12) and validate a pack, mapping each error to `{ path, message }` keyed by JSON pointer.
   - Collect all schema errors; do not short-circuit on the first.
   - _Requirements: 5.1, 5.3_
 
-- [ ] 6. Condition walk and cross-reference checks
+- [x] 6. Condition walk and cross-reference checks
   - Add a recursive condition walk that collects every `flags` key and every `milestone` ref from a condition tree (through `all`/`any`/`not`).
   - Implement stage 2 checks: `(id, chapter)` item uniqueness; `after` ids exist; no `after` cycles (DFS with a visiting set); `condition.milestone` refs exist; flag indices in 0 to 49; a milestone `when.flags` index in range for that milestone's chapter.
   - Merge stage 1 and stage 2 errors into one list; exit 0 when empty, non-zero with the full list otherwise.
