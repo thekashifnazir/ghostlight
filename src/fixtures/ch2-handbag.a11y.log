@@ -1,0 +1,15 @@
+# Recorded A11Y log: chapter 2, the guest bedroom (room 16). The milestone is
+# finding B.J.'s handbag in the trunk: open the trunk (183), then take the
+# handbag that appears inside it. Exercises open on an object, an object
+# appearing within the same room (appeared), and an item gained (invAdded).
+# Format per the engine a11y layer. Plain log text.
+A11Y {"chapter":2,"room":16,"hero":{"x":120,"y":158},"objects":[{"num":163,"name":"PUERTA","rect":[14,61,38,99],"walkTo":[40,160],"visible":true,"door":true,"toRoom":14},{"num":184,"name":"CAMA","rect":[78,118,70,34],"walkTo":[110,160],"visible":true,"door":false},{"num":187,"name":"ESPEJO","rect":[92,70,28,34],"walkTo":[106,160],"visible":true,"door":false},{"num":185,"name":"ARMARIO","rect":[150,52,46,96],"walkTo":[172,160],"visible":true,"door":false},{"num":186,"name":"VENTANA","rect":[233,46,54,70],"walkTo":[258,160],"visible":true,"door":false},{"num":183,"name":"BAUL","rect":[238,126,44,30],"walkTo":[260,160],"visible":true,"door":false}],"inventory":[28],"flags":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]}
+A11Y_CMD look 183
+A11Y_TEXT A WOODEN CHEST WITH AN IRON LOCK.
+A11Y_DIFF {"cmd":"look 183","said":[{"color":"white","text":"A WOODEN CHEST WITH AN IRON LOCK."}],"changed":false}
+A11Y_CMD open 183
+A11Y_TEXT I'VE OPENED THE TRUNK.
+A11Y_DIFF {"cmd":"open 183","appeared":[{"num":182,"name":"BOLSO","rect":[246,132,18,14],"walkTo":[260,160],"visible":true,"door":false}],"flags":{"18":[0,1]},"said":[{"color":"yellow","text":"I'VE OPENED THE TRUNK."}],"changed":true}
+A11Y_CMD take 182
+A11Y_TEXT I'VE FOUND B.J.'S HANDBAG!
+A11Y_DIFF {"cmd":"take 182","disappeared":[{"num":182,"name":"BOLSO","rect":[246,132,18,14],"walkTo":[260,160],"visible":false,"door":false}],"invAdded":[{"id":9,"name":"handbag"}],"flags":{"19":[0,1]},"said":[{"color":"yellow","text":"I'VE FOUND B.J.'S HANDBAG!"}],"changed":true}

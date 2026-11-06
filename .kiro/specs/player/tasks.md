@@ -18,13 +18,13 @@ All code lives under `src/` and `test/`. Do not edit `engine/`, `packs/` or `scr
   - Unit-test it line by line, including malformed lines returning `null`.
   - _Requirements: 10.2, 11.2_
 
-- [ ] 4. Build the replay adapter and record fixtures
+- [x] 4. Build the replay adapter and record fixtures
   - Add recorded `A11Y` log fixtures under `src/fixtures/` (tavern, leave-tavern, ch2 handbag, ch2 vending machine), copied as plain log text, not generated here.
   - Create `src/engine/replay-adapter.ts` implementing `EngineAdapter`: `start()` emits up to the first room state; `send(cmd)` matches the next `A11Y_CMD` and emits through the next `A11Y_DIFF`, surfacing a clear mismatch `error` when a command does not match the recorded response.
   - Unit-test replay of a fixture: start yields a room state; a matching command yields its diff; a mismatching command yields an `error`.
   - _Requirements: 11.1, 11.2, 11.3, 11.4, 11.5_
 
-- [ ] 5. Add the live adapter stub
+- [x] 5. Add the live adapter stub
   - Create `src/engine/live-adapter.ts` implementing `EngineAdapter` as a typed stub that documents the `FS.writeFile('/tmp/a11y-cmd.txt', …)` write path and the `Module.printErr` read path through `parseA11yLine`, with the actual wasm boot deferred to the web player spec.
   - Confirm it type-checks against the interface so the seam is real.
   - _Requirements: 10.1, 10.4_

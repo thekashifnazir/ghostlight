@@ -7,6 +7,9 @@ dist/
 .playwright-mcp/
 playwright-report/
 test-results/
+# Player replay fixtures are committed test data, not logs. The global
+# gitignore has *.log; un-ignore these so they are tracked.
+!src/fixtures/*.a11y.log
 # never ignore .kiro
 !.kiro/
 !.kiro/**

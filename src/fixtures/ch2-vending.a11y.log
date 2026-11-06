@@ -1,0 +1,12 @@
+# Recorded A11Y log: chapter 2, the inn back room (room 15). The vending
+# machine (188) puzzle: with coins carried, use the coins on the machine to get
+# the cigarettes. Exercises `use <item> <target>` against a hotspot, an item
+# spent (invRemoved) and an item gained (invAdded) in one diff. Format per the
+# engine a11y layer. Plain log text.
+A11Y {"chapter":2,"room":15,"hero":{"x":90,"y":158},"objects":[{"num":172,"name":"ESCALERAS","rect":[14,54,40,106],"walkTo":[40,160],"visible":true,"door":true,"toRoom":14},{"num":206,"name":"CORTINA","rect":[84,60,30,70],"walkTo":[100,160],"visible":true,"door":false},{"num":205,"name":"PAPELES","rect":[150,66,22,26],"walkTo":[162,160],"visible":true,"door":false},{"num":188,"name":"MAQUINA","rect":[248,70,46,90],"walkTo":[268,160],"visible":true,"door":false}],"inventory":[13,28],"flags":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]}
+A11Y_CMD look 188
+A11Y_TEXT A CIGARETTE MACHINE. IT TAKES COINS.
+A11Y_DIFF {"cmd":"look 188","said":[{"color":"white","text":"A CIGARETTE MACHINE. IT TAKES COINS."}],"changed":false}
+A11Y_CMD use 13 188
+A11Y_TEXT I'VE GOT A PACK OF CIGARETTES.
+A11Y_DIFF {"cmd":"use 13 188","invRemoved":[{"id":13,"name":"coins"}],"invAdded":[{"id":14,"name":"cigarettes"}],"flags":{"20":[0,1]},"said":[{"color":"yellow","text":"I'VE GOT A PACK OF CIGARETTES."}],"changed":true}
