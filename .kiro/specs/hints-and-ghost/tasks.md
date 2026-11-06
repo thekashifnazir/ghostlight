@@ -18,7 +18,7 @@ New code lives under `src/hints/` (including the committed audio cache at `src/h
   - Unit-test that a milestone stays reached after its `when` stops holding, and that updates never shrink the set.
   - _Requirements: 1.3, 1.4, 1.5_
 
-- [ ] 4. Target selection (pure), importing offeredMilestones
+- [x] 4. Target selection (pure), importing offeredMilestones
   - Create `src/hints/select.ts` with `selectTarget(pack, progress, room)`: call the imported `offeredMilestones(pack, progress)`, return `undefined` when empty, else pick one by preferring `rooms` including `room`, then required over `optional`, then pack/file order.
   - Unit-test the room preference, the optional deprioritisation, and the empty-set case.
   - _Requirements: 2.1, 2.2, 2.3, 2.4, 2.5, 2.6_
