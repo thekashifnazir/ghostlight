@@ -19,7 +19,7 @@
 # Usage:
 #   scripts/replay.sh <command-script> [seconds] [savepath]
 #
-#   <command-script>  a text file of commands, one per line (see test/fixtures)
+#   <command-script>  a text file of commands, one per line (see tests/engine/fixtures)
 #   seconds           how long to let the engine run before stopping (default 45)
 #   savepath          where a11y-cmd.txt lives and saves are written
 #                     (default: a fresh temp dir, removed on exit)
