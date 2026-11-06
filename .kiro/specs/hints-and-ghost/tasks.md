@@ -28,7 +28,7 @@ New code lives under `src/hints/` (including the committed audio cache at `src/h
   - Unit-test the nudge→clue→answer→answer sequence, direct-answer recording, and per-id independence.
   - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5, 3.6, 4.1, 4.2, 4.3_
 
-- [ ] 6. Cache key (pure, shared by script and playback)
+- [x] 6. Cache key (pure, shared by script and playback)
   - Create `src/hints/cache.ts` with `cacheKey(text, voiceId, modelId)` (hex SHA-256 over a canonical join) and `cacheFileName(key)` → `<key>.mp3`, with one implementation usable from Node (the script) and the browser (playback) producing identical keys. Files live at `src/hints/ghost/`.
   - Unit-test that the Node and browser hash paths agree for the same inputs, and that changing any of text, voice or model changes the key.
   - _Requirements: 8.3, 8.8_
