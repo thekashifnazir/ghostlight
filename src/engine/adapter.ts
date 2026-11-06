@@ -1,0 +1,159 @@
+// The engine adapter seam (Requirement 10).
+//
+// Every piece of game state, text, choice and inventory the player sees comes
+// through this interface, and every command the player sends goes through it.
+// The player depends only on this interface, so the live engine (LiveAdapter)
+// and a replay of recorded logs (ReplayAdapter) are interchangeable.
+//
+// The data shapes mirror the engine a11y layer's A11Y line contract exactly
+// (see engine/a11y.cpp and the engine-a11y-layer design), so both adapters
+// produce identical EngineEvents. This file is dependency-free: both adapters
+// and the model import these types.
+
+/** The kind of a hotspot the player can focus. */
+export type HotspotKind = "object" | "npc" | "exit";
+
+/**
+ * One room object, keyed on the engine's per-room hotspot number. The engine
+ * reports one entry per hotspot number (A11Y `objects[]`).
+ */
+export interface RoomObject {
+  /** Engine hotspot number (the pack key). */
+  num: number;
+  /** Raw engine name (ALL CAPS / Spanish in places; the pack overrides it). */
+  name: string;
+  /** [x, y, w, h] in engine coordinates. */
+  rect: [number, number, number, number];
+  /** [x, y] walk-to point in the same coordinate space as `rect`. */
+  walkTo: [number, number];
+  /** Whether the object is currently visible in the room. */
+  visible: boolean;
+  /** Whether the object is a door. */
+  door: boolean;
+  /** Destination room, present only for doors. */
+  toRoom?: number;
+}
+
+/** A full room-state snapshot (the `A11Y { ... }` line). */
+export interface RoomState {
+  chapter: number;
+  room: number;
+  /** Hero foot/centre point, in the objects' coordinate space. */
+  hero: { x: number; y: number };
+  objects: RoomObject[];
+  /** Real item ids carried (7+; verb slots excluded by the engine). */
+  inventory: number[];
+  /** All 50 engine flags, reported faithfully (flag 12 noise included). */
+  flags: number[];
+}
+
+/**
+ * What changed after one command (the `A11Y_DIFF { ... }` line). Fields are
+ * present only when relevant.
+ */
+export interface Diff {
+  /** The command this diff responds to. */
+  cmd: string;
+  /** [from, to] when the chapter changed. */
+  chapter?: [number, number];
+  /** [from, to] when the room changed. */
+  room?: [number, number];
+  /** The new room's full object list, on a room change. */
+  objects?: RoomObject[];
+  /** Objects that became visible within the current room. */
+  appeared?: RoomObject[];
+  /** Objects that stopped being visible within the current room. */
+  disappeared?: RoomObject[];
+  /** Items gained, with the engine's name. */
+  invAdded?: { id: number; name: string }[];
+  /** Items lost or used up, with the engine's name. */
+  invRemoved?: { id: number; name: string }[];
+  /** Flags that changed, keyed by flag index: "19": [0, 1]. */
+  flags?: Record<string, [number, number]>;
+  /** Text spoken/drawn as a result, each with its engine colour. */
+  said?: { color: string; text: string }[];
+  /** False when nothing moved. */
+  changed: boolean;
+}
+
+/** One conversation choice (the `A11Y_CHOICES` line). */
+export interface Choice {
+  n: number;
+  text: string;
+  /** Already said earlier in this conversation. */
+  used?: boolean;
+  /** Choosing this ends the conversation. */
+  ends?: boolean;
+}
+
+/** One inventory item with its engine name and look text (the `A11Y_INV` line). */
+export interface InvItem {
+  id: number;
+  name: string;
+  look?: string;
+}
+
+/** A typed event produced by parsing one A11Y line. */
+export type EngineEvent =
+  | { type: "room"; state: RoomState }
+  | { type: "diff"; diff: Diff }
+  | { type: "text"; line: string }
+  | { type: "choices"; choices: Choice[] }
+  | { type: "inv"; items: InvItem[] }
+  | { type: "cmd"; cmd: string }
+  | { type: "error"; message: string }
+  | { type: "saved"; slot: number };
+
+/** The engine verbs that target a single hotspot number. */
+export type TargetVerb =
+  | "look"
+  | "take"
+  | "open"
+  | "close"
+  | "talk"
+  | "push"
+  | "walk";
+
+/**
+ * A command the player sends to the engine. Targets are hotspot numbers or
+ * item ids, never pixels.
+ */
+export type Command =
+  | { verb: TargetVerb; target: number }
+  | { verb: "use"; item: number; target: number } // target: hotspot num or item id
+  | { verb: "inventory" }
+  | { verb: "choices" }
+  | { verb: "choose"; n: number }
+  | { verb: "skip" }
+  | { verb: "save"; slot: number };
+
+/**
+ * The seam the player talks to the engine through. `start()` boots and emits
+ * up to the first room state; `send()` issues a command; `onEvent()` subscribes
+ * and returns an unsubscribe function.
+ */
+export interface EngineAdapter {
+  start(): Promise<void>;
+  send(cmd: Command): void;
+  onEvent(listener: (e: EngineEvent) => void): () => void;
+}
+
+/** Serialise a command to the engine's command-file line form (verb + args). */
+export function serializeCommand(cmd: Command): string {
+  switch (cmd.verb) {
+    case "use":
+      return `use ${cmd.item} ${cmd.target}`;
+    case "inventory":
+      return "inventory";
+    case "choices":
+      return "choices";
+    case "choose":
+      return `choose ${cmd.n}`;
+    case "skip":
+      return "skip";
+    case "save":
+      return `save ${cmd.slot}`;
+    default:
+      return `${cmd.verb} ${cmd.target}`;
+  }
+}

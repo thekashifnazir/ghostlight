@@ -8,12 +8,12 @@ All code lives under `src/` and `test/`. Do not edit `engine/`, `packs/` or `scr
   - Verify the project builds and serves an empty page with no console errors.
   - _Requirements: 13.1, 13.4, 15.1, 15.3, 9.2_
 
-- [ ] 2. Define the engine adapter interface and A11Y types
+- [x] 2. Define the engine adapter interface and A11Y types
   - Create `src/engine/adapter.ts` with `EngineAdapter`, `RoomState`, `RoomObject`, `Diff`, `Choice`, `InvItem`, `EngineEvent`, `Command` exactly matching the engine a11y layer's data formats.
   - Keep it dependency-free so both adapters and the model import the same types.
   - _Requirements: 10.1, 10.2, 10.3, 10.4_
 
-- [ ] 3. Write the pure A11Y line parser
+- [x] 3. Write the pure A11Y line parser
   - Create `src/engine/a11y-lines.ts` with `parseA11yLine(line)` that strips the `WARNING:` prefix and trailing `!`, dispatches on `A11Y`/`A11Y_DIFF`/`A11Y_TEXT`/`A11Y_CHOICES`/`A11Y_INV`/`A11Y_CMD`/`A11Y_ERR`/`A11Y_SAVED`, parses the JSON payload into a typed `EngineEvent`, and ignores `A11Y_HOVER`/`A11Y_SAY`.
   - Unit-test it line by line, including malformed lines returning `null`.
   - _Requirements: 10.2, 11.2_
