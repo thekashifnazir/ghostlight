@@ -2,7 +2,17 @@
 
 ## Overview
 
-The engine a11y layer is a patch to ScummVM's Drascula engine that makes the game readable and drivable as text. It adds one new source file, `engines/drascula/a11y.cpp` (with a header), and small hooks in `drascula.cpp` (the main loop and room entry), `converse.cpp` (the conversation loop) and `graphics.cpp` (text drawing). It emits newline-delimited, prefixed log lines and reads a command file each frame. The same source builds natively and under Emscripten.
+The engine a11y layer is a patch to ScummVM's Drascula engine that makes the game readable and drivable as text. It adds one new source file, `a11y.cpp` (with a header `a11y.h`), and small hooks in `drascula.cpp` (the main loop and room entry), `converse.cpp` (the conversation loop) and `graphics.cpp` (text drawing). It emits newline-delimited, prefixed log lines and reads a command file each frame. The same source builds natively and under Emscripten.
+
+### Where the code lives
+
+Our engine code lives in `engine/`, never in `vendor/`:
+
+- `engine/a11y.cpp`, `engine/a11y.h` — the new layer, authored and version-controlled by us.
+- `engine/hooks.patch` — one small patch holding the hook edits to `drascula.cpp`, `converse.cpp` and `graphics.cpp`.
+- `scripts/build-engine.sh` — copies `a11y.cpp`/`a11y.h` into the Drascula engine of a pinned ScummVM checkout under `vendor/`, applies `hooks.patch`, and builds.
+
+`vendor/` is a pinned ScummVM checkout fetched by a script. It is never edited by hand; all of our changes flow through `engine/` and `build-engine.sh`, so the patch stays a readable, reviewable artifact and a clean `vendor/` can always be reproduced. `vendor/` is gitignored.
 
 The layer is deliberately thin: it reuses the engine's own `verify2()`, `checkAction()`, `exitRoom()`, `walkToPoint()`, `removeObject()`, `chooseObject()` and save code rather than reimplementing game logic. Its job is to observe state, translate text commands into the engine's own calls, and report what changed.
 
@@ -151,27 +161,38 @@ A command is settled when control returns to the main loop with walking finished
 
 `said` carries the engine's text colour per line (yellow is the hero; others vary). Mapping colours to speaker names is a later spec; here the colour is passed through. Inventory names come from the `InventoryItems` enums and the item-look table; the engine reports room object names raw, including Spanish ones (the pack fixes labels, not this layer).
 
-## Build and configuration
+## Fetch and build
 
-- **Subtitles on** is mandatory (R6.1, gotcha 1); the run scripts pass `--subtitles`, and the layer can assert it at startup and warn via `A11Y_ERR` if off.
-- **Audio:** the Ogg pack plus `--extrapath` for `drascula.dat` (gotcha 13) to avoid the blocking CD-audio dialog.
+Two scripts keep `vendor/` reproducible and `engine/` the single source of our changes:
+
+- **`scripts/fetch.sh`** clones ScummVM at a pinned commit into `vendor/`, and downloads the Drascula freeware data from `downloads.scummvm.org` into `vendor/`: `drascula-1.0.zip` (the game) and `drascula-audio-2.0.zip` (the Ogg audio pack). Each download is verified against a recorded sha256 before use; a mismatch aborts. Game data is never committed (R10.5); it only ever lives in the gitignored `vendor/`.
+- **`scripts/build-engine.sh`** copies `engine/a11y.cpp` and `engine/a11y.h` into the pinned checkout's Drascula engine, applies `engine/hooks.patch`, and builds. It never edits `vendor/` sources by hand; re-running it on a fresh `vendor/` reproduces the same build.
+
+Configuration at run time:
+
+- **Subtitles on** is mandatory (R6.1, gotcha 1); the run scripts pass `--subtitles`, and the layer asserts it at startup and warns via `A11Y_ERR` if off.
+- **Audio:** the Ogg pack (`drascula-audio-2.0.zip`) plus `--extrapath` for `drascula.dat` (gotcha 13) to avoid the blocking CD-audio dialog. The MP3 pack is not used.
 - **Intro skip** at startup (R1.4), hard-coded as in the spike.
 - **Savepath** is where the command file lives; launch with `--savepath=<dir> --subtitles`.
-- **Native vs web:** native opens a real window (fully headless SDL is flaky, gotcha 12); the web build runs in the browser. Logic is identical; only window/driver differ.
+- **Native vs web:** the layer builds both natively and under Emscripten from the same source (R10.4). For now, replay and property-based tests run against the **native build in a real window** (fully headless SDL is flaky, gotcha 12). The web build is exercised by the web player spec, not here.
 - **Licence:** GPL-3.0-or-later for the patch and the built wasm (R10.3).
 
 ## Testing strategy
 
-This spec authors no code, but the design is built to be testable:
+This spec authors no engine code, but the design is built to be testable. Tests run against the real engine (native build, real window) through a replay harness that writes the command file and reads back the `A11Y`/`A11Y_DIFF`/`A11Y_ERR` lines.
 
-- **Replay transcripts.** The spike command scripts (tavern, leave-tavern, ch2 handbag, ch2 vending machine) become fixtures: feed the command file, assert the sequence of `A11Y_DIFF` lines. These exercise room entry, verbs, `use item on object`, doors, conversations, flags and the chapter crossing.
-- **Snapshot/diff unit checks.** Given two synthetic state snapshots, assert the diff object is correct for each field (room change, appeared/disappeared, inv, flags, said, `changed:false`).
+- **Replay transcripts.** The spike command scripts (tavern, leave-tavern, ch2 handbag, ch2 vending machine) become fixtures: feed the command file, assert the sequence of `A11Y_DIFF` lines. These exercise room entry, verbs, `use item on object`, doors, conversations, flags and the chapter crossing. The tavern script is also used as a fast checkpoint after the main dispatch milestones.
+- **Property-based tests (TypeScript + fast-check).** Generate random valid command sequences and drive the real engine through the replay harness, asserting invariants that must hold for any sequence:
+  - inventory after a command equals inventory before, plus `invAdded`, minus `invRemoved`;
+  - the `room` in a diff that changes room matches the room in the next `A11Y` room-state line;
+  - `changed: false` implies no other diff field moved (no `invAdded`/`invRemoved`/`flags`/`appeared`/`disappeared`/room/chapter change);
+  - every accepted command produces exactly one `A11Y_DIFF` or exactly one `A11Y_ERR`, never both and never neither.
 - **Click model.** Assert press and release land on separate frames and the button is not held across a dialogue line.
 - **Hero point.** Assert `hero` equals `curX + curWidth/2`, `curY + curHeight` for a known pose.
 - **Gotcha guards.** A startup check that subtitles are on; a note that flag 12 is reported but flagged as noise for downstream.
 - Current Emscripten FS, ARIA, Web Audio, Playwright and fast-check details are looked up via the Context7 power when the web player and tests are built, so the glue uses real APIs.
 
-Automation uses the web build or a virtual display, not fully headless native SDL.
+A verifier custom agent re-runs the checks and compares the layer's behaviour against `requirements.md` as the final step.
 
 ## Open questions deferred to later specs
 
