@@ -445,14 +445,33 @@ bool A11yLayer::dispatchVerb(int verbConst, const Common::String &arg) {
 	}
 	int num = atoi(arg.c_str());
 
-	int slot = slotForObjectNum(num);
-	if (slot < 0) {
-		emitLine(Common::String::format(
-			"A11Y_ERR object %d is not in this room", num));
+	// Object 50 is the engine's special "hero / self" object (R3.7): it is not
+	// a room object in objectNum[], so it gets its own path. A verb on 50 runs
+	// checkAction(50) against the hero (e.g. `look 50` is look-at-self).
+	if (num == 50) {
+		runVerbOnSelf(verbConst);
 		return true;
 	}
 
-	runVerbOnSlot(verbConst, slot);
+	// A room object: resolve its slot and run the verb through the engine's own
+	// room-object path (task 8).
+	int slot = slotForObjectNum(num);
+	if (slot >= 0) {
+		runVerbOnSlot(verbConst, slot);
+		return true;
+	}
+
+	// Not a room object. It may be an inventory item the player wants to act on
+	// in the inventory screen (R3.6), e.g. `look 28` to look at the phone. Real
+	// items are id >= 7 (gotcha 7); verb slots 1..6 are not items.
+	if (num >= 7 && slotForItem(num) >= 0) {
+		runVerbOnItemSlot(verbConst, num);
+		return true;
+	}
+
+	// Neither a room object, the hero, nor an inventory item the player holds.
+	emitLine(Common::String::format(
+		"A11Y_ERR object %d is not in this room or inventory", num));
 	return true;
 }
 
@@ -570,15 +589,15 @@ void A11yLayer::dispatchUse(const Common::String &arg) {
 		words.push_back(cur);
 
 	// A bare `use` or `use <item>` has no target. There is no standalone-use
-	// path in this engine (items are always applied to an object or the hero),
-	// so this is an error here; self / object-50 is task 11 (R2.5).
+	// path in this engine (items are always applied to an object, another item,
+	// or the hero), so this is an error here (R2.5).
 	if (words.empty()) {
 		emitLine("A11Y_ERR use needs an item and a target: `use <item> on <object>`");
 		return;
 	}
 	if (words.size() == 1) {
-		emitLine("A11Y_ERR use needs a target object: `use <item> on <object>` "
-		         "(standalone / self-use is not supported here)");
+		emitLine("A11Y_ERR use needs a target: `use <item> on <object>` "
+		         "(a room object, another item, or 50 for the hero)");
 		return;
 	}
 
@@ -626,15 +645,294 @@ void A11yLayer::dispatchUse(const Common::String &arg) {
 		return;
 	}
 
-	// The object must be a live object in this room.
-	int slot = slotForObjectNum(objNum);
-	if (slot < 0) {
-		emitLine(Common::String::format(
-			"A11Y_ERR object %d is not in this room", objNum));
+	// The target is object 50, the hero / self (R3.7): `use <item> on 50`.
+	// Object 50 is not a room object, so it has its own path — the room handlers
+	// key item-on-self on `pickedObject == <itemId> && fl == 50`.
+	if (objNum == 50) {
+		useItemOnSelf(itemId);
 		return;
 	}
 
-	useItemOnSlot(itemId, slot);
+	// The target may be a live room object (task 10): `use <item> on <objNum>`.
+	int slot = slotForObjectNum(objNum);
+	if (slot >= 0) {
+		useItemOnSlot(itemId, slot);
+		return;
+	}
+
+	// The target may be another inventory item (item-on-item, R3.6): both the
+	// held item and the target are in the inventory, combined on the inventory
+	// screen. Real items are id >= 7 (gotcha 7).
+	if (objNum >= 7 && slotForItem(objNum) >= 0) {
+		// An item cannot be combined with itself.
+		if (objNum == itemId) {
+			emitLine(Common::String::format(
+				"A11Y_ERR cannot use item %d on itself", itemId));
+			return;
+		}
+		useItemOnItemSlot(itemId, objNum);
+		return;
+	}
+
+	// Not the hero, a room object, or an inventory item.
+	emitLine(Common::String::format(
+		"A11Y_ERR target %d is not a room object, an inventory item, or the hero (50)",
+		objNum));
+}
+
+// --- Inventory-screen targets and self / object 50 (task 11, R3.6/R3.7) -----
+//
+// Two target kinds the room-object dispatch (tasks 8-10) cannot reach:
+//
+//   1. The hero / self — the engine's special object number 50. verify2()'s
+//      non-menu branch treats a click on the hero as `checkAction(50)`:
+//
+//          if (!strcmp(textName, _textmisc[3]) && _hasName) {
+//              if (checkAction(50)) return true;
+//          }
+//
+//      i.e. when the cursor is over the hero (textName is the hero's name,
+//      _textmisc[3]) the game runs the held verb/item against fl == 50. Object
+//      50 is not in objectNum[], so slotForObjectNum() returns -1 and it needs
+//      this dedicated path. The room/action handlers key self actions on
+//      `fl == 50` (e.g. ch6 `pickedObject == kVerbLook && fl == 50` looks at
+//      the hero; ch2 `pickedObject == 11 && fl == 50` uses item 11 on the hero).
+//
+//   2. Another inventory item — item-on-item combination on the inventory
+//      screen. With the menu open and item A held, clicking item B runs
+//      pickupObject(): the slot under B is occupied, so it falls through to
+//      checkMenuFlags() -> checkAction(inventoryObjects[slotB]) with
+//      pickedObject == A. checkAction()'s `_menuScreen` branch then runs the
+//      combination handlers (e.g. ch4 `pickedObject == 18 && fl == 19` combines
+//      the two coins). We call checkAction(itemB) directly with item B as `fl`
+//      — the same value the engine resolves from the slot under the cursor —
+//      so no mouse-position lookup (whichObject/_itemLocations) is needed.
+//
+// Both keep the task-10 item-return safety (R3.5): a verb/use that does not
+// apply leaves every item back in the inventory, lost by neither path.
+
+// Find the live inventory slot holding real item `itemId`, or -1. Slots are
+// indexed 1..ARRAYSIZE(inventoryObjects)-1. Used to confirm a verb/use target
+// is really an inventory item the hero holds before acting on it (R3.6, R2.5).
+int A11yLayer::slotForItem(int itemId) const {
+	DrasculaEngine *e = _engine;
+	for (int n = 1; n < ARRAYSIZE(e->inventoryObjects); n++) {
+		if (e->inventoryObjects[n] == itemId)
+			return n;
+	}
+	return -1;
+}
+
+// Open the inventory screen the same way the main loop's right-click block does
+// (drascula.cpp ~650): load the chapter's icon surfaces into backSurface and
+// cursorSurface, then set _menuScreen so checkAction() takes its menu branch.
+// Chapter 2 uses menuBackground; chapters 1/3 use icons.alg; 4/5/6 use their
+// own icon sets. We mirror that selection exactly so the screen the engine's
+// own code draws and reads is the one it expects.
+void A11yLayer::openInventoryScreen() {
+	DrasculaEngine *e = _engine;
+
+	if (e->currentChapter == 4) {
+		e->loadPic("icons2.alg", e->backSurface);
+		e->loadPic("icons2.alg", e->cursorSurface);
+	} else if (e->currentChapter == 5) {
+		e->loadPic("icons3.alg", e->backSurface);
+		e->loadPic("icons3.alg", e->cursorSurface);
+	} else if (e->currentChapter == 6) {
+		e->loadPic("iconsp.alg", e->backSurface);
+		e->loadPic("iconsp.alg", e->cursorSurface);
+	} else {
+		e->loadPic("icons.alg", e->backSurface);
+		e->loadPic("icons.alg", e->cursorSurface);
+	}
+
+	e->_menuScreen = true;
+}
+
+// Close the inventory screen the same way the main loop's right-click-close
+// block does (drascula.cpp ~629): reload the room background/cursor surfaces,
+// restore gamePalette, clear _menuScreen. Chapter 2 reloads menuBackground;
+// everything else reloads pic 99 (the room background). Leaves the game back in
+// its normal room state so the per-frame poll() sees nothing stuck open.
+void A11yLayer::closeInventoryScreen() {
+	DrasculaEngine *e = _engine;
+
+	if (e->currentChapter == 2) {
+		e->loadPic(e->menuBackground, e->cursorSurface);
+		e->loadPic(e->menuBackground, e->backSurface);
+	} else {
+		e->loadPic(99, e->cursorSurface);
+		e->loadPic(99, e->backSurface);
+	}
+	e->setPalette((byte *)&e->gamePalette);
+	e->_menuScreen = false;
+}
+
+// Run a verb on object 50 (the hero / self), reproducing verify2()'s non-menu
+// self branch directly (R3.7). No room slot, no walk: the action is against the
+// hero where they stand.
+void A11yLayer::runVerbOnSelf(int verb) {
+	DrasculaEngine *e = _engine;
+
+	// Clear any verb still held from a previous command, so a stale verb number
+	// cannot leak into the inventory (same reasoning as runVerbOnSlot): an
+	// unhandled action leaves the verb held, and the next selectVerb() would
+	// addObject() the verb number. Resetting to none first, as a right-click
+	// does, keeps each command starting clean.
+	if (e->takeObject == 1)
+		e->selectVerb(kVerbNone);
+
+	// Select the verb so pickedObject/takeObject are what checkAction() reads.
+	e->selectVerb(verb);
+
+	// Mark that the cursor is over a named thing so checkAction()'s generic
+	// refusal can fire. In the full click path verify2() sets textName to the
+	// hero's name and _hasName before calling checkAction(50); here we call
+	// checkAction(50) directly (bypassing verify2()'s routing, gotcha 6), and
+	// the self-handlers key only on `fl == 50`, not on textName. The one place
+	// textName/_hasName matters inside checkAction is its closing generic
+	// room_0 "I can't do that" reply, which fires when `_hasName || _menuScreen`
+	// — so setting _hasName gives an unhandled self verb the game's own refusal.
+	e->_hasName = true;
+
+	// Run the engine's own self action. checkAction(50) dispatches to the
+	// room/chapter self-handlers (fl == 50); an unhandled verb falls through to
+	// the generic room_0 refusal (fires because _hasName is set). No walk:
+	// object 50 is the hero, already in place.
+	e->checkAction(50);
+}
+
+// Apply inventory item `itemId` to object 50 (the hero / self), then return the
+// item if the use did not consume it (R3.7, R3.5). Mirrors useItemOnSlot() but
+// targets fl == 50 with no room slot / walk.
+void A11yLayer::useItemOnSelf(int itemId) {
+	DrasculaEngine *e = _engine;
+
+	// Drop whatever verb/item is currently held, returning it to inventory, as
+	// a right-click does (selectVerb(kVerbNone) re-adds a held item).
+	if (e->takeObject == 1)
+		e->selectVerb(kVerbNone);
+
+	// Pick the item up the game's way: take it out of its slot and make it the
+	// picked object / cursor, the state a left-click on the inventory item
+	// leaves behind. The self-handlers read pickedObject == itemId.
+	e->removeObject(itemId);
+	e->pickObject(itemId);
+
+	// Mark that a named thing is under the cursor so the generic refusal can
+	// fire for a non-applying item-on-self (see runVerbOnSelf). The self
+	// handlers key on `fl == 50` only, which we pass directly to checkAction().
+	e->_hasName = true;
+
+	// Run the engine's own item-on-self action (fl == 50). The handler branches
+	// on `pickedObject == itemId && fl == 50`. No walk: the hero is self.
+	e->checkAction(50);
+
+	// R3.5 item return: if the use did not consume the item it is still held
+	// (takeObject == 1) and absent from the inventory array, so
+	// selectVerb(kVerbNone) puts it back and clears the cursor — the right-click
+	// a player would do. A consumed item already dropped takeObject to 0, so the
+	// guard prevents double-adding it.
+	if (e->takeObject == 1)
+		e->selectVerb(kVerbNone);
+}
+
+// Run a verb on an inventory-screen item (the target is an inventory item, not
+// a room object): open the inventory screen, warp to the item's slot, run the
+// engine's own menu-screen action, close the screen (R3.6).
+void A11yLayer::runVerbOnItemSlot(int verb, int itemId) {
+	DrasculaEngine *e = _engine;
+
+	int slot = slotForItem(itemId);
+	if (slot < 0) {
+		// Should not happen (dispatchVerb checked), but guard so a race or bad
+		// state is a clean error, not a bad array read.
+		emitLine(Common::String::format(
+			"A11Y_ERR item %d is not in the inventory", itemId));
+		return;
+	}
+
+	// Clear any held verb/item first (same stale-verb reasoning as elsewhere).
+	if (e->takeObject == 1)
+		e->selectVerb(kVerbNone);
+
+	// Open the inventory screen so checkAction() takes its _menuScreen branch.
+	openInventoryScreen();
+
+	(void)slot; // resolved above only to confirm the item is really held
+
+	// Select the verb while the screen is open — selectVerb sets pickedObject,
+	// which the menu look-at-item handlers (checkAction's _menuScreen branch)
+	// read. For a look, pickedObject == kVerbLook.
+	e->selectVerb(verb);
+
+	// Run the engine's own action for the item while the menu is open:
+	// checkAction(itemId) takes its _menuScreen branch (roomParse(200) — the
+	// look-at-item table — and the per-chapter menu handlers). We pass the item
+	// id directly as `fl`, which is what the engine's whichObject()-based click
+	// path resolves to from the slot under the cursor; calling it directly means
+	// the action runs on the chosen item itself, not a pixel hit test (gotcha 6),
+	// so no mouse-position lookup is needed.
+	e->checkAction(itemId);
+
+	// A plain verb does not pick anything up, but a handler could have left a
+	// verb/item held; return it as a right-click would before closing, so no
+	// stale cursor survives the screen close.
+	if (e->takeObject == 1)
+		e->selectVerb(kVerbNone);
+
+	// Close the screen and restore the room, as a right-click does.
+	closeInventoryScreen();
+}
+
+// Apply inventory item `itemA` to another inventory item `itemB` on the
+// inventory screen (item-on-item combination), returning any item not consumed
+// (R3.6, R3.5).
+void A11yLayer::useItemOnItemSlot(int itemA, int itemB) {
+	DrasculaEngine *e = _engine;
+
+	if (slotForItem(itemB) < 0) {
+		emitLine(Common::String::format(
+			"A11Y_ERR item %d is not in the inventory", itemB));
+		return;
+	}
+
+	// Drop whatever is held first (right-click equivalent).
+	if (e->takeObject == 1)
+		e->selectVerb(kVerbNone);
+
+	// Open the inventory screen so checkAction() takes its _menuScreen branch.
+	openInventoryScreen();
+
+	// Pick item A up the game's way: take it out of its slot and make it the
+	// picked object / cursor. This is the state after left-clicking item A on
+	// the open inventory screen. The combination handlers read
+	// `pickedObject == itemA && fl == itemB`.
+	//
+	// removeObject(itemA) frees A's slot but leaves B in its slot, exactly as
+	// the real click sequence does (A becomes the cursor, B stays put).
+	e->removeObject(itemA);
+	e->pickObject(itemA);
+
+	// Run the engine's own combination action: checkAction(itemB) takes its
+	// _menuScreen branch with pickedObject == itemA. We pass itemB directly as
+	// `fl` — the same value the engine's whichObject()-based menu click resolves
+	// from the slot under the cursor — so no mouse-position lookup is needed
+	// (gotcha 6: act on the item itself, not a pixel). A matching handler
+	// combines the items (consuming one or both and adding the result); a
+	// non-matching pair falls through to the generic refusal and consumes
+	// nothing, so item B stays in its slot and item A is returned below.
+	e->checkAction(itemB);
+
+	// R3.5 item return: if the combination did not consume item A it is still
+	// held (takeObject == 1) and absent from the inventory, so selectVerb puts
+	// it back. Item B was never removed from its slot by this path (only read),
+	// so a non-applying combination leaves BOTH items intact — neither lost.
+	if (e->takeObject == 1)
+		e->selectVerb(kVerbNone);
+
+	// Close the screen and restore the room.
+	closeInventoryScreen();
 }
 
 // --- Doors and walking (task 9, R3.8 / R2.6) --------------------------------

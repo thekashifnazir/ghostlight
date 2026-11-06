@@ -133,6 +133,71 @@ private:
 	// item safely back in inventory rather than lost.
 	void useItemOnSlot(int itemId, int slot);
 
+	// --- Inventory-screen targets and self / object 50 (task 11, R3.6/R3.7) --
+
+	// Find the live inventory slot (index into inventoryObjects[], 1-based) that
+	// currently holds real item id `itemId` (>= 7), or -1 if the item is not in
+	// the inventory. A verb or use whose TARGET is an inventory item uses this
+	// to confirm the hero actually holds it before acting (R3.6, R2.5). The
+	// action itself passes the item id straight to checkAction() as `fl`, so no
+	// on-screen slot position is needed. (R3.6)
+	int slotForItem(int itemId) const;
+
+	// Run a verb (look/take/open/close/talk/push) on object 50, the engine's
+	// special "hero / self" object (R3.7). The non-menu branch of verify2()
+	// treats the hero as object 50: when the cursor is over the hero
+	// (`textName == _textmisc[3]` and `_hasName`) it runs `checkAction(50)` with
+	// the held verb. We reproduce that directly: select the verb, set
+	// textName/_hasName to the hero so the engine's own self-handlers fire
+	// (e.g. chapter 6 `pickedObject == kVerbLook && fl == 50`), then run
+	// checkAction(50). Object 50 is NOT a room object in objectNum[], so there
+	// is no slot and no walk — the action is against the hero in place.
+	void runVerbOnSelf(int verb);
+
+	// Apply inventory item `itemId` to object 50 (the hero / self) and return
+	// the item if the use did not consume it (R3.7, R3.5). The engine's room
+	// handlers key item-on-self on `pickedObject == <itemId> && fl == 50` (e.g.
+	// chapter 2 `pickedObject == 11 && fl == 50`), so we pick the item up the
+	// game's way, mark the cursor as over the hero, run checkAction(50), then
+	// return a still-held item exactly as the room-object use does.
+	void useItemOnSelf(int itemId);
+
+	// Run a verb on an inventory-screen item: the TARGET is an inventory item,
+	// not a room object (R3.6). Opens the inventory screen the way a right-click
+	// does (set _menuScreen, load the icon surfaces), selects the verb, runs the
+	// engine's own menu-screen action (checkAction(itemId), which takes its
+	// `_menuScreen` branch — roomParse(200) and the look-at-item handlers), then
+	// closes the screen and restores the room palette/surfaces exactly as the
+	// right-click-close path does. `verb` is the held kVerb* (e.g. look). The
+	// item id is passed straight to checkAction() as `fl`, so no mouse-position
+	// lookup is needed (gotcha 6: act on the item, not a pixel).
+	void runVerbOnItemSlot(int verb, int itemId);
+
+	// Apply inventory item `itemA` to another inventory item `itemB` on the
+	// inventory screen (item-on-item combination, R3.6), returning any item not
+	// consumed (R3.5). In the real game this is: right-click to open the menu,
+	// left-click item A (it becomes the picked object), then click item B —
+	// pickupObject() sees the slot under B is occupied, so it falls through to
+	// checkMenuFlags() -> checkAction(itemB) with pickedObject == itemA, and the
+	// `_menuScreen` combination handlers fire (e.g. chapter 4
+	// `pickedObject == 18 && fl == 19` combines the two coins into the bill).
+	// We reproduce that: open the screen, hold item A, warp to item B's slot,
+	// run checkAction(itemB), return any still-held item, close the screen.
+	void useItemOnItemSlot(int itemA, int itemB);
+
+	// Open the inventory screen the way the main loop's right-click block does
+	// (drascula.cpp): load the chapter's icon surfaces into backSurface and
+	// cursorSurface and set _menuScreen = true, so checkAction() takes its
+	// `_menuScreen` branch. Paired with closeInventoryScreen(). Factored out so
+	// both the verb-on-item and item-on-item paths open and close the screen
+	// identically to the engine. (R3.6)
+	void openInventoryScreen();
+
+	// Close the inventory screen the way the main loop's right-click-close block
+	// does: reload the room background/cursor surfaces, restore gamePalette and
+	// clear _menuScreen. Paired with openInventoryScreen(). (R3.6)
+	void closeInventoryScreen();
+
 	// Handle the `walk` command. Two forms (R3.8, R2.6):
 	//   * `walk <num>`     — one argument: walk to / through the room object
 	//                        whose engine hotspot number is <num>. A door runs
