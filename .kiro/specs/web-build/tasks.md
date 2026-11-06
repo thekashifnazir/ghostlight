@@ -34,7 +34,7 @@ Scope boundaries for every task below:
   - If the gate needs any change to drive a live boot cleanly, do not edit player files: write the change down and fold it into the `?live` wiring task (task 7).
   - _Requirements: 4.1, 4.2, 4.3, 4.4, 4.5, 4.6_
 
-- [ ] 5. Create the Cloudflare hosting under `web/`
+- [x] 5. Create the Cloudflare hosting under `web/`
   - Create `web/` with a Worker (static-assets binding for the page, `scummvm.js`, `scummvm.wasm`, `translations.dat`, themes, `index.json` listings and small data; R2 bucket binding for `Packet.001`) and its `wrangler` config as reviewable text with no embedded secret.
   - Worker logic: serve static assets with correct content types (notably `application/wasm` for the wasm); match the `Packet.001` request path and stream it from R2 with a binary content type and a long-lived immutable `Cache-Control`; return a clear error status when the R2 object is missing.
   - Document the deploy step that uploads `Packet.001` to R2 from the `vendor/` build output and ships the game readme plus a modified-data notice; commit no game data and no key, and reference Cloudflare credentials by name only.

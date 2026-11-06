@@ -7,6 +7,9 @@ dist/
 .playwright-mcp/
 playwright-report/
 test-results/
+# web/public is the hosting build output + game data, assembled at deploy time
+# from vendor/. Never committed (see web/DEPLOY.md).
+web/public/
 # Player replay fixtures are committed test data, not logs. The global
 # gitignore has *.log; un-ignore these so they are tracked.
 !src/fixtures/*.a11y.log

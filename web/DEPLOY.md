@@ -1,0 +1,92 @@
+# Deploying Ghostlight hosting
+
+The Ghostlight page and the ScummVM wasm build are hosted on a Cloudflare Worker
+with static assets, with the one oversized game-data file (`Packet.001`, 32.8 MB,
+over Cloudflare's 25 MiB static-asset limit) served from R2 through the Worker.
+
+**Nothing here embeds a secret, and no game data is committed.** Cloudflare
+credentials are supplied at deploy time and referenced by name only; the build
+output and game data live under gitignored paths and are assembled at deploy
+time from `vendor/` (produced by `scripts/fetch.sh` + `scripts/build-web.sh`).
+
+## Files
+
+- `wrangler.jsonc` — the Worker config: the `ASSETS` static-assets binding and
+  the `GAME_DATA` R2 bucket binding. Reviewable text, no secret.
+- `src/index.ts` — the Worker: serves `Packet.001` from R2 (binary type, long
+  immutable cache) and everything else from static assets, overriding the wasm
+  content type to `application/wasm`.
+- `public/` — **gitignored.** The static assets, assembled at deploy time from
+  the build output (see below). Never committed.
+
+## Credentials (by name only)
+
+Authenticate Wrangler once, interactively:
+
+```sh
+npx wrangler login
+```
+
+or supply a scoped API token by name in the environment (never in a file):
+
+```sh
+export CLOUDFLARE_API_TOKEN=…   # a Workers + R2 scoped token; not committed
+export CLOUDFLARE_ACCOUNT_ID=…
+```
+
+## One-time: create the R2 bucket
+
+```sh
+npx wrangler r2 bucket create ghostlight-game-data
+```
+
+(The name must match `r2_buckets[0].bucket_name` in `wrangler.jsonc`.)
+
+## Each deploy
+
+Run from the repo root. `BUILD` is the output of `scripts/build-web.sh`.
+
+```sh
+BUILD=vendor/scummvm-web/build-emscripten
+
+# 1. Assemble the static assets from the build output (gitignored path).
+rm -rf web/public && mkdir -p web/public
+cp -R "$BUILD"/* web/public/
+
+# 2. Move the oversized game-data blob out of static assets and into R2.
+#    (Static assets cannot hold a file over 25 MiB; the Worker serves it from R2.)
+npx wrangler r2 object put \
+  ghostlight-game-data/data/games/drascula/Packet.001 \
+  --file "web/public/data/games/drascula/Packet.001" \
+  --content-type application/octet-stream
+rm -f web/public/data/games/drascula/Packet.001
+
+# 3. Ship the game readme and a modified-data notice alongside the data
+#    (R5.6). The readme comes from the fetched game; MODIFIED.txt is written here.
+cp vendor/game/drascula/readme.txt web/public/data/games/drascula/readme.txt 2>/dev/null || true
+cat > web/public/data/games/drascula/MODIFIED.txt <<'NOTE'
+This copy of the Drascula: The Vampire Strikes Back freeware data is served by
+Ghostlight, an accessibility front-end for ScummVM. The ScummVM engine running
+it is modified (a small accessibility patch in engine/, GPL-3.0-or-later); the
+game data itself is the unmodified ScummVM freeware distribution. See the
+game's own readme.txt in this folder, and https://www.scummvm.org/ for ScummVM.
+NOTE
+
+# 4. Deploy the Worker + static assets.
+npx wrangler deploy --config web/wrangler.jsonc
+```
+
+Wrangler prints the deployed URL (a `*.workers.dev` subdomain unless a custom
+route is configured). Opening it boots the live build; `Packet.001` is fetched
+from R2 on first load.
+
+## Notes
+
+- **Whole-file R2 reads.** The Emscripten HTTP filesystem fetches whole files,
+  so the Worker does a plain `bucket.get` and streams the body; no `Range`
+  handling is needed.
+- **Licensing.** The served wasm is ScummVM (GPL-3.0-or-later); the hosted copy
+  carries ScummVM's notices and the game readme plus the `MODIFIED.txt` notice
+  above. The Ghostlight page, Worker and config are MIT.
+- **No committed game data, no committed key.** `web/public/` is gitignored and
+  rebuilt each deploy; credentials are supplied at deploy time by name.

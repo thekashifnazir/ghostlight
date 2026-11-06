@@ -1,0 +1,23 @@
+{
+  // The hosting Worker is a separate TypeScript project from the player (the
+  // root tsconfig includes only src/ and test/). It uses the Cloudflare Workers
+  // runtime types for Fetcher, R2Bucket, R2Object and ExportedHandler.
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "lib": ["ES2022"],
+    "types": ["@cloudflare/workers-types"],
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "isolatedModules": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "noEmit": true
+  },
+  "include": ["src"]
+}
