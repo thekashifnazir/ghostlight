@@ -1,0 +1,14 @@
+{
+  "version": "v1",
+  "hooks": [
+    {
+      "name": "Process log on task completion",
+      "enabled": true,
+      "trigger": "PostTaskExec",
+      "action": {
+        "type": "agent",
+        "prompt": "A spec task just completed. Check docs/kiro-process.md for a dated entry that covers this task (matching its title or scope). If an entry already exists, do nothing. If it is missing, append a new dated entry following the process-log.md steering rules: next sequence number, date, what was asked, what Kiro did, files changed, time taken, what went wrong or surprised you, and what was learned. Then stage docs/kiro-process.md, commit with a clear message naming the task, and push. Never skip the entry."
+      }
+    }
+  ]
+}
