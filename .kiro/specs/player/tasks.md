@@ -64,11 +64,11 @@ All code lives under `src/` and `test/`. Do not edit `engine/`, `packs/` or `scr
   - Wire highlight updates to list focus changes.
   - _Requirements: 5.1, 5.2, 5.3, 5.4, 5.5_
 
-- [ ] 13. Implement the verb menu
+- [x] 13. Implement the verb menu
   - Create `src/ui/verb-menu.ts`: a `role=menu` with open/close/talk/push as roving-focus `role=menuitem` buttons, each announced on focus; choosing sends the verb for the focused hotspot and returns focus to the list; cancel closes and returns focus with an announcement.
   - _Requirements: 4.1, 4.2, 4.3, 4.4, 4.5_
 
-- [ ] 14. Implement inventory and the active item
+- [x] 14. Implement inventory and the active item
   - Create `src/ui/inventory.ts`: Tab opens a keyboard list of carried items by pack name; choosing sets the active item and announces it; with an item active, interacting on a hotspot sends `use item target` and choosing another item sends `use item item2`; Backspace clears the active item else closes the inventory; announce "Received X" on `invAdded` and "no longer carried" on `invRemoved`.
   - _Requirements: 6.1, 6.2, 6.3, 6.4, 6.5, 6.6, 6.7_
 
