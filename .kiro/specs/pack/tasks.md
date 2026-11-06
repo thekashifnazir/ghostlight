@@ -19,7 +19,7 @@ These tasks implement the design. Each cites the requirements it covers. All wor
   - Confirm current Ajv (2020-12) and fast-check APIs via the Context7 power before pinning versions.
   - _Requirements: 5.4, 8.1, 10.1, 10.3_
 
-- [ ] 4. Types and loaders
+- [x] 4. Types and loaders
   - Write `packs/tools/src/types.ts` mirroring the schema (Pack, Room, Exit, Object, Item, TextFix, Chapter, Cutscene, Condition, Milestone).
   - Write `packs/tools/src/load.ts` to read and parse the schema, a pack, and `reference/census.json` as local files only, with no network calls.
   - _Requirements: 5.4, 5.5_

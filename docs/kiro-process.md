@@ -130,3 +130,11 @@ Files changed: `.kiro/specs/pack/tasks.md`, `packs/tools/package.json`, `packs/t
 Time: about 15 minutes.
 What went wrong or surprised you: the `npm install` command returned no stdout and a harness exit code of -1, but the install had in fact completed; verified by listing node_modules and the binaries rather than trusting the exit code. node_modules and dist are already gitignored; the lockfile is committed to pin versions.
 What was learned: for draft 2020-12, the default `Ajv` export is wrong; `Ajv2020` from `ajv/dist/2020` is required. When a long npm command's exit code is unreliable, verify the side effects (node_modules, lockfile, binaries) directly.
+
+## 15 · pack · Task 4 done (types and loaders)
+What was asked: task 4 of the pack spec: write `types.ts` mirroring the schema and `load.ts` reading the schema, a pack and the census as local files only, no network calls.
+What Kiro did: wrote `packs/tools/src/types.ts` (Pack, Room, Exit, RoomObject, Item, TextFix, Chapter, Cutscene, Milestone, Condition, plus Census types mirrored from census.json, and FLAG_MIN/FLAG_MAX = 0/49). Wrote `packs/tools/src/load.ts` with a `readJson` helper (clear errors on missing file or bad JSON) and `loadSchema`/`loadPack`/`loadCensus`. Typecheck (`tsc --noEmit`) passes clean.
+Files changed: `.kiro/specs/pack/tasks.md`, `packs/tools/src/types.ts`, `packs/tools/src/load.ts`, `docs/kiro-process.md`.
+Time: about 10 minutes.
+What went wrong or surprised you: nothing.
+What was learned: naming the condition shape as a recursive `Condition` type up front makes the later cross-reference walk (collecting flags and milestone refs through all/any/not) straightforward to type.
