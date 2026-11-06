@@ -26,6 +26,8 @@
 #ifndef DRASCULA_A11Y_H
 #define DRASCULA_A11Y_H
 
+#include "common/str.h"
+
 // Scaffold for the engine a11y layer. Implementation lands in tasks 3 onward.
 // This header declares the surface the hooks in hooks.patch call into, so the
 // patch stays small (a few lines per file) and all logic lives here.
@@ -48,12 +50,34 @@ public:
 	// Called on every room entry; emits one `A11Y { ... }` room-state line.
 	void onRoomEntry();
 
+	// Emits the current room state as an `A11Y { ... }` line, identical to a
+	// room entry. Backs the `dump`/`state` command (R1.5); the command reader
+	// in a later task calls this.
+	void dump();
+
 	// Called once per main-loop frame; reads and runs one queued command,
 	// then emits A11Y_CMD and A11Y_DIFF (or A11Y_ERR).
 	void poll();
 
 private:
+	// Build the full room-state JSON object (chapter, room, hero point,
+	// objects, inventory, flags) as a single line. Shared by onRoomEntry()
+	// and dump() so both emit identical state.
+	Common::String buildRoomState();
+
+	// Emit the room state and remember what room/chapter it describes, so the
+	// per-frame poll() can tell when a room change has happened and emit again.
+	void emitRoomState();
+
 	DrasculaEngine *_engine;
+
+	// Last chapter/room an `A11Y` room-state line was emitted for. poll()
+	// compares the live engine values against these each frame and re-emits on
+	// a change, so the line prints on every room change even though the room
+	// transition itself happens inside exitRoom()/enterRoom() in rooms.cpp
+	// (which the patch does not touch). -1 means "nothing emitted yet".
+	int _lastChapter;
+	int _lastRoom;
 };
 
 } // namespace Drascula

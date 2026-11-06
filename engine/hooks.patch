@@ -17,10 +17,19 @@
 #   * call _a11y.onStartup() once the first playable room is entered, to assert
 #     subtitles and emit the first A11Y room-state line (R1.4, R6.1)
 #
-# Later tasks add hooks for poll() (main loop), converse.cpp (A11Y_CHOICES /
-# choose) and graphics.cpp (A11Y_TEXT); they will extend this patch.
+# Task 4 hook (drascula.cpp):
+#   * call _a11y.poll() once per frame at the top of the main loop. For now
+#     poll() watches for a room/chapter change and re-emits the A11Y room-state
+#     line, so the line prints on every room change (R1.1). The transition
+#     itself happens in exitRoom()/enterRoom() (rooms.cpp, not patched); control
+#     returns to the main loop once the move settles, so detecting the change in
+#     poll() keeps all engine hooks in drascula.cpp (R10.2). The command reader
+#     and A11Y_DIFF build on this same per-frame entry point in later tasks.
+#
+# Later tasks add hooks for converse.cpp (A11Y_CHOICES / choose) and
+# graphics.cpp (A11Y_TEXT); they will extend this patch.
 diff --git a/engines/drascula/drascula.cpp b/engines/drascula/drascula.cpp
-index aeccc822cb..fbb824be67 100644
+index aeccc822cb..4fcfdea637 100644
 --- a/engines/drascula/drascula.cpp
 +++ b/engines/drascula/drascula.cpp
 @@ -33,6 +33,7 @@
@@ -60,7 +69,7 @@ index aeccc822cb..fbb824be67 100644
  
  		selectVerb(kVerbNone);
  		loadPic("2aux62.alg", drawSurface2);
-@@ -550,6 +564,11 @@ bool DrasculaEngine::runCurrentChapter() {
+@@ -550,7 +564,19 @@ bool DrasculaEngine::runCurrentChapter() {
  
  	showCursor();
  
@@ -70,5 +79,13 @@ index aeccc822cb..fbb824be67 100644
 +	_a11y.onStartup();
 +
  	while (!shouldQuit()) {
++		// Ghostlight: once per frame, let the a11y layer observe and drive the
++		// game. For now poll() watches for a room/chapter change (the transition
++		// itself happens in exitRoom()/enterRoom()) and emits the new A11Y room
++		// state (R1.1); the command reader and A11Y_DIFF build on this in later
++		// tasks.
++		_a11y.poll();
++
  		if (!_characterMoved) {
  			stepX = STEP_X;
+ 			stepY = STEP_Y;
