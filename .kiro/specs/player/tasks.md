@@ -54,7 +54,7 @@ All code lives under `src/` and `test/`. Do not edit `engine/`, `packs/` or `scr
   - Unit-test that announce replaces rather than appends and that repeat returns the last line.
   - _Requirements: 9.1, 9.2, 9.3, 9.4, 7.1_
 
-- [ ] 11. Implement list mode (focus and cycling)
+- [x] 11. Implement list mode (focus and cycling)
   - Create `src/ui/list-mode.ts`: hold the hotspot list and focused index; `next`/`prev` with wrap and "name, N of M" announcement; `rebuild(list)` focusing index 0; `current()` for the focused hotspot; exactly one focused while non-empty, none when empty.
   - Unit/property-test that `rebuild` leaves one in-range focused index for any non-empty list.
   - _Requirements: 1.5, 1.6, 1.7, 2.1, 2.2, 2.3, 2.4, 2.6_
