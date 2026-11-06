@@ -26,3 +26,19 @@ Files changed: `docs/kiro-features.md`, `docs/kiro-process.md`, `.kiro/steering/
 Time: about 15 minutes.
 What went wrong or surprised you: nothing of note. The ElevenLabs key is not in the repo; it stays in a gitignored `.env`, which is now written into `tech.md` as a rule.
 What was learned: splitting the single Powers row into "installed and in use" versus "planned custom bundle" makes the feature table read as a timeline, which suits the Technological Implementation write-up. The custom power is the natural home for the transferable method once the pieces exist.
+
+## 05 · 6 Nov 2026 · Context7 power installed
+What was asked: add a Context7 power row to `kiro-features.md`, log the install, then author the engine-a11y-layer spec (requirements, design, tasks only, no code).
+What Kiro did: installed the Context7 power (6 Nov) so Kiro can look up current docs for Emscripten, Web Audio, ARIA, Playwright and fast-check rather than guessing APIs from memory. Marked it in use in the feature table.
+Files changed: `docs/kiro-features.md`, `docs/kiro-process.md`.
+Time: a few minutes (the spec itself is logged separately).
+What went wrong or surprised you: nothing.
+What was learned: Context7 pairs naturally with the areas that lean on external APIs we do not control: the wasm glue (Emscripten FS and Module), sonar (Web Audio), the live region (ARIA), and the test stack (Playwright, fast-check). Worth reaching for before writing any of those.
+
+## 06 · 6 Nov 2026 · Spec authored: engine a11y layer
+What was asked: create the engine-a11y-layer spec (requirements, design, tasks) for a readable GPL patch to ScummVM's Drascula engine that prints room state as JSON on entry, accepts file commands each frame, prints one "what changed" line per command, and adds the hero position. Take requirements from spikes 02 and 04 including every gotcha, use EARS, and write no code.
+What Kiro did: read spikes 02 and 04 in full. Wrote `requirements.md` (10 EARS requirements plus a 13-item gotcha checklist), `design.md` (architecture, hook points, command dispatch table, JSON formats for `A11Y`/`A11Y_DIFF`/`A11Y_CHOICES`/`A11Y_INV`, the synthetic-click model, settling, build config, testing strategy) and `tasks.md` (19 tasks, each citing requirements and gotchas). Stopped at tasks.md; no code.
+Files changed: `.kiro/specs/engine-a11y-layer/requirements.md`, `.kiro/specs/engine-a11y-layer/design.md`, `.kiro/specs/engine-a11y-layer/tasks.md`, `docs/kiro-features.md` (Context7 row), `docs/kiro-process.md`.
+Time: about 35 minutes.
+What went wrong or surprised you: nothing broke. The subtle part was settling: a single `walk` out of the tavern crosses into chapter 2 via a cutscene, so the design had to make clear that one command can produce one diff that spans a chapter and room change. The gotchas split cleanly into "the engine layer must handle" (subtitles, click framing, direct object actions, conversation and cutscene loops) versus "report faithfully, fix downstream" (flag 12 noise, Spanish names).
+What was learned: every gotcha from the spikes maps to a specific acceptance criterion or task, so the spike findings carried straight into testable requirements. Carrying the gotchas as an explicit checklist in requirements.md keeps them from being lost when tasks are picked up later.
