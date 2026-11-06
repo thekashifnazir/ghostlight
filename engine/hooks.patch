@@ -26,8 +26,35 @@
 #     poll() keeps all engine hooks in drascula.cpp (R10.2). The command reader
 #     and A11Y_DIFF build on this same per-frame entry point in later tasks.
 #
+# Task 13 hook (drascula.h):
+#   * declare `friend class A11yLayer;` on DrasculaEngine. The a11y layer reads
+#     the engine's own data to observe state and reproduce its actions. Most of
+#     what it needs is public (the room/inventory/flag arrays), but the `inv`
+#     listing's "look at it" line (R6.4) comes from the engine's text and
+#     room-action tables (`_text`, `_roomActions`, `_roomActionsSize`), which
+#     are private. One `friend` line lets the layer READ those exactly as the
+#     engine's own roomParse(200) does, rather than duplicating game data or
+#     fabricating look lines. It grants no new behaviour — the layer still only
+#     calls the engine's own methods — and keeps the patch a single readable
+#     line instead of widening the engine's public surface.
+#
 # Later tasks add hooks for converse.cpp (A11Y_CHOICES / choose) and
 # graphics.cpp (A11Y_TEXT); they will extend this patch.
+diff --git a/engines/drascula/drascula.h b/engines/drascula/drascula.h
+index 6784cf39c0..87d121dc0d 100644
+--- a/engines/drascula/drascula.h
++++ b/engines/drascula/drascula.h
+@@ -336,6 +336,10 @@ static const int interf_y[] = { 51, 51, 51, 51, 83, 83, 83 };
+ struct RoomHandlers;
+ 
+ class DrasculaEngine : public Engine {
++	// Ghostlight a11y layer: reads the engine's own state (including the
++	// private text/room-action tables used for item look lines, R6.4) and
++	// drives the game through the engine's own methods. See engine/a11y.cpp.
++	friend class A11yLayer;
+ protected:
+ 	// Engine APIs
+ 	Common::Error run() override;
 diff --git a/engines/drascula/drascula.cpp b/engines/drascula/drascula.cpp
 index aeccc822cb..4fcfdea637 100644
 --- a/engines/drascula/drascula.cpp

@@ -198,6 +198,39 @@ private:
 	// clear _menuScreen. Paired with openInventoryScreen(). (R3.6)
 	void closeInventoryScreen();
 
+	// Handle the `inventory` / `inv` command (task 13, R6.4 / gotcha 9). Emit a
+	// single `A11Y_INV ` line listing every real inventory item (id >= 7;
+	// gotcha 7 excludes the verb-icon slots 1..6) with its id, a human-readable
+	// name, and the game's own "look at it" line where one is defined. The game
+	// never shows item names on screen (gotcha 9): the name comes from a static
+	// table keyed on the item id (the `InventoryItems` / `InventoryItems2`
+	// enums in drascula.h — the chapters 1-3 set and the chapters 4-6 set,
+	// chosen by currentChapter), and the look line comes from the engine's own
+	// "look at item" table (pseudo-room 200 in _roomActions). Names and look
+	// lines are READ from the engine's data, never fabricated: an item with no
+	// known name/look emits what is reliably available and omits the rest.
+	void dispatchInventory();
+
+	// Human-readable name for inventory item `itemId`, from the static table
+	// backing the `InventoryItems` (chapters 1-3) and `InventoryItems2`
+	// (chapters 4-6) enums in drascula.h. The game stores no item-name strings,
+	// so the name mirrors the enum constant turned into plain words (gotcha 9).
+	// Returns an empty string when the id is unknown for the current chapter set
+	// (so the caller omits the name rather than inventing one). The set is
+	// chosen by `chapter`: 1..3 use InventoryItems, 4..6 use InventoryItems2.
+	Common::String itemName(int itemId) const;
+
+	// The game's own "look at it" speech line for inventory item `itemId`, or an
+	// empty string if the engine defines none. This is the exact text the game
+	// would speak for a look at the item on the inventory screen: the engine
+	// runs `roomParse(200, itemId)` for that (checkAction's _menuScreen branch),
+	// which looks up _roomActions for room 200 with a matching action/objectID
+	// and speaks _text[speechID]. We resolve the SAME entry and return the
+	// string directly from _text, without animating or speaking it, so the look
+	// line is captured as data. Empty when no room-200 entry matches (the item
+	// has no defined look line) — never fabricated.
+	Common::String itemLookLine(int itemId) const;
+
 	// Handle the `walk` command. Two forms (R3.8, R2.6):
 	//   * `walk <num>`     — one argument: walk to / through the room object
 	//                        whose engine hotspot number is <num>. A door runs

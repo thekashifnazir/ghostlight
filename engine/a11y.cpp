@@ -331,6 +331,14 @@ void A11yLayer::runCommand(const Common::String &cmd) {
 		return;
 	}
 
+	// Inventory listing (task 13, R6.4). `inventory` and the short alias `inv`
+	// both emit the dedicated A11Y_INV line. It takes no argument; any trailing
+	// text is ignored.
+	if (verb == "inventory" || verb == "inv") {
+		dispatchInventory();
+		return;
+	}
+
 	// No handler yet (lands in a later task). Report and continue (R2.5).
 	emitLine(Common::String("A11Y_ERR no handler for command: ") + cmd);
 }
@@ -678,6 +686,167 @@ void A11yLayer::dispatchUse(const Common::String &arg) {
 	emitLine(Common::String::format(
 		"A11Y_ERR target %d is not a room object, an inventory item, or the hero (50)",
 		objNum));
+}
+
+// --- Inventory listing (task 13, R6.4 / gotcha 9) ---------------------------
+//
+// `inventory` / `inv` emits one `A11Y_INV ` line describing what the hero is
+// carrying. Shape (design.md "A11Y_INV"):
+//
+//   A11Y_INV {"items":[{"id":28,"name":"phone","look":"THIS IS THE MOBILE PHONE..."}]}
+//
+// Three facts about this engine shape the implementation (all are READ from the
+// engine's own data — nothing is invented, gotcha 9):
+//
+//   * Items vs verb slots. inventoryObjects[1..] holds what the hero carries;
+//     ids 1..6 are the verb icons and only id >= 7 is a real item (gotcha 7),
+//     so the list mirrors buildRoomState()'s `inventory` filter exactly.
+//   * Names. The game never draws an item's name on screen (gotcha 9); the
+//     only name source is the InventoryItems / InventoryItems2 enums in
+//     drascula.h, which are compile-time C++ constants with no runtime string
+//     table. itemName() turns the relevant enum constant into plain words via a
+//     static id->name table, chosen by chapter (1-3 vs 4-6). An id with no
+//     table entry contributes no `name` field rather than a fabricated one.
+//   * Look lines. The game's own "look at this item" speech is the room-200
+//     action table (_roomActions): checkAction()'s _menuScreen branch runs
+//     roomParse(200, itemId), which speaks _text[speechID]. itemLookLine()
+//     resolves the SAME entry and returns the string as data, without speaking
+//     it, so the line is captured for the player. No matching entry => no
+//     `look` field.
+//
+// Names are available for every real item regardless of whether it is currently
+// "hovered" on the inventory screen, because the table is keyed on the id, not
+// on any on-screen/hover state — so a full, correct listing is emitted for the
+// whole inventory from a single command, with the inventory screen never opened.
+
+// Human-readable name for an inventory item id. The game ships no item-name
+// strings, so these mirror the InventoryItems (chapters 1-3) and
+// InventoryItems2 (chapters 4-6) enum constants in drascula.h, turned into
+// plain lower-case words (gotcha 9). Empty string for an id the current chapter
+// set does not name, so the caller omits `name` rather than inventing one.
+Common::String A11yLayer::itemName(int itemId) const {
+	// Chapters 4-6 reuse several ids for different items (InventoryItems2), so
+	// the set is chosen by the live chapter. Ids not listed in the active set
+	// return "" (no fabricated name).
+	if (_engine->currentChapter >= 4) {
+		// InventoryItems2 (chapters 4 onwards; the engine defines this set only
+		// partially, so only the known ids are named).
+		switch (itemId) {
+		case 7:  return "key";            // kItemKey2
+		case 9:  return "cross";          // kItemCross2
+		case 19: return "rope";           // kItemRope2
+		case 20: return "reefer";         // kItemReefer2
+		case 22: return "one coin";       // kItemOneCoin2
+		case 28: return "phone";          // kItemPhone2
+		default: return "";
+		}
+	}
+
+	// InventoryItems (chapters 1-3). This is the set that covers the demo scope
+	// (chapters 1 and 2).
+	switch (itemId) {
+	case 7:  return "money";              // kItemMoney
+	case 8:  return "leaves";             // kItemLeaves
+	case 9:  return "cross";              // kItemCross
+	case 10: return "spike";              // kItemSpike
+	case 11: return "earplugs";           // kItemEarplugs
+	case 12: return "book";               // kItemBook
+	case 13: return "bubble gum";         // kItemBubbleGum
+	case 14: return "sickle";             // kItemSickle
+	case 15: return "tissues";            // kItemTissues
+	case 16: return "cigarettes";         // kItemCigarettes
+	case 17: return "candle";             // kItemCandle
+	case 18: return "two coins";          // kItemTwoCoins
+	case 19: return "one coin";           // kItemOneCoin
+	case 20: return "reefer";             // kItemReefer
+	case 21: return "key";                // kItemKey
+	case 22: return "handbag";            // kItemHandbag
+	case 23: return "ear with earplug";   // kItemEarWithEarPlug
+	case 28: return "phone";              // kItemPhone
+	default: return "";
+	}
+}
+
+// The game's own "look at this item" line for an inventory item, read straight
+// from the engine's room-200 action table (the same lookup checkAction() does
+// on the inventory screen), or "" when the engine defines no look line for the
+// item. We reproduce roomParse(200, itemId)'s match rule — room == 200, chapter
+// matches the live chapter (or is -1 for all chapters), action is kVerbLook or
+// kVerbDefault, objectID is the item id (or -1 for any) — and return
+// _text[speechID] rather than calling talk(), so the line is captured as data
+// with nothing animated or spoken.
+Common::String A11yLayer::itemLookLine(int itemId) const {
+	DrasculaEngine *e = _engine;
+
+	// _text is loaded at chapter start (loadTexts); guard defensively in case a
+	// listing is somehow requested before it exists.
+	if (!e->_text || !e->_roomActions)
+		return "";
+
+	// roomParse() scans _roomActions in order and acts on the first entry whose
+	// room/chapter/action/objectID all match; we mirror that so the captured
+	// look line is exactly the one the game would speak. A look is pickedObject
+	// == kVerbLook, so we match kVerbLook (and kVerbDefault, which roomParse
+	// also accepts) with the item as objectID (or the wildcard -1).
+	bool seen = false;
+	for (int i = 0; i < e->_roomActionsSize; i++) {
+		const RoomTalkAction &a = e->_roomActions[i];
+		if (a.room == 200) {
+			seen = true;
+			if (a.chapter == e->currentChapter || a.chapter == -1) {
+				if (a.action == kVerbLook || a.action == kVerbDefault) {
+					if (a.objectID == itemId || a.objectID == -1) {
+						const char *s = e->_text[a.speechID];
+						return s ? Common::String(s) : Common::String();
+					}
+				}
+			}
+		} else if (seen) {
+			// _roomActions is grouped by room; once we have passed the room-200
+			// block there is no point scanning further (same early-out as
+			// roomParse()).
+			break;
+		}
+	}
+	return "";
+}
+
+// Emit the `A11Y_INV` line: every real inventory item (id >= 7) with its id,
+// name (where known) and look line (where the engine defines one). Does not
+// open the inventory screen or change any state — it only reads
+// inventoryObjects[], the name table, and the room-200 look table (R6.4).
+void A11yLayer::dispatchInventory() {
+	DrasculaEngine *e = _engine;
+
+	Common::String json = "A11Y_INV {\"items\":[";
+
+	bool first = true;
+	for (int n = 1; n < ARRAYSIZE(e->inventoryObjects); n++) {
+		int id = e->inventoryObjects[n];
+		if (id < 7)                      // verb-icon slots / empty slots (gotcha 7)
+			continue;
+
+		if (!first)
+			json += ",";
+		first = false;
+
+		json += Common::String::format("{\"id\":%d", id);
+
+		// name: only when the table knows this id (never fabricated, gotcha 9).
+		Common::String name = itemName(id);
+		if (!name.empty())
+			json += Common::String::format(",\"name\":\"%s\"", jsonEscape(name.c_str()).c_str());
+
+		// look: only when the engine's own room-200 table defines a line.
+		Common::String look = itemLookLine(id);
+		if (!look.empty())
+			json += Common::String::format(",\"look\":\"%s\"", jsonEscape(look.c_str()).c_str());
+
+		json += "}";
+	}
+
+	json += "]}";
+	emitLine(json);
 }
 
 // --- Inventory-screen targets and self / object 50 (task 11, R3.6/R3.7) -----
