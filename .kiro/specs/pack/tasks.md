@@ -70,21 +70,21 @@ These tasks implement the design. Each cites the requirements it covers. All wor
   - Fix any text that breaks a rule; confirm no key or secret is present.
   - _Requirements: 9.4, 9.6, 10.4_
 
-- [ ] 13. fast-check generators
+- [x] 13. fast-check generators
   - Write `packs/tools/test/gen.ts`: `arbMilestoneGraph` (small DAG with `after` edges, hint tiers, chapter), `arbReachedSet` (downward-closed over a graph), `arbCondition` (nested `all`/`any`/`not` with flags, has, lacks, room, chapter, milestone), and `arbMalformedFragment` (out-of-range flag, both `when` and `end`, missing hint tier, cyclic `after`).
   - _Requirements: 8.1, 8.5, 8.6_
 
-- [ ] 14. Validator tests
+- [x] 14. Validator tests
   - Write `packs/tools/test/validate.test.ts`: the real pack validates clean; known-bad fixtures fail (out-of-range flag, missing hint tier, `after` cycle, dangling `after` id, both `when` and `end`).
   - Property test: generated malformed fragments are rejected; the real-flags invariant holds for every milestone condition in the real pack (flag indices in range for the milestone's chapter).
   - _Requirements: 8.1, 8.3, 8.6, 6.1, 6.2, 6.4_
 
-- [ ] 15. Coverage tests
+- [x] 15. Coverage tests
   - Write `packs/tools/test/coverage.test.ts`: the real pack passes coverage against the real census for chapters 1 and 2; a fixture with a missing hotspot, a wrong door destination with no note, and a stale entry each fail.
   - Property test the coverage invariant: for all covered rooms and all their census object numbers, the pack has the key.
   - _Requirements: 8.1, 8.2, 7.2, 7.3, 7.4, 7.5, 7.6_
 
-- [ ] 16. No-spoiler hint tests
+- [x] 16. No-spoiler hint tests
   - Write `packs/tools/test/hints.test.ts`: property test that `offeredMilestones` over a generated `after`-consistent reached set never returns a milestone whose `after` are unmet or that is already reached.
   - Include the real pack's milestones as one generated graph source.
   - _Requirements: 8.4, 8.5, 4.5_
