@@ -74,7 +74,8 @@ static Common::String jsonEscape(const char *s) {
 }
 
 A11yLayer::A11yLayer(DrasculaEngine *engine)
-	: _engine(engine), _lastChapter(-1), _lastRoom(-1), _queueHead(0) {
+	: _engine(engine), _lastChapter(-1), _lastRoom(-1), _queueHead(0),
+	  _clickState(kClickIdle) {
 }
 
 // Called once at startup, after the intro has been skipped and the first
@@ -278,6 +279,79 @@ void A11yLayer::runCommand(const Common::String &cmd) {
 	emitLine(Common::String("A11Y_ERR no handler for command: ") + cmd);
 }
 
+// --- Synthetic click model (R8 / R3.3 / gotchas 2, 3) -----------------------
+//
+// A real left click in Drascula is two events on two different frames: a
+// button-down, then a button-up later. The main loop (drascula.cpp,
+// runCurrentChapter) reads the resulting _leftMouseButton once per frame and,
+// when it is 1 and was not already handled (_leftMouseButtonHeld == false),
+// runs verify1()/verify2() for that click, sets _leftMouseButtonHeld = true and
+// delays ~50 ms. On a later frame it sees _leftMouseButton == 0 and clears
+// _leftMouseButtonHeld. updateEvents() is what normally sets _leftMouseButton
+// (1 on EVENT_LBUTTONDOWN, 0 on EVENT_LBUTTONUP) and _mouseX/_mouseY (on
+// EVENT_MOUSEMOVE); with no real input device driving the replay, those fields
+// stay exactly as we leave them until the next real event, so we set them
+// directly.
+//
+// Two hard rules fall out of that (gotchas 2, 3):
+//   * Press and release must land on separate frames. If we set the button to
+//     1 and back to 0 within one poll(), the main loop reads a single value and
+//     the click is either seen once or not at all — never the clean down-then-up
+//     a click needs. So synthClick() only presses; stepClick() releases next
+//     frame (R8.1).
+//   * The button must not stay held across dialogue. A held button makes the
+//     speech loop treat every line as "skip", so lines are lost. Releasing on
+//     the very next frame, the way a real click does, avoids that (R8.2).
+
+// Set the button down for the press frame and warp the mouse to (x, y).
+//
+// The warp is the R3.3 requirement: direct object dispatch (tasks 8-11) acts on
+// the object slot itself and does not depend on the pixel under the cursor, but
+// the engine derives the on-screen hover name from _mouseX/_mouseY in
+// checkObjects()/moveCursor(). Warping the cursor to the target's hotspot keeps
+// that hover name matching the object the action runs on. We set the engine's
+// own _mouseX/_mouseY (what checkObjects/verify read) and also ask the backend
+// to move the real cursor via g_system->warpMouse(), so a native real-window
+// run shows the cursor over the object too; on the web build warpMouse is a
+// no-op on an invisible cursor, which is fine.
+void A11yLayer::synthClick(int x, int y) {
+	DrasculaEngine *e = _engine;
+
+	// Warp (R3.3): move both the engine's tracked position and the backend
+	// cursor to the target hotspot so the hover name matches.
+	e->_mouseX = x;
+	e->_mouseY = y;
+	if (g_system)
+		g_system->warpMouse(x, y);
+
+	// Press (R8.1): button down, and make sure the "already handled" latch is
+	// clear so the main loop treats this as a fresh click and runs verify*().
+	e->_leftMouseButton = 1;
+	e->_leftMouseButtonHeld = false;
+
+	_clickState = kClickPressed;
+}
+
+// Release frame: with the press acted on last frame, drop the button back to 0
+// so the main loop clears _leftMouseButtonHeld and the click ends — press and
+// release on separate frames, button not left held (R8.1, R8.2). Called from
+// stepClick() at the top of the frame after synthClick().
+bool A11yLayer::clickSettled() const {
+	return _clickState == kClickIdle;
+}
+
+// Advance the click state machine by one frame. Runs at the top of poll(),
+// before any command is dequeued, so an in-flight click's release lands before
+// the next command is considered (R2.2 settle model).
+void A11yLayer::stepClick() {
+	if (_clickState == kClickPressed) {
+		// Release the button on this, the frame after the press (R8.1). The
+		// main loop will see _leftMouseButton == 0 and reset _leftMouseButtonHeld.
+		_engine->_leftMouseButton = 0;
+		_clickState = kClickIdle;
+	}
+}
+
 // Called once per main-loop frame. Three jobs, in order:
 //
 //   1. Read the command file and append any new lines to the queue (R2.1).
@@ -296,8 +370,23 @@ void A11yLayer::runCommand(const Common::String &cmd) {
 //
 // The room-change check runs after the command so that a command which changed
 // room (a later task) still produces its room-state line in the same frame.
+//
+// A synthetic click in flight is advanced first (stepClick): its release lands
+// on the frame after the press, and no new command is dequeued until the click
+// has settled (clickSettled). This keeps the two-step press/release click
+// (R8.1, R8.2) inside the one-command-at-a-time settle model (R2.2): a command
+// that issues a click this frame does not let the next command start until the
+// click's release frame has run.
 void A11yLayer::poll() {
+	// Advance any click in flight (release the button the frame after a press).
+	stepClick();
+
 	readCommandFile();
+
+	// Hold the queue while a synthetic click is mid-flight: the current command
+	// has not settled until its click's release frame has run (R2.2, R8.1).
+	if (!clickSettled())
+		return;
 
 	if (_queueHead < _commandQueue.size()) {
 		Common::String cmd = _commandQueue[_queueHead];
