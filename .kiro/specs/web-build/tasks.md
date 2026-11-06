@@ -29,7 +29,7 @@ Scope boundaries for every task below:
   - Confirm it type-checks against the interface.
   - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5, 3.6_
 
-- [ ] 4. Confirm the start gate boots the live engine after a gesture
+- [x] 4. Confirm the start gate boots the live engine after a gesture
   - The start gate (its DOM and the `main.ts` gesture handler) belongs to the player spec. Do not edit any player file here. Confirm against the existing gate that the first gesture creates/resumes the AudioContext inside the gesture handler and then calls `adapter.start()`, that the gate text is announced in the live region, that the start control holds focus and is keyboard-operable, and that the first room state is announced once `start()` resolves.
   - If the gate needs any change to drive a live boot cleanly, do not edit player files: write the change down and fold it into the `?live` wiring task (task 7).
   - _Requirements: 4.1, 4.2, 4.3, 4.4, 4.5, 4.6_
@@ -50,6 +50,7 @@ Scope boundaries for every task below:
   - **Precondition: do not start this task until the player spec's task 18 (create `main.ts` with boot and event routing) is complete.**
   - Make the smallest additive edit to `src/main.ts`'s existing adapter selection: choose `LiveAdapter` only when `?live` is present; otherwise keep the current selection (`?replay=`, else default) unchanged.
   - Do not rewrite the selection logic or make any other change to `main.ts`.
+  - **Gate change folded in from task 4 confirmation:** the existing start gate meets R4.2–R4.6 as-is (AudioContext created in the gesture handler then `adapter.start()`; Start button holds focus via `autofocus` + `startButton.focus()` and is keyboard-operable; the first room is announced when `start()` resolves via `room`→`applyRoom`→`readRoom`). The one gap for R4.1 is that the gate's instruction text lives only as static markup in `index.html` and is never put through the live region. Fold in one additive line in `boot()` setup — `live.announce(startGate.querySelector("p")?.textContent ?? "…")` (or the equivalent gate-text string) when the gate is shown — so the gate instruction is announced in `role=log` as text. This is additive (no change to the selection logic) and is the only gate adjustment the live boot needs.
   - Verify: with `?live` the live Playwright check (task 6) boots the real engine and reaches room 62; without `?live` the player's existing vitest and Playwright (replay) suites still pass unchanged.
   - _Requirements: 7.1, 7.2, 7.3, 7.4_
 
