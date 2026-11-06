@@ -29,7 +29,7 @@ All code lives under `src/` and `test/`. Do not edit `engine/`, `packs/` or `scr
   - Confirm it type-checks against the interface so the seam is real.
   - _Requirements: 10.1, 10.4_
 
-- [ ] 6. Implement the pack reader
+- [x] 6. Implement the pack reader
   - Create `src/model/pack.ts` loading `packs/drascula-en.json` read-only, rejecting an unknown major `formatVersion`, and exposing `roomName`, `roomShort`, `roomLong`, `exitLabel`, `exitTo`, `objectName`, `objectType`, `itemName`, and `applyTextFixes(raw, context, room)`, with `undefined` for unknown ids.
   - Unit-test lookups and text-fix application against the real pack (read-only), including the fallback when a room or object is absent.
   - _Requirements: 8.1, 8.2, 8.3, 8.4, 15.2_
