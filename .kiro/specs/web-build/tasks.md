@@ -16,7 +16,7 @@ Scope boundaries for every task below:
   - Verify by running it on macOS from a fresh `vendor/` (via `scripts/fetch.sh`): confirm `vendor/scummvm-web` is created, `scummvm.wasm` and a populated `/data` tree are produced there, the configure summary shows Ogg/Vorbis enabled, `vendor/scummvm` is left untouched, and `git status` shows no game data staged.
   - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 1.9, 1.10_
 
-- [ ] 2. Write `src/engine/boot.ts` (boot the Module, install the reader)
+- [x] 2. Write `src/engine/boot.ts` (boot the Module, install the reader)
   - Create `src/engine/boot.ts` exporting a boot function that augments `window.Module` (keeping the canvas `main.ts` set), sets `Module.arguments` to launch Drascula from `/data` with `--savepath=/tmp --subtitles` (never `/home/web_user`) and no `--extrapath`, sets `locateFile` so wasm/data URLs resolve where the Worker serves them, installs the A11Y reader on `Module.printErr` before loading `scummvm.js`, loads `scummvm.js`, and returns a promise that resolves on the first `A11Y` room-state event and rejects on a timeout with a clear message.
   - The reader passes each line to the previous `printErr` handler and then through the shared `parseA11yLine`, forwarding only non-null events; non-A11Y lines emit no event.
   - Depend only on `parseA11yLine` and the adapter event shape — do not import the model or UI, and do not change `adapter.ts` or `a11y-lines.ts`.
