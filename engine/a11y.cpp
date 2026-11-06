@@ -269,14 +269,172 @@ void A11yLayer::runCommand(const Common::String &cmd) {
 	if (sp < cmd.size())
 		verb = Common::String(cmd.c_str(), sp);
 
+	// The argument (everything after the first space). Empty for a bare verb.
+	Common::String arg;
+	if (sp < cmd.size())
+		arg = Common::String(cmd.c_str() + sp + 1);
+	arg.trim();
+
 	if (verb == "state" || verb == "dump") {
 		// Backed by the same room-state code as room entry (R1.5, task 4).
 		dump();
 		return;
 	}
 
+	// Verb-on-object dispatch (task 8, R3.1/R3.2/R3.4): each a11y verb word maps
+	// to the engine's own kVerb* constant, and the action runs through the
+	// engine's verify2()/checkAction() path for the named object slot. `talk`
+	// has no kVerb of its own in these commands — it is kVerbTalk — and `take`
+	// is the engine's kVerbPick.
+	if (verb == "look") {
+		dispatchVerb(kVerbLook, arg);
+		return;
+	}
+	if (verb == "take") {
+		dispatchVerb(kVerbPick, arg);
+		return;
+	}
+	if (verb == "open") {
+		dispatchVerb(kVerbOpen, arg);
+		return;
+	}
+	if (verb == "close") {
+		dispatchVerb(kVerbClose, arg);
+		return;
+	}
+	if (verb == "talk") {
+		dispatchVerb(kVerbTalk, arg);
+		return;
+	}
+	if (verb == "push") {
+		// The engine's "push/move" verb is kVerbMove.
+		dispatchVerb(kVerbMove, arg);
+		return;
+	}
+
 	// No handler yet (lands in a later task). Report and continue (R2.5).
 	emitLine(Common::String("A11Y_ERR no handler for command: ") + cmd);
+}
+
+// Look up the room-object slot whose engine hotspot number is `num`. The room
+// arrays (objectNum/objName/_objectRect/_roomObject/trackObj/visible/isDoor)
+// are all keyed on the slot index 0..numRoomObjs-1; a11y commands name the
+// object by the engine's own per-room number (objectNum[slot]), so we scan for
+// it. Returns -1 when no live room object carries that number. (R3.1)
+int A11yLayer::slotForObjectNum(int num) const {
+	DrasculaEngine *e = _engine;
+	for (int l = 0; l < e->numRoomObjs; l++) {
+		if (e->objectNum[l] == num)
+			return l;
+	}
+	return -1;
+}
+
+// Run a verb on a room-object slot by reproducing the engine's own click path,
+// so the GAME'S OWN logic runs (R3.1). This mirrors verify2()'s non-menu,
+// per-object branch (drascula.cpp):
+//
+//     trackFinal = trackObj[l];
+//     _walkToObject = true;
+//     walkToPoint(_roomObject[l]);
+//     checkAction(objectNum[l]);
+//
+// run directly on the chosen slot rather than via a pixel hit test, so it is
+// reliable when the hero wins the hit test or hotspots overlap (gotcha 6 / the
+// R3 user story). The steps before it reproduce the rest of the click frame:
+//
+//   * selectVerb(verb) sets the engine's pickedObject/takeObject, exactly as
+//     clicking a verb on the bar does. The room action handlers branch on
+//     `pickedObject == kVerb*`, so the verb must be live before checkAction().
+//   * Warp the mouse to the object's hotspot (R3.3). Direct dispatch does not
+//     use the pixel under the cursor, but the engine derives the hover name and
+//     the generic "can't do that" path from _mouseX/_mouseY, so the cursor must
+//     sit over the object.
+//   * checkObjects() sets _hasName/textName for the object under the (now
+//     warped) cursor, the same call the main loop makes each frame before
+//     verify2(). checkAction() only runs the generic room_0 "no, I can't"
+//     reply when _hasName is set, so without this an unhandled verb would stay
+//     silent instead of giving the game's own refusal.
+void A11yLayer::runVerbOnSlot(int verb, int slot) {
+	DrasculaEngine *e = _engine;
+
+	// Clear any verb still held from a previous command before selecting the
+	// new one. selectVerb() runs `if (takeObject == 1) addObject(pickedObject)`
+	// at its top (interface.cpp): in the real game a verb is reset to none by a
+	// successful action handler (selectVerb(kVerbNone) in rooms.cpp) or by a
+	// right-click, so the next verb selection almost always starts from
+	// takeObject == 0. But an action with no handler (the generic "I can't do
+	// that" refusal) leaves the verb held, so without this reset a following
+	// a11y command's selectVerb() would call addObject(oldVerb) and dump the
+	// verb *number* (1..6) into the inventory as a bogus item. Resetting to
+	// none first — exactly what a right-click does — keeps each command's verb
+	// selection starting from a clean state, as the real game does.
+	if (e->takeObject == 1)
+		e->selectVerb(kVerbNone);
+
+	// Select the verb, so pickedObject/takeObject are what the room handlers
+	// and checkAction() read (interface.cpp selectVerb). This is the same state
+	// a click on the verb bar leaves behind.
+	e->selectVerb(verb);
+
+	// Warp the cursor to the object's hotspot centre so the engine's hover name
+	// matches the object the action runs on (R3.3). We set the engine's own
+	// tracked position (what checkObjects/checkAction read) and move the backend
+	// cursor so a native real-window run shows it over the object too.
+	const Common::Rect &r = e->_objectRect[slot];
+	int hx = r.left + r.width() / 2;
+	int hy = r.top + r.height() / 2;
+	e->_mouseX = hx;
+	e->_mouseY = hy;
+	if (g_system)
+		g_system->warpMouse(hx, hy);
+
+	// Set _hasName/textName for the warped-over object, the same call the main
+	// loop makes before verify2(). Needed so checkAction()'s generic refusal
+	// (room_0) can fire for a verb the object does not handle.
+	if (!e->_menuScreen && e->takeObject == 1)
+		e->checkObjects();
+
+	// Run the engine's own action for this slot: walk to the object, then
+	// checkAction() on the object's engine number (R3.1, R3.2). This is the
+	// verify2() per-object body, keyed on the slot we resolved rather than on a
+	// pixel hit test.
+	e->trackFinal = e->trackObj[slot];
+	e->_walkToObject = true;
+	e->walkToPoint(e->_roomObject[slot]);
+	e->checkAction(e->objectNum[slot]);
+}
+
+// Handle a `<verb> <num>` command: resolve the slot for the engine object
+// number, emit A11Y_ERR if it is not in the room (R2.5), else run the verb on
+// that slot. Returns true when the command was understood (even if the object
+// was missing); false only when the argument was not a number.
+bool A11yLayer::dispatchVerb(int verbConst, const Common::String &arg) {
+	if (arg.empty()) {
+		emitLine("A11Y_ERR verb needs an object number, e.g. `look 52`");
+		return true;
+	}
+
+	// Parse the object number. a11y object ids are plain strings of digits
+	// (e.g. "52"), so require every character to be a digit; a non-numeric
+	// argument like `look door` is a clear error, not a silent atoi() 0.
+	for (uint i = 0; i < arg.size(); i++) {
+		if (arg[i] < '0' || arg[i] > '9') {
+			emitLine(Common::String("A11Y_ERR object must be a number, got: ") + arg);
+			return true;
+		}
+	}
+	int num = atoi(arg.c_str());
+
+	int slot = slotForObjectNum(num);
+	if (slot < 0) {
+		emitLine(Common::String::format(
+			"A11Y_ERR object %d is not in this room", num));
+		return true;
+	}
+
+	runVerbOnSlot(verbConst, slot);
+	return true;
 }
 
 // --- Synthetic click model (R8 / R3.3 / gotchas 2, 3) -----------------------

@@ -84,6 +84,29 @@ public:
 	bool clickSettled() const;
 
 private:
+	// Find the room-object slot whose engine hotspot number is `num`, or -1 if
+	// no live room object has that number. a11y commands name objects by the
+	// engine's own per-room hotspot number (the `num` field in the A11Y room
+	// state); the parallel room arrays are keyed on the slot index, so dispatch
+	// looks the slot up here first. (R3.1)
+	int slotForObjectNum(int num) const;
+
+	// Run a verb (look/take/open/close/talk/push) on the room object in `slot`,
+	// by reproducing the engine's own click path: select the verb, warp the
+	// mouse to the object's hotspot for hover-name correctness (R3.3), set the
+	// object's name (so the engine's own "can't do that" response can fire),
+	// then run the engine's walkToPoint() + checkAction() for that slot (R3.1,
+	// R3.2). This is the body of verify2()'s per-object branch, run directly on
+	// the chosen slot rather than via a pixel hit test, so it is reliable when
+	// the hero wins the hit test or hotspots overlap (gotcha 6).
+	void runVerbOnSlot(int verb, int slot);
+
+	// Parse a verb command of the form `<verb> <num>` (e.g. `look 52`): look up
+	// the slot for `num`, emit A11Y_ERR if the object is not in the room (R2.5),
+	// otherwise run the verb on that slot. `verbConst` is the engine's kVerb*
+	// value for the a11y verb word. Returns true if it handled the command.
+	bool dispatchVerb(int verbConst, const Common::String &arg);
+
 	// Build the full room-state JSON object (chapter, room, hero point,
 	// objects, inventory, flags) as a single line. Shared by onRoomEntry()
 	// and dump() so both emit identical state.
