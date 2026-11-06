@@ -4,7 +4,7 @@ One row per Kiro feature. Each earns its place for a reason, or it is not used. 
 
 | Feature | Planned use in Ghostlight | Why it earns its place | Status | Evidence path |
 |---|---|---|---|---|
-| Specs (spec-driven) | One spec per area (engine a11y layer, web player, pack format + Drascula pack, hints + ghost, sonar, survey crew, demo + hosting), each requirements → design → tasks in EARS | Complex, multi-part build; specs give control, review gates and a paper trail for Technological Implementation | planned | `.kiro/specs/` |
+| Specs (spec-driven) | One spec per area (engine a11y layer, web player, pack format + Drascula pack, hints + ghost, sonar, survey crew, demo + hosting), each requirements → design → tasks in EARS | Complex, multi-part build; specs give control, review gates and a paper trail for Technological Implementation | in use | `.kiro/specs/{engine-a11y-layer,pack,player}/` |
 | Vibe coding | One throwaway task done by vibe coding (no spec) to compare against the spec-driven path | Shows an honest comparison: where a spec pays off and where it is overhead | planned | `docs/kiro-process.md` (the comparison entry) |
 | Steering: always | product, tech, structure, accessibility, process-log | Rules that hold for every interaction: the accessibility hard rules and the process discipline | in use | `.kiro/steering/{product,tech,structure,accessibility,process-log}.md` |
 | Steering: fileMatch | pack-writing on `packs/**` | Pack prose rules only matter when editing packs; scoping keeps context lean | in use | `.kiro/steering/pack-writing.md` |
