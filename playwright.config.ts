@@ -15,7 +15,10 @@ export default defineConfig({
   projects: [
     {
       name: "chromium",
-      use: { ...devices["Desktop Chrome"] },
+      // Use the locally installed Google Chrome (channel "chrome") so the run
+      // needs no Playwright browser download. Swap to the bundled "chromium"
+      // once `playwright install chromium` has fully fetched the browser.
+      use: { ...devices["Desktop Chrome"], channel: "chrome" },
     },
   ],
   webServer: {

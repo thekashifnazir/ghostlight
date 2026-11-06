@@ -118,16 +118,24 @@ export async function boot(): Promise<void> {
   const log = replayName ? await fetchFixture(replayName) : undefined;
   const adapter = chooseAdapter(log);
 
+  // Returning focus to the list after a menu closes is silent: the list stays
+  // the active mode once the menu is hidden, and the last spoken line should be
+  // the engine's result (after a choose) or the menu's own "Cancelled" line
+  // (after a cancel), not a re-announced focus line that would clobber it.
+  const returnToList = (): void => {
+    /* list is active again once the menu is closed; no re-announce. */
+  };
+
   const verbMenu = new VerbMenu(verbMenuEl, {
     announce: (t) => live.announce(t),
     choose: (verb) => controller.sendVerbForFocused(verb),
-    returnToList: () => list.announceCurrent(),
+    returnToList,
   });
 
   const inventory = new Inventory(inventoryEl, pack, {
     announce: (t) => live.announce(t),
     useOnItem: (item, target) => adapter.send({ verb: "use", item, target }),
-    returnToList: () => list.announceCurrent(),
+    returnToList,
     chapter: () => state.chapter,
   });
 
@@ -245,18 +253,21 @@ export async function boot(): Promise<void> {
       list.update(currentList);
     }
 
-    // Inventory changes.
+    // Announce the engine's own reply first, then the inventory changes, so
+    // the "Received X" / "no longer carried" confirmation is the last line the
+    // player hears (the live region keeps only the newest line).
+    announceSaid(diff);
+
     for (const added of diff.invAdded ?? []) {
       if (!state.inventory.includes(added.id)) state.inventory.push(added.id);
+      inventory.setItems(state.inventory);
       inventory.announceAdded(added);
     }
     for (const removed of diff.invRemoved ?? []) {
       state.inventory = state.inventory.filter((id) => id !== removed.id);
+      inventory.setItems(state.inventory);
       inventory.announceRemoved(removed);
     }
-    if (diff.invAdded || diff.invRemoved) inventory.setItems(state.inventory);
-
-    announceSaid(diff);
 
     if (diff.changed === false && !diff.said?.length) {
       live.announce("Nothing happened.");

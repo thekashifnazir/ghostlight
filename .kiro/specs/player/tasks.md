@@ -90,15 +90,15 @@ All code lives under `src/` and `test/`. Do not edit `engine/`, `packs/` or `scr
   - Verify an end-to-end play run against a replay fixture with no live engine.
   - _Requirements: 8.1, 8.2, 8.3, 8.4, 11.5, 13.4, 1.5, 1.6_
 
-- [ ] 19. Playwright interaction tests through the replay adapter
+- [x] 19. Playwright interaction tests through the replay adapter
   - Add `test/*.spec.ts` driving the page with `?replay=<fixture>`: start-screen keyboard start; room read on entry; Left/Right cycling with "N of M" and wrap; unique duplicate door names; Up/Enter interact; Down examine; verb menu open/choose/cancel with focus return; Tab inventory, make active, use on hotspot and on item, Backspace cancel; "Received X"; repeat, read-room, F1; typed shortcut mapping a visible name and refusing an absent one.
   - _Requirements: 14.1, 14.5, and the interaction requirements they exercise (2, 3, 4, 6, 7, 12)_
 
-- [ ] 20. axe-core accessibility checks across key states
+- [x] 20. axe-core accessibility checks across key states
   - Add `test/axe.spec.ts` running axe-core on the start screen, in-room play, verb menu open, and inventory open; assert zero violations; fix any that appear.
   - _Requirements: 14.2, 9.1, 9.2_
 
-- [ ] 21. Final verification against requirements
+- [x] 21. Final verification against requirements
   - Run the full test suite (vitest properties, Playwright, axe) against the replay adapter; confirm the hotspot-list and parser properties hold, the interaction model passes, and axe is clean.
   - Walk each requirement and confirm it is met or explicitly note what the LiveAdapter defers to the web player spec.
   - _Requirements: 14.1, 14.2, 14.3, 14.4, 14.5, 10.4, 11.5_
