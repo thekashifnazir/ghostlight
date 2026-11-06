@@ -2,13 +2,13 @@
 
 These tasks implement the design. Each cites the requirements it covers. All work lives under `packs/`; `reference/census.json`, `reference/pack-draft/` and `.kiro/steering/pack-writing.md` are read-only inputs. No task creates or edits any file under `engine/`, `scripts/`, or `vendor/`. Follow the process-log rule: log and commit after each task.
 
-- [ ] 1. Promote the schema to v1
+- [x] 1. Promote the schema to v1
   - Copy `reference/pack-draft/schema.json` to `packs/schema.json`.
   - Change `formatVersion` to the `1.x` pattern (`^1\.[0-9]+$`), update `$id` and `title` to say v1, and keep the `x-` extension allowance and the em-dash ban in the `text` def.
   - Confirm the top-level required keys (`format`, `formatVersion`, `game`, `pack`, `rooms`) and every `$def` (room, exit, object, item, textFix, chapter, cutscene, condition, milestone) carry over unchanged in structure.
   - _Requirements: 1.1, 1.3, 1.4, 1.5, 1.6, 1.7, 2.1, 2.2, 2.3, 2.5, 3.1, 3.2, 3.3, 3.4, 4.1, 4.2, 4.3, 4.4_
 
-- [ ] 2. Write the v1 format document
+- [x] 2. Write the v1 format document
   - Copy `reference/pack-draft/FORMAT.md` to `packs/FORMAT.md` and rewrite it for v1: drop the "draft, breaking changes allowed" language, state the v1 additive-only stability promise, keep the hotspot-API alignment table and every per-section field rule.
   - Walk the document against `packs/schema.json` field by field so the two agree exactly.
   - _Requirements: 1.2, 1.8, 2.6, 3.5_

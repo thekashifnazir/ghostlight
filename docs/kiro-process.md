@@ -102,3 +102,11 @@ Files changed: none for this entry beyond the log; the fix is a steering rule an
 Time: a few minutes to diagnose and agree the fix.
 What went wrong or surprised you: `git add <paths>` stages only those paths, but `git commit` with no pathspec commits the whole index, including files another chat staged. In a shared working tree that quietly sweeps up their work. Added a "Parallel chats" section to `process-log.md` steering (no tree-wide git commands; always `git commit -- <paths>`; only touch your own rows; prefix log headings with the spec name) and switched to explicit-pathspec commits.
 What was learned: in a shared tree, commit with explicit pathspecs (`git commit -- <paths>`) so only your files land regardless of what else is staged. A plain `git commit` is unsafe when another chat shares the index.
+
+## 13 · pack · Task 2 done (v1 format document)
+What was asked: task 2 of the pack spec: write the v1 format document, dropping the draft language and stating the v1 stability promise, and walk it against the schema field by field.
+What Kiro did: wrote `packs/FORMAT.md` from the draft, with a new "Stability" section (v1 is stable; additive-only within `1.x`; readers ignore unknown and `x-` fields; a reader rejects an unknown major version). Kept the hotspot-API alignment table and every per-section field rule. Updated the examples to `formatVersion` "1.0" and `pack.version` "1.0.0". Added the schema's length bounds (name 40, label 60, short 300, title 60) and the flag range (0 to 49) into the field rules so the document and schema agree. Confirmed no em dashes in the document. Also ticked task 1's checkbox, which had been left unticked.
+Files changed: `.kiro/specs/pack/tasks.md`, `packs/FORMAT.md`, `docs/kiro-process.md`.
+Time: about 15 minutes.
+What went wrong or surprised you: nothing. Caught that task 1's checkbox was never ticked and fixed it in the same pass.
+What was learned: folding the schema's maxLength and flag-range facts into the prose field rules keeps the "document and schema agree" requirement (1.8) verifiable by reading one against the other.
