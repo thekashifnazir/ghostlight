@@ -33,7 +33,7 @@ New code lives under `src/hints/` (including the committed audio cache at `src/h
   - Unit-test that the Node and browser hash paths agree for the same inputs, and that changing any of text, voice or model changes the key.
   - _Requirements: 8.3, 8.8_
 
-- [ ] 7. HintEngine
+- [x] 7. HintEngine
   - Create `src/hints/engine.ts` with `HintEngine(pack, tracker)`: `onEngineState(state)` forwards to `tracker.update`; `ask(room)` selects the target and returns `{ kind: "none" }` or `{ kind: "hint", milestoneId, tier, text, audioKey }` using `nextTier` and `cacheKey`; `askAnswer(room)` uses `answerTier`, still only for an offered milestone.
   - Unit-test `ask` on a scripted progress sequence (none when nothing offered, correct text and key when offered) and `askAnswer` giving the answer directly for an offered milestone.
   - _Requirements: 2.6, 3.1, 3.2, 3.3, 4.1, 4.2, 4.3, 5.2, 8.8_

@@ -1,0 +1,72 @@
+// HintEngine (Requirements 2, 3, 4, 5.2, 8.8).
+//
+// Ties reached-set tracking, target selection and tier progression into the two
+// calls the player uses. `onEngineState` forwards each folded state to the
+// tracker so `reached` stays current. `ask` gives the next tier up for the one
+// target milestone; `askAnswer` gives its answer directly. Both return the
+// tier's text (always complete on its own, R5.2) and the audio cache key so the
+// player can write the text then resolve the optional whisper.
+//
+// The returned key is content-addressed over the exact text, the ghost voice
+// and the model, so it matches the file the generator wrote for that same line
+// (R8.8). `ask`/`askAnswer` are async only because the shared cache key is
+// computed with an async hash; selection and tier logic are synchronous.
+
+import type { Milestone, Pack } from "../../packs/tools/src/types.js";
+import { cacheKey } from "./cache.js";
+import type { ProgressTracker } from "./progress.js";
+import type { EngineHintState } from "./fold.js";
+import { selectTarget } from "./select.js";
+import { answerTier, nextTier, type Tier, type TierState } from "./tiers.js";
+
+/** The ghost voice and model the cache keys are computed against (R8.2). */
+export const GHOST_VOICE_ID = "nbk2esDn4RRk4cVDdoiE";
+export const GHOST_MODEL_ID = "eleven_v4";
+
+export type HintResult =
+  | { kind: "none" }
+  | {
+      kind: "hint";
+      milestoneId: string;
+      tier: Tier;
+      text: string;
+      audioKey: string;
+    };
+
+export class HintEngine {
+  private readonly pack: Pack;
+  private readonly tracker: ProgressTracker;
+  private readonly tiers: TierState = new Map();
+
+  constructor(pack: Pack, tracker: ProgressTracker) {
+    this.pack = pack;
+    this.tracker = tracker;
+  }
+
+  /** Forward a folded engine state so the reached set stays current. */
+  onEngineState(state: EngineHintState): void {
+    this.tracker.update(state);
+  }
+
+  /** The next tier up for the current target, or `none` when nothing is offered. */
+  async ask(room: number): Promise<HintResult> {
+    const target = selectTarget(this.pack, this.tracker.progress(), room);
+    if (!target) return { kind: "none" };
+    const tier = nextTier(this.tiers, target.id);
+    return this.result(target, tier);
+  }
+
+  /** The answer directly for the current target, still only if offered (R4.3). */
+  async askAnswer(room: number): Promise<HintResult> {
+    const target = selectTarget(this.pack, this.tracker.progress(), room);
+    if (!target) return { kind: "none" };
+    const tier = answerTier(this.tiers, target.id);
+    return this.result(target, tier);
+  }
+
+  private async result(target: Milestone, tier: Tier): Promise<HintResult> {
+    const text = target.hints[tier];
+    const audioKey = await cacheKey(text, GHOST_VOICE_ID, GHOST_MODEL_ID);
+    return { kind: "hint", milestoneId: target.id, tier, text, audioKey };
+  }
+}
