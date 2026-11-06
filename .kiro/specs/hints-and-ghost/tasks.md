@@ -7,7 +7,7 @@ New code lives under `src/hints/` (including the committed audio cache at `src/h
   - Add `test/hints-fold.test.ts`: changed flags land on the right indices with the rest unchanged; inventory deltas apply; chapter/room update; `prev` is not mutated.
   - _Requirements: 11.1, 11.2, 11.3, 11.4, 11.5_
 
-- [ ] 2. Reached-set derivation (pure)
+- [x] 2. Reached-set derivation (pure)
   - Create `src/hints/reached.ts` with `satisfiedMilestones(pack, state, reached)` where `state` is the `EngineHintState` from `foldDiff` (or a room re-sync) and `reached` is the current latched set (for `when.milestone` references).
   - Implement a self-contained condition evaluator matching the pack's `Condition` semantics: `chapter`, `room` (equality or membership), `flags` map, `has`, `lacks`, `all`/`any`/`not`, `milestone`, with multiple keys combined as AND. Return the ids whose `when` holds now.
   - Unit-test the evaluator against each condition shape, including nested `all`/`any`/`not`.
