@@ -1,0 +1,78 @@
+{
+  "label": "tavern",
+  "startRaw": "A11Y {\"chapter\":1,\"room\":62,\"hero\":{\"x\":171,\"y\":158},\"objects\":[{\"num\":52,\"name\":\"BARTENDER\",\"rect\":[2,100,42,60],\"walkTo\":[40,160],\"visible\":true,\"door\":false},{\"num\":53,\"name\":\"DRUNKARD\",\"rect\":[120,110,40,55],\"walkTo\":[150,165],\"visible\":true,\"door\":false},{\"num\":102,\"name\":\"BOTTLE\",\"rect\":[60,120,16,20],\"walkTo\":[70,160],\"visible\":true,\"door\":false},{\"num\":105,\"name\":\"DOOR\",\"rect\":[260,80,40,90],\"walkTo\":[270,165],\"visible\":true,\"door\":true,\"toRoom\":63}],\"inventory\":[28],\"flags\":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]}",
+  "steps": [
+    {
+      "cmd": "inv",
+      "raw": [
+        "A11Y_CMD inv",
+        "A11Y_INV {\"items\":[{\"id\":28,\"name\":\"phone\",\"look\":\"THIS IS THE MOBILE PHONE I GOT LAST CHRISTMAS\"}]}",
+        "A11Y_DIFF {\"cmd\":\"inv\",\"changed\":false}"
+      ]
+    },
+    {
+      "cmd": "look 102",
+      "raw": [
+        "A11Y_CMD look 102",
+        "A11Y_TEXT IT'S A BOTTLE OF WINE",
+        "A11Y_DIFF {\"cmd\":\"look 102\",\"flags\":{\"12\":[0,1]},\"said\":[{\"color\":\"yellow\",\"text\":\"IT'S A BOTTLE OF WINE\"}],\"changed\":false}"
+      ]
+    },
+    {
+      "cmd": "talk 53",
+      "raw": [
+        "A11Y_CMD talk 53",
+        "A11Y_CHOICES {\"choices\":[{\"n\":1,\"text\":\"HI BOSS, HOW ARE YOU?\",\"used\":false},{\"n\":2,\"text\":\"AND HOW IS THE FAMILY?\",\"used\":false},{\"n\":3,\"text\":\"HAVE YOU SEEN A WOMAN ROUND HERE?\",\"used\":false},{\"n\":4,\"text\":\"I'D BETTER NOT SAY ANYTHING.\",\"used\":false,\"ends\":true}]}",
+        "A11Y_DIFF {\"cmd\":\"talk 53\",\"flags\":{\"12\":[1,0]},\"changed\":false}"
+      ]
+    },
+    {
+      "cmd": "choose 2",
+      "raw": [
+        "A11Y_CMD choose 2",
+        "A11Y_CHOICES {\"choices\":[{\"n\":1,\"text\":\"HI BOSS, HOW ARE YOU?\",\"used\":false},{\"n\":2,\"text\":\"AND HOW IS THE FAMILY?\",\"used\":true},{\"n\":3,\"text\":\"HAVE YOU SEEN A WOMAN ROUND HERE?\",\"used\":false},{\"n\":4,\"text\":\"I'D BETTER NOT SAY ANYTHING.\",\"used\":false,\"ends\":true}]}",
+        "A11Y_TEXT AND HOW IS THE FAMILY?",
+        "A11Y_TEXT THEY ARE ALL DEAD, THANKS.  HIC...!",
+        "A11Y_DIFF {\"cmd\":\"choose 2\",\"said\":[{\"color\":\"yellow\",\"text\":\"AND HOW IS THE FAMILY?\"},{\"color\":\"darkgreen\",\"text\":\"THEY ARE ALL DEAD, THANKS.  HIC...!\"}],\"changed\":false}"
+      ]
+    },
+    {
+      "cmd": "choose 4",
+      "raw": [
+        "A11Y_CMD choose 4",
+        "A11Y_DIFF {\"cmd\":\"choose 4\",\"changed\":false}"
+      ]
+    },
+    {
+      "cmd": "walk 105",
+      "raw": [
+        "A11Y_CMD walk 105",
+        "A11Y_TEXT I DON'T HAVE A ROOM YET",
+        "A11Y_DIFF {\"cmd\":\"walk 105\",\"said\":[{\"color\":\"yellow\",\"text\":\"I DON'T HAVE A ROOM YET\"}],\"changed\":false}"
+      ]
+    },
+    {
+      "cmd": "talk 52",
+      "raw": [
+        "A11Y_CMD talk 52",
+        "A11Y_TEXT YOU, BARTENDER...!!",
+        "A11Y_TEXT WHAT HAPPENED? WHAT'S THE MATTER?",
+        "A11Y_DIFF {\"cmd\":\"talk 52\",\"flags\":{\"0\":[0,1]},\"said\":[{\"color\":\"yellow\",\"text\":\"YOU, BARTENDER...!!\"},{\"color\":\"maroon\",\"text\":\"WHAT HAPPENED? WHAT'S THE MATTER?\"}],\"changed\":true}"
+      ]
+    },
+    {
+      "cmd": "walk 105",
+      "raw": [
+        "A11Y_CMD walk 105",
+        "A11Y_DIFF {\"cmd\":\"walk 105\",\"chapter\":[1,2],\"room\":[62,14],\"objects\":[{\"num\":159,\"name\":\"ESCALERA\",\"rect\":[10,60,40,100],\"walkTo\":[40,160],\"visible\":true,\"door\":true,\"toRoom\":12},{\"num\":162,\"name\":\"HABITACIONES\",\"rect\":[200,40,60,80],\"walkTo\":[230,160],\"visible\":true,\"door\":true,\"toRoom\":16},{\"num\":171,\"name\":\"DOOR\",\"rect\":[120,70,36,90],\"walkTo\":[135,160],\"visible\":true,\"door\":true,\"toRoom\":15},{\"num\":52,\"name\":\"BARTENDER\",\"rect\":[2,100,42,60],\"walkTo\":[40,160],\"visible\":true,\"door\":false}],\"changed\":true}"
+      ]
+    },
+    {
+      "cmd": "skip",
+      "raw": [
+        "A11Y_CMD skip",
+        "A11Y_DIFF {\"cmd\":\"skip\",\"changed\":false}"
+      ]
+    }
+  ]
+}

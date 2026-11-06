@@ -32,7 +32,7 @@ These tasks implement the design. Each cites the requirements it covers. Our eng
   - Emit `A11Y_CMD` on receipt; emit `A11Y_ERR` and continue on any command that cannot run.
   - _Requirements: 2.1, 2.2, 2.3, 2.4, 2.5_
 
-- [~] 6. Checkpoint: replay the tavern script (after reader + room state)
+- [-] 6. Checkpoint: replay the tavern script (after reader + room state)
   - Build the native engine in a real window and run the replay harness on the tavern command script.
   - Confirm room entry emits `A11Y` with the expected objects and hero point, commands are echoed as `A11Y_CMD`, and the harness reads lines back cleanly. This is a smoke checkpoint before dispatch work.
   - _Requirements: 1.*, 2.*, 5.*, gotcha 12_
@@ -107,12 +107,12 @@ These tasks implement the design. Each cites the requirements it covers. Our eng
   - Keep `A11Y_HOVER` and `A11Y_SAY` for parity with the spikes.
   - _Requirements: 2.6, 3.3_
 
-- [~] 21. Replay transcripts as regression fixtures
+- [x] 21. Replay transcripts as regression fixtures
   - Turn all four spike command scripts (tavern, leave-tavern, ch2 handbag, ch2 vending machine) into fixtures and assert the `A11Y_DIFF` sequence, covering room entry, verbs, use-item-on-object, doors, conversations, flags and the chapter 1-to-2 crossing.
   - Replay runs use the native build in a real window, not the web build.
   - _Requirements: all; gotcha 12_
 
-- [~] 22. Property-based tests (TypeScript + fast-check)
+- [x] 22. Property-based tests (TypeScript + fast-check)
   - Write property-based tests in TypeScript with fast-check that drive the real engine through the replay harness (native build, real window), generating random valid command sequences.
   - Assert the invariants:
     - inventory after a command equals inventory before, plus `invAdded`, minus `invRemoved`;

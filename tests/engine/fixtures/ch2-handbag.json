@@ -1,0 +1,29 @@
+{
+  "label": "ch2-handbag",
+  "startRaw": "A11Y {\"chapter\":2,\"room\":14,\"hero\":{\"x\":174,\"y\":160},\"objects\":[{\"num\":159,\"name\":\"ESCALERA\",\"rect\":[10,60,40,100],\"walkTo\":[40,160],\"visible\":true,\"door\":true,\"toRoom\":12},{\"num\":162,\"name\":\"HABITACIONES\",\"rect\":[200,40,60,80],\"walkTo\":[230,160],\"visible\":true,\"door\":true,\"toRoom\":16},{\"num\":171,\"name\":\"DOOR\",\"rect\":[120,70,36,90],\"walkTo\":[135,160],\"visible\":true,\"door\":true,\"toRoom\":15},{\"num\":52,\"name\":\"BARTENDER\",\"rect\":[2,100,42,60],\"walkTo\":[40,160],\"visible\":true,\"door\":false}],\"inventory\":[28],\"flags\":[1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]}",
+  "steps": [
+    {
+      "cmd": "walk 162",
+      "raw": [
+        "A11Y_CMD walk 162",
+        "A11Y_DIFF {\"cmd\":\"walk 162\",\"room\":[14,16],\"objects\":[{\"num\":163,\"name\":\"DOOR\",\"rect\":[20,70,36,90],\"walkTo\":[35,160],\"visible\":true,\"door\":true,\"toRoom\":14},{\"num\":183,\"name\":\"TRUNK\",\"rect\":[120,120,60,40],\"walkTo\":[150,165],\"visible\":true,\"door\":false},{\"num\":184,\"name\":\"BED\",\"rect\":[200,110,80,50],\"walkTo\":[230,165],\"visible\":true,\"door\":false}],\"changed\":true}"
+      ]
+    },
+    {
+      "cmd": "open 183",
+      "raw": [
+        "A11Y_CMD open 183",
+        "A11Y_TEXT I'VE FOUND B.J.'S HANDBAG!",
+        "A11Y_DIFF {\"cmd\":\"open 183\",\"invAdded\":[{\"id\":22,\"name\":\"handbag\"}],\"flags\":{\"19\":[0,1],\"20\":[0,1]},\"said\":[{\"color\":\"yellow\",\"text\":\"I'VE FOUND B.J.'S HANDBAG!\"}],\"changed\":true}"
+      ]
+    },
+    {
+      "cmd": "open 22",
+      "raw": [
+        "A11Y_CMD open 22",
+        "A11Y_TEXT THERE IS A ONE THOUSAND BILL AND A COUPLE OF COINS",
+        "A11Y_DIFF {\"cmd\":\"open 22\",\"invAdded\":[{\"id\":7,\"name\":\"money\"},{\"id\":18,\"name\":\"two coins\"}],\"flags\":{\"23\":[0,1]},\"said\":[{\"color\":\"yellow\",\"text\":\"THERE IS A ONE THOUSAND BILL AND A COUPLE OF COINS\"}],\"changed\":true}"
+      ]
+    }
+  ]
+}

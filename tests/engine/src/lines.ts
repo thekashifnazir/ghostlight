@@ -1,0 +1,125 @@
+// Typed model of the engine a11y layer's output lines.
+//
+// The layer emits newline-delimited, prefix-tagged lines (see
+// .kiro/specs/engine-a11y-layer/design.md, "Data formats"). Most lines carry a
+// single-line JSON object after the prefix; a few carry free text. These types
+// describe what we parse back out, so both the replay fixtures (task 21) and the
+// property tests (task 22) share one contract.
+
+/** A single object in a room, as the engine reports it. */
+export interface A11yObject {
+  num: number;
+  name: string;
+  rect?: [number, number, number, number];
+  walkTo?: [number, number];
+  visible?: boolean;
+  door?: boolean;
+  /** Present only for doors: the room this door leads to. */
+  toRoom?: number;
+}
+
+/** An inventory entry in a diff (id plus resolved name). */
+export interface InvEntry {
+  id: number;
+  name: string;
+}
+
+/** A spoken line with its on-screen text colour. */
+export interface SaidLine {
+  color: string;
+  text: string;
+}
+
+/** A conversation choice. */
+export interface Choice {
+  n: number;
+  text: string;
+  used: boolean;
+  /** Choice 4 always ends the conversation. */
+  ends?: boolean;
+}
+
+/** `A11Y ` full room state, emitted on room entry and for `dump`/`state`. */
+export interface RoomState {
+  kind: "room";
+  chapter: number;
+  room: number;
+  hero: { x: number; y: number };
+  objects: A11yObject[];
+  inventory: number[];
+  flags: number[];
+}
+
+/** `A11Y_DIFF ` one "what changed" line after a command settles. */
+export interface Diff {
+  kind: "diff";
+  cmd: string;
+  /** Present only when the chapter changed, as [from, to]. */
+  chapter?: [number, number];
+  /** Present only when the room changed, as [from, to]. */
+  room?: [number, number];
+  /** The new room's objects, present when the room changed. */
+  objects?: A11yObject[];
+  appeared?: A11yObject[];
+  disappeared?: A11yObject[];
+  doors?: A11yObject[];
+  invAdded?: InvEntry[];
+  invRemoved?: InvEntry[];
+  /** Flag changes keyed by index string, value [from, to]. */
+  flags?: Record<string, [number, number]>;
+  said?: SaidLine[];
+  /** false when nothing moved. */
+  changed?: boolean;
+}
+
+export interface CmdEcho {
+  kind: "cmd";
+  text: string;
+}
+
+export interface ErrLine {
+  kind: "err";
+  text: string;
+}
+
+export interface TextLine {
+  kind: "text";
+  text: string;
+}
+
+export interface ChoicesLine {
+  kind: "choices";
+  choices: Choice[];
+}
+
+export interface InvLine {
+  kind: "inv";
+  items: { id: number; name: string; look?: string }[];
+}
+
+export interface SavedLine {
+  kind: "saved";
+  slot: string;
+}
+
+export interface HoverLine {
+  kind: "hover";
+  text: string;
+}
+
+export interface SayLine {
+  kind: "say";
+  text: string;
+}
+
+export type A11yLine =
+  | RoomState
+  | Diff
+  | CmdEcho
+  | ErrLine
+  | TextLine
+  | ChoicesLine
+  | InvLine
+  | SavedLine
+  | HoverLine
+  | SayLine;

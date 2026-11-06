@@ -1,0 +1,14 @@
+{
+  "label": "leave-tavern",
+  "startRaw": "A11Y {\"chapter\":1,\"room\":62,\"hero\":{\"x\":171,\"y\":158},\"objects\":[{\"num\":52,\"name\":\"BARTENDER\",\"rect\":[2,100,42,60],\"walkTo\":[40,160],\"visible\":true,\"door\":false},{\"num\":105,\"name\":\"DOOR\",\"rect\":[260,80,40,90],\"walkTo\":[270,165],\"visible\":true,\"door\":true,\"toRoom\":63}],\"inventory\":[28],\"flags\":[1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]}",
+  "steps": [
+    {
+      "cmd": "walk 105",
+      "raw": [
+        "A11Y_CMD walk 105",
+        "A11Y_CMD skip",
+        "A11Y_DIFF {\"cmd\":\"walk 105\",\"chapter\":[1,2],\"room\":[62,14],\"objects\":[{\"num\":159,\"name\":\"ESCALERA\",\"rect\":[10,60,40,100],\"walkTo\":[40,160],\"visible\":true,\"door\":true,\"toRoom\":12},{\"num\":162,\"name\":\"HABITACIONES\",\"rect\":[200,40,60,80],\"walkTo\":[230,160],\"visible\":true,\"door\":true,\"toRoom\":16},{\"num\":171,\"name\":\"DOOR\",\"rect\":[120,70,36,90],\"walkTo\":[135,160],\"visible\":true,\"door\":true,\"toRoom\":15},{\"num\":52,\"name\":\"BARTENDER\",\"rect\":[2,100,42,60],\"walkTo\":[40,160],\"visible\":true,\"door\":false}],\"changed\":true}"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,19 @@
+{
+  "name": "@ghostlight/engine-tests",
+  "version": "1.0.0",
+  "description": "Replay-fixture regression tests and fast-check property tests for the engine a11y layer. Fixture-backed now; wires to the real native engine later.",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "devDependencies": {
+    "@types/node": "22.10.2",
+    "fast-check": "3.23.2",
+    "tsx": "4.19.2",
+    "typescript": "5.7.2",
+    "vitest": "2.1.8"
+  }
+}

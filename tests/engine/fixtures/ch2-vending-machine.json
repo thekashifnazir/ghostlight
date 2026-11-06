@@ -1,0 +1,44 @@
+{
+  "label": "ch2-vending-machine",
+  "startRaw": "A11Y {\"chapter\":2,\"room\":14,\"hero\":{\"x\":174,\"y\":160},\"objects\":[{\"num\":159,\"name\":\"ESCALERA\",\"rect\":[10,60,40,100],\"walkTo\":[40,160],\"visible\":true,\"door\":true,\"toRoom\":12},{\"num\":162,\"name\":\"HABITACIONES\",\"rect\":[200,40,60,80],\"walkTo\":[230,160],\"visible\":true,\"door\":true,\"toRoom\":16},{\"num\":171,\"name\":\"DOOR\",\"rect\":[120,70,36,90],\"walkTo\":[135,160],\"visible\":true,\"door\":true,\"toRoom\":15},{\"num\":52,\"name\":\"BARTENDER\",\"rect\":[2,100,42,60],\"walkTo\":[40,160],\"visible\":true,\"door\":false}],\"inventory\":[7,18,22,28],\"flags\":[1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,0,0,1,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]}",
+  "steps": [
+    {
+      "cmd": "walk 171",
+      "raw": [
+        "A11Y_CMD walk 171",
+        "A11Y_DIFF {\"cmd\":\"walk 171\",\"room\":[14,15],\"objects\":[{\"num\":172,\"name\":\"DOOR\",\"rect\":[10,70,36,90],\"walkTo\":[25,160],\"visible\":true,\"door\":true,\"toRoom\":14},{\"num\":187,\"name\":\"ESCALERAS\",\"rect\":[220,50,50,100],\"walkTo\":[245,160],\"visible\":true,\"door\":false},{\"num\":188,\"name\":\"MACHINE\",\"rect\":[120,90,50,70],\"walkTo\":[150,165],\"visible\":true,\"door\":false}],\"changed\":true}"
+      ]
+    },
+    {
+      "cmd": "look 188",
+      "raw": [
+        "A11Y_CMD look 188",
+        "A11Y_TEXT IT'S A VENDING MACHINE",
+        "A11Y_DIFF {\"cmd\":\"look 188\",\"flags\":{\"12\":[0,1]},\"said\":[{\"color\":\"yellow\",\"text\":\"IT'S A VENDING MACHINE\"}],\"changed\":false}"
+      ]
+    },
+    {
+      "cmd": "use 18 188",
+      "raw": [
+        "A11Y_CMD use 18 188",
+        "A11Y_TEXT THIS IS A TRICK! NOTHING CAME OUT!",
+        "A11Y_DIFF {\"cmd\":\"use 18 188\",\"invAdded\":[{\"id\":19,\"name\":\"one coin\"}],\"invRemoved\":[{\"id\":18,\"name\":\"two coins\"}],\"flags\":{\"27\":[1,0]},\"said\":[{\"color\":\"yellow\",\"text\":\"THIS IS A TRICK! NOTHING CAME OUT!\"}],\"changed\":true}"
+      ]
+    },
+    {
+      "cmd": "take 999",
+      "raw": [
+        "A11Y_CMD take 999",
+        "A11Y_ERR no object 999 in room 15"
+      ]
+    },
+    {
+      "cmd": "push 188",
+      "raw": [
+        "A11Y_CMD push 188",
+        "A11Y_TEXT AT LAST!",
+        "A11Y_DIFF {\"cmd\":\"push 188\",\"invAdded\":[{\"id\":16,\"name\":\"cigarettes\"}],\"flags\":{\"26\":[0,1],\"27\":[0,1]},\"said\":[{\"color\":\"yellow\",\"text\":\"AT LAST!\"}],\"changed\":true}"
+      ]
+    }
+  ]
+}
