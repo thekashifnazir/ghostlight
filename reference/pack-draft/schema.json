@@ -1,0 +1,233 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/scummvm-a11y-pack/0.1/schema.json",
+  "title": "ScummVM accessibility pack, format 0.1",
+  "type": "object",
+  "required": ["format", "formatVersion", "game", "pack", "rooms"],
+  "additionalProperties": false,
+  "patternProperties": { "^x-": {} },
+  "properties": {
+    "$schema": { "type": "string" },
+    "format": { "const": "scummvm-a11y-pack" },
+    "formatVersion": { "type": "string", "pattern": "^0\\.[0-9]+$" },
+    "game": {
+      "type": "object",
+      "required": ["engine", "gameId", "language"],
+      "additionalProperties": false,
+      "patternProperties": { "^x-": {} },
+      "properties": {
+        "engine": { "$ref": "#/$defs/slug" },
+        "gameId": { "$ref": "#/$defs/slug" },
+        "language": { "type": "string", "pattern": "^[a-z]{2}(_[A-Za-z]{2})?$" },
+        "platform": { "type": "string" },
+        "title": { "type": "string" },
+        "variant": { "type": "string" }
+      }
+    },
+    "pack": {
+      "type": "object",
+      "required": ["version", "updated", "coverage"],
+      "additionalProperties": false,
+      "patternProperties": { "^x-": {} },
+      "properties": {
+        "version": { "type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$" },
+        "updated": { "type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$" },
+        "coverage": {
+          "type": "object",
+          "required": ["chapters"],
+          "additionalProperties": false,
+          "properties": { "chapters": { "type": "array", "items": { "type": "integer", "minimum": 0 }, "minItems": 1, "uniqueItems": true } }
+        },
+        "speechLocale": { "type": "string" },
+        "authors": { "type": "array", "items": { "type": "string" } },
+        "licence": { "type": "string" },
+        "notes": { "type": "string" }
+      }
+    },
+    "textFixes": { "type": "array", "items": { "$ref": "#/$defs/textFix" } },
+    "chapters": {
+      "type": "object",
+      "propertyNames": { "$ref": "#/$defs/numKey" },
+      "additionalProperties": { "$ref": "#/$defs/chapter" }
+    },
+    "rooms": {
+      "type": "object",
+      "propertyNames": { "$ref": "#/$defs/numKey" },
+      "additionalProperties": { "$ref": "#/$defs/room" }
+    },
+    "items": { "type": "array", "items": { "$ref": "#/$defs/item" } },
+    "cutscenes": {
+      "type": "object",
+      "propertyNames": { "pattern": "^[A-Za-z0-9_.-]+$" },
+      "additionalProperties": { "$ref": "#/$defs/cutscene" }
+    },
+    "milestones": { "type": "array", "items": { "$ref": "#/$defs/milestone" } }
+  },
+  "$defs": {
+    "slug": { "type": "string", "pattern": "^[a-z0-9][a-z0-9_-]*$" },
+    "numKey": { "type": "string", "pattern": "^(0|[1-9][0-9]*)$" },
+    "text": { "type": "string", "minLength": 1, "not": { "pattern": "—" } },
+    "note": { "type": "string" },
+    "chapter": {
+      "type": "object",
+      "required": ["name", "startRoom", "summary"],
+      "additionalProperties": false,
+      "patternProperties": { "^x-": {} },
+      "properties": {
+        "name": { "$ref": "#/$defs/text" },
+        "startRoom": { "type": "integer", "minimum": 0 },
+        "summary": { "$ref": "#/$defs/text" },
+        "note": { "$ref": "#/$defs/note" }
+      }
+    },
+    "room": {
+      "type": "object",
+      "required": ["chapters", "name", "short", "long", "seen", "exits", "objects"],
+      "additionalProperties": false,
+      "patternProperties": { "^x-": {} },
+      "properties": {
+        "chapters": { "type": "array", "items": { "type": "integer", "minimum": 0 }, "minItems": 1, "uniqueItems": true },
+        "name": { "$ref": "#/$defs/text", "maxLength": 40 },
+        "short": { "$ref": "#/$defs/text", "maxLength": 300 },
+        "long": { "$ref": "#/$defs/text" },
+        "seen": { "type": "boolean" },
+        "note": { "$ref": "#/$defs/note" },
+        "exits": {
+          "type": "object",
+          "propertyNames": { "$ref": "#/$defs/numKey" },
+          "additionalProperties": { "$ref": "#/$defs/exit" }
+        },
+        "objects": {
+          "type": "object",
+          "propertyNames": { "$ref": "#/$defs/numKey" },
+          "additionalProperties": { "$ref": "#/$defs/object" }
+        }
+      }
+    },
+    "exit": {
+      "type": "object",
+      "required": ["label", "to"],
+      "additionalProperties": false,
+      "patternProperties": { "^x-": {} },
+      "properties": {
+        "label": { "$ref": "#/$defs/text", "maxLength": 60 },
+        "to": { "type": ["integer", "null"], "minimum": 0 },
+        "direction": { "enum": ["left", "right", "ahead", "back", "up", "down"] },
+        "opensWhen": { "$ref": "#/$defs/condition" },
+        "note": { "$ref": "#/$defs/note" }
+      }
+    },
+    "object": {
+      "type": "object",
+      "required": ["name", "type"],
+      "additionalProperties": false,
+      "patternProperties": { "^x-": {} },
+      "properties": {
+        "name": { "$ref": "#/$defs/text", "maxLength": 40 },
+        "type": { "enum": ["object", "exit", "npc"] },
+        "description": { "$ref": "#/$defs/text" },
+        "note": { "$ref": "#/$defs/note" }
+      }
+    },
+    "item": {
+      "type": "object",
+      "required": ["id", "chapters", "name", "description"],
+      "additionalProperties": false,
+      "patternProperties": { "^x-": {} },
+      "properties": {
+        "id": { "type": "integer", "minimum": 0 },
+        "chapters": { "type": "array", "items": { "type": "integer", "minimum": 0 }, "minItems": 1, "uniqueItems": true },
+        "name": { "$ref": "#/$defs/text", "maxLength": 40 },
+        "description": { "$ref": "#/$defs/text" },
+        "note": { "$ref": "#/$defs/note" }
+      }
+    },
+    "textFix": {
+      "type": "object",
+      "required": ["from", "to", "context", "reason"],
+      "additionalProperties": false,
+      "patternProperties": { "^x-": {} },
+      "properties": {
+        "from": { "type": "string", "minLength": 1 },
+        "to": { "$ref": "#/$defs/text" },
+        "context": { "enum": ["hotspot", "dialogue", "any"] },
+        "match": { "enum": ["exact", "substring"], "default": "exact" },
+        "rooms": { "type": "array", "items": { "type": "integer", "minimum": 0 }, "uniqueItems": true },
+        "reason": { "enum": ["spanish", "typo", "spelling", "clarity"] },
+        "note": { "$ref": "#/$defs/note" }
+      }
+    },
+    "cutscene": {
+      "type": "object",
+      "required": ["chapter", "trigger", "hasDialogue", "description", "seen"],
+      "additionalProperties": false,
+      "patternProperties": { "^x-": {} },
+      "properties": {
+        "chapter": { "type": "integer", "minimum": 0 },
+        "trigger": { "$ref": "#/$defs/text" },
+        "hasDialogue": { "type": "boolean" },
+        "description": { "$ref": "#/$defs/text" },
+        "seen": { "type": "boolean" },
+        "note": { "$ref": "#/$defs/note" }
+      }
+    },
+    "condition": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": false,
+      "properties": {
+        "chapter": { "type": "integer", "minimum": 0 },
+        "room": {
+          "oneOf": [
+            { "type": "integer", "minimum": 0 },
+            { "type": "array", "items": { "type": "integer", "minimum": 0 }, "minItems": 1 }
+          ]
+        },
+        "flags": {
+          "type": "object",
+          "minProperties": 1,
+          "propertyNames": { "$ref": "#/$defs/numKey" },
+          "additionalProperties": { "type": "integer" }
+        },
+        "has": { "type": "array", "items": { "type": "integer", "minimum": 0 }, "minItems": 1 },
+        "lacks": { "type": "array", "items": { "type": "integer", "minimum": 0 }, "minItems": 1 },
+        "all": { "type": "array", "items": { "$ref": "#/$defs/condition" }, "minItems": 1 },
+        "any": { "type": "array", "items": { "$ref": "#/$defs/condition" }, "minItems": 1 },
+        "not": { "$ref": "#/$defs/condition" },
+        "milestone": { "type": "string" }
+      }
+    },
+    "milestone": {
+      "type": "object",
+      "required": ["id", "chapter", "title", "recap", "hints"],
+      "additionalProperties": false,
+      "patternProperties": { "^x-": {} },
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-z0-9]+(\\.[a-z0-9-]+)+$" },
+        "chapter": { "type": "integer", "minimum": 0 },
+        "title": { "$ref": "#/$defs/text", "maxLength": 60 },
+        "after": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
+        "when": { "$ref": "#/$defs/condition" },
+        "end": { "const": true },
+        "rooms": { "type": "array", "items": { "type": "integer", "minimum": 0 }, "uniqueItems": true },
+        "optional": { "type": "boolean" },
+        "recap": { "$ref": "#/$defs/text" },
+        "hints": {
+          "type": "object",
+          "required": ["nudge", "clue", "answer"],
+          "additionalProperties": false,
+          "properties": {
+            "nudge": { "$ref": "#/$defs/text" },
+            "clue": { "$ref": "#/$defs/text" },
+            "answer": { "$ref": "#/$defs/text" }
+          }
+        },
+        "note": { "$ref": "#/$defs/note" }
+      },
+      "oneOf": [
+        { "required": ["when"], "not": { "required": ["end"] } },
+        { "required": ["end"], "not": { "required": ["when"] } }
+      ]
+    }
+  }
+}
