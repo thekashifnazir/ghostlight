@@ -23,7 +23,7 @@ New code lives under `src/hints/` (including the committed audio cache at `src/h
   - Unit-test the room preference, the optional deprioritisation, and the empty-set case.
   - _Requirements: 2.1, 2.2, 2.3, 2.4, 2.5, 2.6_
 
-- [ ] 5. Tier progression (pure)
+- [x] 5. Tier progression (pure)
   - Create `src/hints/tiers.ts` holding tier state per milestone id: `nextTier(state, id)` returns `nudge` first then steps `clue`, `answer`, clamped at `answer`; `answerTier(state, id)` returns `answer` and records it; a new id starts at `nudge` (reset on target change); never skips a tier.
   - Unit-test the nudge→clue→answer→answer sequence, direct-answer recording, and per-id independence.
   - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5, 3.6, 4.1, 4.2, 4.3_
