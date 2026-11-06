@@ -35,7 +35,7 @@ These tasks implement the design. Each cites the requirements it covers. All wor
   - Merge stage 1 and stage 2 errors into one list; exit 0 when empty, non-zero with the full list otherwise.
   - _Requirements: 4.5, 4.6, 4.7, 5.2, 5.3, 6.1, 6.2, 6.4_
 
-- [ ] 7. Coverage checker
+- [x] 7. Coverage checker
   - Write `packs/tools/src/coverage.ts`: read the census and a pack, take `pack.coverage.chapters`, and check room presence, hotspot presence (set of `num` per room), door destinations (`to` equals census `toRoom` unless a documented `note` overrides), stale entries, and exit-graph agreement (including `to: null` must carry a note).
   - Treat `doorGates` flag numbers as real flags for the covered chapters.
   - Collect every gap; exit non-zero with the full list when any room, hotspot or door is uncovered.
