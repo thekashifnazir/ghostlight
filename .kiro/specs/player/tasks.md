@@ -72,11 +72,11 @@ All code lives under `src/` and `test/`. Do not edit `engine/`, `packs/` or `scr
   - Create `src/ui/inventory.ts`: Tab opens a keyboard list of carried items by pack name; choosing sets the active item and announces it; with an item active, interacting on a hotspot sends `use item target` and choosing another item sends `use item item2`; Backspace clears the active item else closes the inventory; announce "Received X" on `invAdded` and "no longer carried" on `invRemoved`.
   - _Requirements: 6.1, 6.2, 6.3, 6.4, 6.5, 6.6, 6.7_
 
-- [ ] 15. Implement the typed-phrase parser (pure, optional shortcut)
+- [x] 15. Implement the typed-phrase parser (pure, optional shortcut)
   - Create `src/model/parser.ts` with `parsePhrase(phrase, visible, inventory, context)`: fixed phrases, then verb phrases with on/with/in/to splitting, then a bare name scored against only the currently visible hotspots and carried items; return `hotspot`/`item`/`use`/`fixed`/`choice`/`ambiguous`/`none` and never a hotspot that is not present.
   - _Requirements: 12.1, 12.2, 12.3, 12.4, 12.5, 12.6_
 
-- [ ] 16. Property test for the typed-phrase matcher
+- [x] 16. Property test for the typed-phrase matcher
   - Add `test/parser.prop.test.ts`: generate a set of visible hotspots; a phrase from one present name resolves to that hotspot; a phrase from a name not in the set never resolves to a hotspot (returns `none` or `ambiguous`).
   - _Requirements: 14.4, 12.2, 12.3_
 
