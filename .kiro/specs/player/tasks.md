@@ -49,7 +49,7 @@ All code lives under `src/` and `test/`. Do not edit `engine/`, `packs/` or `scr
   - Add a property that `uniquifyNames` yields distinct names within every duplicate group.
   - _Requirements: 14.3, 1.3, 2.5_
 
-- [ ] 10. Build the live region
+- [x] 10. Build the live region
   - Create `src/ui/live-region.ts` owning the one `role=log` region: `announce(text)` replaces content (interrupt, not append), keeps the last line for repeat, and composes the room-entry announcement (name, short, things/people, exits) and the "N of M" focus line.
   - Unit-test that announce replaces rather than appends and that repeat returns the last line.
   - _Requirements: 9.1, 9.2, 9.3, 9.4, 7.1_
