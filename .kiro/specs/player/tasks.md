@@ -59,7 +59,7 @@ All code lives under `src/` and `test/`. Do not edit `engine/`, `packs/` or `scr
   - Unit/property-test that `rebuild` leaves one in-range focused index for any non-empty list.
   - _Requirements: 1.5, 1.6, 1.7, 2.1, 2.2, 2.3, 2.4, 2.6_
 
-- [ ] 12. Implement the canvas highlight
+- [x] 12. Implement the canvas highlight
   - Create `src/ui/highlight.ts`: an aria-hidden overlay that `show(rect)` positions over the focused hotspot (scaled engine→canvas), clamps to the edge with a direction marker when off-screen, and `hide()` when the list is empty; carries no functional info.
   - Wire highlight updates to list focus changes.
   - _Requirements: 5.1, 5.2, 5.3, 5.4, 5.5_
