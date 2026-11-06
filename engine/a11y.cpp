@@ -28,6 +28,7 @@
 #include "common/str.h"
 #include "common/system.h"
 #include "common/textconsole.h"
+#include "common/util.h"
 
 #include "drascula/drascula.h"
 #include "drascula/a11y.h"
@@ -312,6 +313,13 @@ void A11yLayer::runCommand(const Common::String &cmd) {
 		return;
 	}
 
+	// Doors and walking (task 9, R3.8 / R2.6). One numeric arg is an object
+	// walk (`walk 52`); two numeric args are a free-point walk (`walk 170 158`).
+	if (verb == "walk") {
+		dispatchWalk(arg);
+		return;
+	}
+
 	// No handler yet (lands in a later task). Report and continue (R2.5).
 	emitLine(Common::String("A11Y_ERR no handler for command: ") + cmd);
 }
@@ -435,6 +443,156 @@ bool A11yLayer::dispatchVerb(int verbConst, const Common::String &arg) {
 
 	runVerbOnSlot(verbConst, slot);
 	return true;
+}
+
+// --- Doors and walking (task 9, R3.8 / R2.6) --------------------------------
+//
+// `walk` has two forms, told apart by how many whitespace-separated integer
+// arguments follow it:
+//
+//   * one arg  — `walk 52`      — walk to / through the room object whose
+//                                 engine hotspot number is 52.
+//   * two args — `walk 170 158` — walk the hero to the free room point (170,158).
+//
+// A bad target (object not in the room, or arguments that are not one or two
+// integers) emits A11Y_ERR and the layer keeps running (R2.5). Both forms route
+// through the engine's own walk/door code, which runs its own loop to
+// completion before returning, so the command has settled by the time control
+// is back in poll() and the next command can start (R2.2).
+
+// Parse the whitespace-separated words of `arg` and decide which walk form it
+// is. Accepts an optional leading sign on each integer so a negative coordinate
+// is a clear malformed-target error rather than a silent atoi() surprise.
+static bool parseInt(const Common::String &s, int &out) {
+	if (s.empty())
+		return false;
+	uint i = 0;
+	if (s[0] == '-' || s[0] == '+')
+		i = 1;
+	if (i >= s.size())
+		return false;                 // sign with no digits
+	for (; i < s.size(); i++) {
+		if (s[i] < '0' || s[i] > '9')
+			return false;
+	}
+	out = atoi(s.c_str());
+	return true;
+}
+
+void A11yLayer::dispatchWalk(const Common::String &arg) {
+	// Split the argument into whitespace-separated words. arg is already
+	// trimmed by runCommand(), so there is no leading/trailing space; collapse
+	// any run of spaces between words.
+	Common::Array<Common::String> words;
+	Common::String cur;
+	for (uint i = 0; i < arg.size(); i++) {
+		char c = arg[i];
+		if (c == ' ' || c == '\t') {
+			if (!cur.empty()) {
+				words.push_back(cur);
+				cur.clear();
+			}
+		} else {
+			cur += c;
+		}
+	}
+	if (!cur.empty())
+		words.push_back(cur);
+
+	if (words.empty()) {
+		emitLine("A11Y_ERR walk needs a target: `walk <object>` or `walk <x> <y>`");
+		return;
+	}
+
+	// One word: object walk. Resolve the slot for the engine hotspot number and
+	// walk to / through it; A11Y_ERR if the object is not in this room (R2.5).
+	if (words.size() == 1) {
+		int num;
+		if (!parseInt(words[0], num)) {
+			emitLine(Common::String("A11Y_ERR walk object must be a number, got: ") + words[0]);
+			return;
+		}
+		int slot = slotForObjectNum(num);
+		if (slot < 0) {
+			emitLine(Common::String::format(
+				"A11Y_ERR object %d is not in this room", num));
+			return;
+		}
+		walkObject(slot);
+		return;
+	}
+
+	// Two words: free-point walk. Both must be integers (R2.5).
+	if (words.size() == 2) {
+		int x, y;
+		if (!parseInt(words[0], x) || !parseInt(words[1], y)) {
+			emitLine(Common::String::format(
+				"A11Y_ERR walk point needs two integer coordinates, got: %s %s",
+				words[0].c_str(), words[1].c_str()));
+			return;
+		}
+		walkPoint(x, y);
+		return;
+	}
+
+	// Anything else is malformed (R2.5).
+	emitLine("A11Y_ERR walk takes one object number or two coordinates, "
+	         "e.g. `walk 52` or `walk 170 158`");
+}
+
+// Walk to / through the room object in `slot`. A door runs the engine's own
+// exitRoom(), so the hero walks to the door and the game plays its door
+// animation and runs exitRoom()/enterRoom() the same way clicking the door
+// does — the transition is the game's, not a teleport (R3.8). verify1() checks
+// exitRoom(l) first for exactly this reason, so we mirror that: a door goes
+// through exitRoom(); a non-door is a plain walk to its walk-to point.
+//
+// exitRoom() takes the slot index (it reads objectNum[slot], _roomObject[slot],
+// isDoor[slot], _doorDestRoom[slot] itself) and does its own walkToPoint() to
+// the door before the transition. A locked or no-op door returns its own text
+// (e.g. chapter 1's room-105 door says "I DON'T HAVE A ROOM YET" via talk(442)
+// when flags[0]==0) and returns false without changing room, which is the
+// correct game behaviour, not an error — poll() simply finds the room
+// unchanged and emits nothing new.
+void A11yLayer::walkObject(int slot) {
+	DrasculaEngine *e = _engine;
+
+	if (e->isDoor[slot]) {
+		// The engine's own door path: walk to the door, play any door
+		// animation, run exitRoom()/enterRoom() for _doorDestRoom[slot]. poll()
+		// detects the resulting room/chapter change and re-emits the A11Y room
+		// state (task 4), so we do not emit it here.
+		e->exitRoom(slot);
+		return;
+	}
+
+	// A non-door object: just walk the hero to the object's walk-to point, the
+	// same point the engine walks to before acting on the object. Face the
+	// object afterwards, as the engine's own object-walk does (trackFinal via
+	// _walkToObject). walkToPoint() runs its own loop to completion.
+	e->trackFinal = e->trackObj[slot];
+	e->_walkToObject = true;
+	e->walkToPoint(e->_roomObject[slot]);
+}
+
+// Walk the hero to a free room point using the engine's own walkToPoint(). The
+// point is clamped to the walkable rectangle exactly as verify1() does for a
+// free-point click: x within [_walkRect.left, _walkRect.right], y within
+// [_walkRect.top + feetHeight, _walkRect.bottom]. This keeps the target on the
+// floor the hero can actually reach; walkToPoint() then runs its own walk loop
+// to completion (and returns at once if the hero is already on that cell, so a
+// walk-in-place never hangs).
+void A11yLayer::walkPoint(int x, int y) {
+	DrasculaEngine *e = _engine;
+
+	int cx = CLIP<int>(x, (int)e->_walkRect.left, (int)e->_walkRect.right);
+	int cy = CLIP<int>(y, (int)e->_walkRect.top + e->feetHeight, (int)e->_walkRect.bottom);
+
+	// A free-point walk is not an object walk, so clear _walkToObject; this
+	// stops walkToPoint() applying trackFinal (the object-facing direction)
+	// from a previous command.
+	e->_walkToObject = false;
+	e->walkToPoint(Common::Point(cx, cy));
 }
 
 // --- Synthetic click model (R8 / R3.3 / gotchas 2, 3) -----------------------

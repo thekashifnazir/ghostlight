@@ -107,6 +107,35 @@ private:
 	// value for the a11y verb word. Returns true if it handled the command.
 	bool dispatchVerb(int verbConst, const Common::String &arg);
 
+	// Handle the `walk` command. Two forms (R3.8, R2.6):
+	//   * `walk <num>`     — one argument: walk to / through the room object
+	//                        whose engine hotspot number is <num>. A door runs
+	//                        the engine's own exitRoom() so the door animation
+	//                        plays and the next room is entered (R3.8); a
+	//                        non-door just walks the hero to its walk-to point.
+	//   * `walk <x> <y>`   — two arguments: walk the hero to the free point
+	//                        (x, y) in room coordinates.
+	// Emits A11Y_ERR and keeps running on a bad target (object not in room, or
+	// malformed coordinates) (R2.5). The engine's walk/door code runs its own
+	// loop to completion before returning, so the command settles before the
+	// next one starts (R2.2).
+	void dispatchWalk(const Common::String &arg);
+
+	// Walk to / through the room object in `slot`. If the object is a door,
+	// call the engine's exitRoom(slot) so the hero walks to it the game's way
+	// and the engine runs its own door animation + enterRoom() transition
+	// (R3.8). Otherwise walk the hero to the object's walk-to point with the
+	// engine's own walkToPoint(). Does not teleport the hero or set the room
+	// number directly — the transition is always the engine's.
+	void walkObject(int slot);
+
+	// Walk the hero to a free point (x, y) in room coordinates using the
+	// engine's own walkToPoint(). The point is clipped to the room's walkable
+	// rectangle (_walkRect, with the hero's foot height), the same clamp the
+	// engine's own free-point click path (verify1()) applies, so an off-walk
+	// target lands on the nearest reachable spot rather than wandering.
+	void walkPoint(int x, int y);
+
 	// Build the full room-state JSON object (chapter, room, hero point,
 	// objects, inventory, flags) as a single line. Shared by onRoomEntry()
 	// and dump() so both emit identical state.
