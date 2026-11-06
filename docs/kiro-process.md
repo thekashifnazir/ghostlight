@@ -94,3 +94,11 @@ Files changed: `.kiro/specs/pack/tasks.md`, `packs/schema.json`, `docs/kiro-proc
 Time: a few minutes.
 What went wrong or surprised you: nothing. Used a real `$id` host (`ghostlight.dev`) in place of the draft's `example.invalid`.
 What was learned: the only structural change from the draft to v1 is the version pattern; the field shapes already match the census and the engine spec, so v1 is a promotion.
+
+## 12 · pack · Incident: commit 151e89b swept up engine files
+What was asked: run pack tasks on autopilot, staging only my own files, because another chat is editing the engine spec in the same working tree.
+What Kiro did: committed pack task 1 with `git add <my paths>` then `git commit`. The commit (151e89b) also included `engine/hooks.patch` and `scripts/build-engine.sh`, which belong to the other chat and were already staged in the shared index. By agreement (Kash, option 1) 151e89b is left as is, not rewritten.
+Files changed: none for this entry beyond the log; the fix is a steering rule and a change of habit.
+Time: a few minutes to diagnose and agree the fix.
+What went wrong or surprised you: `git add <paths>` stages only those paths, but `git commit` with no pathspec commits the whole index, including files another chat staged. In a shared working tree that quietly sweeps up their work. Added a "Parallel chats" section to `process-log.md` steering (no tree-wide git commands; always `git commit -- <paths>`; only touch your own rows; prefix log headings with the spec name) and switched to explicit-pathspec commits.
+What was learned: in a shared tree, commit with explicit pathspecs (`git commit -- <paths>`) so only your files land regardless of what else is staged. A plain `git commit` is unsafe when another chat shares the index.
