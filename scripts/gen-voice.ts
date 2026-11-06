@@ -16,17 +16,20 @@
 // The ElevenLabs API key is read from the local .env by name
 // (ELEVENLABS_API_KEY) and is never printed, logged, or written anywhere. A
 // missing key fails with a clear message that names the key, not its value.
+//
+// `collectLines`, `generateInto` and the `Synth`/`Line` types are exported so
+// the cache-coverage test (R10.4) can run the generator over the real pack with
+// the ElevenLabs call mocked, into a temp dir, with no key or network.
 
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
-import { mkdirSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { cacheFileName, cacheKey } from "../src/hints/cache.js";
 import { loadPack } from "../packs/tools/src/load.js";
 import type { Hints, Milestone } from "../packs/tools/src/types.js";
 
-const VOICE_ID = "nbk2esDn4RRk4cVDdoiE"; // Alice (ASMR British Whisper)
-const MODEL_ID = "eleven_v4";
+export const VOICE_ID = "nbk2esDn4RRk4cVDdoiE"; // Alice (ASMR British Whisper)
+export const MODEL_ID = "eleven_v4";
 const KEY_NAME = "ELEVENLABS_API_KEY";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -37,15 +40,24 @@ const CACHE_DIR = resolve(REPO, "src/hints/ghost");
 type TierName = keyof Hints; // "nudge" | "clue" | "answer"
 const TIERS: TierName[] = ["nudge", "clue", "answer"];
 
-interface Line {
+export interface Line {
   milestoneId: string;
   chapter: number;
   tier: TierName;
   text: string;
 }
 
+/** Synthesize one line's audio bytes. Injected so the test can mock it. */
+export type Synth = (text: string) => Promise<Uint8Array>;
+
+export interface GenerateResult {
+  total: number;
+  skipped: number;
+  generated: number;
+}
+
 /** Every hint line in the pack: three tiers per milestone. */
-function collectLines(milestones: Milestone[]): Line[] {
+export function collectLines(milestones: Milestone[]): Line[] {
   const lines: Line[] = [];
   for (const m of milestones) {
     for (const tier of TIERS) {
@@ -60,6 +72,32 @@ function collectLines(milestones: Milestone[]): Line[] {
   return lines;
 }
 
+/**
+ * Write one content-addressed file per line into `outDir`, skipping lines
+ * already present, using `synth` to produce the bytes. Pure of the ElevenLabs
+ * SDK and of any key: the caller supplies `synth`. Returns the counts.
+ */
+export async function generateInto(
+  lines: Line[],
+  outDir: string,
+  synth: Synth,
+): Promise<GenerateResult> {
+  mkdirSync(outDir, { recursive: true });
+  let generated = 0;
+  let skipped = 0;
+  for (const line of lines) {
+    const key = await cacheKey(line.text, VOICE_ID, MODEL_ID);
+    const outPath = resolve(outDir, cacheFileName(key));
+    if (existsSync(outPath)) {
+      skipped += 1;
+      continue;
+    }
+    writeFileSync(outPath, Buffer.from(await synth(line.text)));
+    generated += 1;
+  }
+  return { total: lines.length, skipped, generated };
+}
+
 /** Read one named value from .env without exposing any other value. */
 function readEnvKey(name: string): string | undefined {
   const envPath = resolve(REPO, ".env");
@@ -72,7 +110,6 @@ function readEnvKey(name: string): string | undefined {
     if (eq === -1) continue;
     if (line.slice(0, eq).trim() !== name) continue;
     let value = line.slice(eq + 1).trim();
-    // Strip matching surrounding quotes if present.
     if (
       (value.startsWith('"') && value.endsWith('"')) ||
       (value.startsWith("'") && value.endsWith("'"))
@@ -87,7 +124,6 @@ function readEnvKey(name: string): string | undefined {
 function dryRun(lines: Line[]): void {
   const totalChars = lines.reduce((n, l) => n + l.text.length, 0);
 
-  // Per-chapter breakdown.
   const byChapter = new Map<number, { lines: number; chars: number }>();
   for (const l of lines) {
     const c = byChapter.get(l.chapter) ?? { lines: 0, chars: 0 };
@@ -96,7 +132,6 @@ function dryRun(lines: Line[]): void {
     byChapter.set(l.chapter, c);
   }
 
-  // Per-tier breakdown.
   const byTier = new Map<TierName, { lines: number; chars: number }>();
   for (const l of lines) {
     const t = byTier.get(l.tier) ?? { lines: 0, chars: 0 };
@@ -120,7 +155,6 @@ function dryRun(lines: Line[]): void {
     if (t) console.log(`  ${tier}: ${t.lines} lines, ${t.chars} chars`);
   }
   console.log("");
-  // Rough cost at ~$0.08 per 1,000 characters (spike 06-voice).
   const estUsd = (totalChars / 1000) * 0.08;
   console.log(`Estimated cost at $0.08/1,000 chars: $${estUsd.toFixed(2)}`);
 }
@@ -133,36 +167,40 @@ async function realRun(lines: Line[]): Promise<void> {
     );
   }
 
-  mkdirSync(CACHE_DIR, { recursive: true });
-
-  // Import the SDK lazily so dry-run needs no dependency on it.
-  const { ElevenLabsClient } = await import("@elevenlabs/elevenlabs-js");
+  // Import the SDK lazily and by a computed specifier so neither dry-run, the
+  // test, nor the project typecheck needs the package installed. The SDK is a
+  // real dependency only for the explicit paid run.
+  const sdkName = "@elevenlabs/elevenlabs-js";
+  const { ElevenLabsClient } = (await import(sdkName)) as {
+    ElevenLabsClient: new (opts: { apiKey: string }) => {
+      textToSpeech: {
+        convert: (
+          voiceId: string,
+          body: { text: string; modelId: string },
+        ) => Promise<AsyncIterable<Uint8Array>>;
+      };
+    };
+  };
   const client = new ElevenLabsClient({ apiKey });
 
-  let generated = 0;
-  let skipped = 0;
-  for (const line of lines) {
-    const key = await cacheKey(line.text, VOICE_ID, MODEL_ID);
-    const outPath = resolve(CACHE_DIR, cacheFileName(key));
-    if (existsSync(outPath)) {
-      skipped += 1;
-      continue;
-    }
+  const synth: Synth = async (text) => {
     const audio = await client.textToSpeech.convert(VOICE_ID, {
-      text: line.text,
+      text,
       modelId: MODEL_ID,
     });
     const chunks: Uint8Array[] = [];
-    for await (const chunk of audio as AsyncIterable<Uint8Array>) {
-      chunks.push(chunk);
-    }
-    writeFileSync(outPath, Buffer.concat(chunks));
-    generated += 1;
-  }
+    for await (const chunk of audio) chunks.push(chunk);
+    return Buffer.concat(chunks);
+  };
 
+  const { total, skipped, generated } = await generateInto(
+    lines,
+    CACHE_DIR,
+    synth,
+  );
   // Counts only; never the key, the text, or the key-to-file mapping.
   console.log(
-    `Done. ${lines.length} lines total, ${skipped} skipped (cached), ${generated} generated.`,
+    `Done. ${total} lines total, ${skipped} skipped (cached), ${generated} generated.`,
   );
 }
 
@@ -178,8 +216,14 @@ async function main(): Promise<void> {
   await realRun(lines);
 }
 
-main().catch((err) => {
-  // Print only the message; it never contains the key value.
-  console.error((err as Error).message);
-  process.exitCode = 1;
-});
+// Run as a CLI only when invoked directly, not when imported by the test.
+if (
+  typeof process !== "undefined" &&
+  process.argv[1] &&
+  fileURLToPath(import.meta.url) === resolve(process.argv[1])
+) {
+  main().catch((err) => {
+    console.error((err as Error).message);
+    process.exitCode = 1;
+  });
+}

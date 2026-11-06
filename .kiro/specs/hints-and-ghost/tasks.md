@@ -57,7 +57,7 @@ New code lives under `src/hints/` (including the committed audio cache at `src/h
   - Run both against the real pack's milestones, with no live engine or network.
   - _Requirements: 10.1, 10.2, 10.3, 10.5_
 
-- [ ] 11. Cache-coverage test
+- [x] 11. Cache-coverage test
   - Add `test/hints-cache.test.ts`: with the ElevenLabs call mocked (empty files written for computed keys, no key or network), run the generator over the real pack and assert every tier of every milestone has a file at `src/hints/ghost/<cacheKey(text, voice, model)>.mp3`.
   - _Requirements: 10.4, 10.5_
 
