@@ -13,7 +13,7 @@ These tasks implement the design. Each cites the requirements it covers. All wor
   - Walk the document against `packs/schema.json` field by field so the two agree exactly.
   - _Requirements: 1.2, 1.8, 2.6, 3.5_
 
-- [ ] 3. Tooling skeleton under packs/tools
+- [x] 3. Tooling skeleton under packs/tools
   - Create `packs/tools/package.json` (MIT licence; deps: ajv, fast-check, and a TS test runner), `packs/tools/tsconfig.json`, and a `packs/tools/README.md` with how to run `validate` and `check-coverage`.
   - Confirm `npm install` and a no-op `tsc --noEmit` succeed, and that nothing outside `packs/` is created.
   - Confirm current Ajv (2020-12) and fast-check APIs via the Context7 power before pinning versions.

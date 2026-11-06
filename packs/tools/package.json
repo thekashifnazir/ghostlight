@@ -1,0 +1,27 @@
+{
+  "name": "@ghostlight/pack-tools",
+  "version": "1.0.0",
+  "description": "Validator, coverage checker and tests for ScummVM accessibility packs (format v1).",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "pack-validate": "./dist/cli.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "validate": "tsx src/cli.ts validate",
+    "check-coverage": "tsx src/cli.ts check-coverage"
+  },
+  "dependencies": {
+    "ajv": "8.17.1"
+  },
+  "devDependencies": {
+    "@types/node": "22.10.2",
+    "fast-check": "3.23.2",
+    "tsx": "4.19.2",
+    "typescript": "5.7.2",
+    "vitest": "2.1.8"
+  }
+}
