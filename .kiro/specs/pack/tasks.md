@@ -89,7 +89,7 @@ These tasks implement the design. Each cites the requirements it covers. All wor
   - Include the real pack's milestones as one generated graph source.
   - _Requirements: 8.4, 8.5, 4.5_
 
-- [ ] 17. Green run and feature-table update
+- [x] 17. Green run and feature-table update
   - Run the full test suite and both CLI commands against the real pack and census; confirm all green and both exit 0.
   - Update the property-based-testing (fast-check) row in `docs/kiro-features.md` with the evidence path, as part of the logging pass.
   - _Requirements: 8.1, 9.2, 9.3, 10.5_

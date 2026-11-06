@@ -194,3 +194,11 @@ Files changed: `.kiro/specs/pack/tasks.md`, `packs/tools/test/gen.ts`, `packs/to
 Time: about 45 minutes.
 What went wrong or surprised you: nothing broke. Building the milestone graph so after only points at earlier list entries makes acyclicity free and keeps arbReachedSet's downward-closure simple; without that the generator would need a topological pass. The malformed-pack generator tags each case with its kind so the test can assert the right error surfaced rather than just "some error".
 What was learned: generating progress states as downward-closed sets over an acyclic graph is the key to testing the no-spoiler rule honestly; a random subset of reached ids would include impossible states (a milestone reached before its prerequisite) and would not exercise the real question.
+
+## 23 · pack · Task 17 done (green gate; feature table updated)
+What was asked: task 17, the final gate: run the full suite and both CLI commands green, and update the property-based-testing row in `docs/kiro-features.md`.
+What Kiro did: ran the gate: `tsc --noEmit` exit 0, `vitest run` 3 files / 12 tests all pass, `validate` exit 0, `check-coverage` exit 0 against the real pack and census. Updated two of my own rows in `docs/kiro-features.md`: "Property-based tests" to "in use" with evidence `packs/tools/test/` (coverage, real-flags and no-spoiler invariants; parser tests still TBD), and "Hooks: file save" to "in use" with evidence `.kiro/hooks/pack-validate-on-save.json` (pack validate; parser-test and wasm-rebuild hooks TBD). Left every other chat's rows untouched.
+Files changed: `.kiro/specs/pack/tasks.md`, `docs/kiro-features.md`, `docs/kiro-process.md`.
+Time: about 10 minutes.
+What went wrong or surprised you: nothing. The pack spec is now complete: all 17 tasks plus the 9a hook done. Both feature rows are shared with other specs (the file-save hook row also names parser-test and wasm-rebuild hooks, the property-tests row also names the parser), so I marked only the pack halves done and noted the rest TBD rather than claiming the whole row.
+What was learned: when a feature-table row spans more than one spec, mark just the part this spec delivered and name what is still outstanding, so the row stays honest across parallel chats.
