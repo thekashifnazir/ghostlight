@@ -74,12 +74,18 @@ RAW_LOG="$SAVEPATH/replay.log"
 # frame one, so the engine queues every command on the first poll.
 cp "$SCRIPT" "$CMD_FILE"
 
+# Stop the engine window. ScummVM ignores SIGTERM (gotcha 12), so a plain
+# `kill` leaves the process up and a following `wait` blocks forever. Send
+# SIGKILL straight away so the harness always returns cleanly after its window.
+stopEngine() {
+  [ -n "${ENGINE_PID:-}" ] || return 0
+  kill -0 "$ENGINE_PID" 2>/dev/null || return 0
+  kill -9 "$ENGINE_PID" 2>/dev/null || true
+  wait "$ENGINE_PID" 2>/dev/null || true
+}
+
 cleanup() {
-  # Stop the engine if it is still up.
-  if [ -n "${ENGINE_PID:-}" ] && kill -0 "$ENGINE_PID" 2>/dev/null; then
-    kill "$ENGINE_PID" 2>/dev/null || true
-    wait "$ENGINE_PID" 2>/dev/null || true
-  fi
+  stopEngine
   if [ "$CLEANUP_SAVEPATH" -eq 1 ]; then
     rm -rf "$SAVEPATH" 2>/dev/null || true
   fi
@@ -119,10 +125,7 @@ while [ "$SLEPT" -lt "$SECONDS_TO_RUN" ]; do
   SLEPT=$((SLEPT + 1))
 done
 
-if kill -0 "$ENGINE_PID" 2>/dev/null; then
-  kill "$ENGINE_PID" 2>/dev/null || true
-  wait "$ENGINE_PID" 2>/dev/null || true
-fi
+stopEngine
 ENGINE_PID=""
 
 # --- report ------------------------------------------------------------------
