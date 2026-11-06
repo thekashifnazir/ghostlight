@@ -4,6 +4,9 @@ out/
 dist/
 .env
 .DS_Store
+.playwright-mcp/
+playwright-report/
+test-results/
 # never ignore .kiro
 !.kiro/
 !.kiro/**

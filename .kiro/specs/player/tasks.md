@@ -2,7 +2,7 @@
 
 All code lives under `src/` and `test/`. Do not edit `engine/`, `packs/` or `scripts/`. The pack is read-only. Copy nothing from `reference/`. Build and test against the replay adapter so the player works before the web build exists. Confirm current Web, ARIA, axe-core, fast-check and Playwright APIs via the Context7 power as each is first used.
 
-- [ ] 1. Scaffold the player project under `src/`
+- [x] 1. Scaffold the player project under `src/`
   - Create `src/` with a TypeScript project (package.json, tsconfig, vite or esbuild dev server, vitest for unit/property tests, Playwright and axe-core as dev deps), MIT-licensed, no framework.
   - Add `src/index.html` with the start gate (focused start button), a hidden `aria-hidden` canvas, the single `role=log aria-live=polite` live region, and empty containers for the inventory and verb menu.
   - Verify the project builds and serves an empty page with no console errors.

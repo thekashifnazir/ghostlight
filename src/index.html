@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Ghostlight — Drascula, by keyboard and screen reader</title>
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ctext y='14' font-size='14'%3E%F0%9F%95%AF%3C/text%3E%3C/svg%3E"
+    />
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #11101a;
+        --fg: #f4f2ff;
+        --accent: #ffd166;
+        --muted: #b9b4d0;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        height: 100%;
+        background: var(--bg);
+        color: var(--fg);
+        font: 16px/1.5 system-ui, "Segoe UI", sans-serif;
+      }
+
+      body {
+        display: flex;
+        flex-direction: column;
+        min-height: 100%;
+      }
+
+      /* Visually-hidden but available to assistive tech and keyboard focus.
+         Used for the live region text mirror and for skip targets. */
+      .visually-hidden {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        margin: -1px;
+        padding: 0;
+        border: 0;
+        clip: rect(0 0 0 0);
+        clip-path: inset(50%);
+        overflow: hidden;
+        white-space: nowrap;
+      }
+
+      header {
+        padding: 0.75rem 1rem;
+        border-bottom: 1px solid #2a2740;
+      }
+
+      header h1 {
+        font-size: 1.1rem;
+        margin: 0;
+      }
+
+      main {
+        position: relative;
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+      }
+
+      /* The start gate covers the stage until the player presses a key. The
+         audio context and the engine only start on that first gesture
+         (browser autoplay policy, gotcha 8). */
+      #start-gate {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 1rem;
+        text-align: center;
+        padding: 2rem;
+        background: var(--bg);
+        z-index: 10;
+      }
+
+      #start-gate[hidden] {
+        display: none;
+      }
+
+      #start-gate p {
+        max-width: 42rem;
+        color: var(--muted);
+      }
+
+      #start-button {
+        font: inherit;
+        font-size: 1.2rem;
+        padding: 0.75rem 2rem;
+        border-radius: 0.5rem;
+        border: 2px solid var(--accent);
+        background: transparent;
+        color: var(--fg);
+        cursor: pointer;
+      }
+
+      #start-button:focus-visible {
+        outline: 3px solid var(--accent);
+        outline-offset: 3px;
+      }
+
+      /* The game canvas is purely visual and hidden from assistive tech
+         (accessibility rule: nothing functional lives only on the canvas). */
+      #stage {
+        position: relative;
+        flex: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #000;
+      }
+
+      #game-canvas {
+        display: block;
+        max-width: 100%;
+        max-height: 100%;
+        image-rendering: pixelated;
+      }
+
+      /* The focus highlight overlay for a sighted co-player. Decorative only
+         and aria-hidden; it carries nothing not already in the live region. */
+      #highlight {
+        position: absolute;
+        border: 3px solid var(--accent);
+        border-radius: 2px;
+        box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.6);
+        pointer-events: none;
+        display: none;
+      }
+
+      /* The visible transcript mirrors the live region for sighted co-players.
+         The live region itself is the authoritative text surface for screen
+         readers. */
+      #transcript {
+        max-height: 11rem;
+        overflow-y: auto;
+        padding: 0.75rem 1rem;
+        border-top: 1px solid #2a2740;
+        font-size: 0.95rem;
+      }
+
+      #transcript p {
+        margin: 0 0 0.35rem;
+      }
+
+      /* Containers for transient UI (verb menu, inventory). Positioned over
+         the stage; hidden until opened. */
+      #verb-menu[hidden],
+      #inventory[hidden] {
+        display: none;
+      }
+
+      #verb-menu,
+      #inventory {
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        transform: translate(-50%, -50%);
+        min-width: 14rem;
+        background: #1c1930;
+        border: 2px solid var(--accent);
+        border-radius: 0.5rem;
+        padding: 0.5rem;
+        z-index: 20;
+      }
+
+      #verb-menu button,
+      #inventory button {
+        display: block;
+        width: 100%;
+        text-align: left;
+        font: inherit;
+        padding: 0.4rem 0.6rem;
+        background: transparent;
+        color: var(--fg);
+        border: 0;
+        border-radius: 0.3rem;
+        cursor: pointer;
+      }
+
+      #verb-menu button:focus-visible,
+      #inventory button:focus-visible {
+        outline: 2px solid var(--accent);
+        outline-offset: 1px;
+        background: #2a2740;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>Ghostlight</h1>
+    </header>
+
+    <main>
+      <!-- Start gate: focused first, dismissed on first key press, which is
+           also when the audio context and engine start (gotcha 8). -->
+      <div id="start-gate">
+        <p>
+          Ghostlight makes Drascula playable with the keyboard and your screen
+          reader. Press the Start button, or any key, to begin. Press F1 at any
+          time for the list of controls.
+        </p>
+        <button id="start-button" type="button" autofocus>Start</button>
+      </div>
+
+      <div id="stage">
+        <!-- The engine renders here. aria-hidden: nothing a player must know
+             exists only as pixels. -->
+        <canvas id="game-canvas" width="320" height="200" aria-hidden="true"></canvas>
+
+        <!-- Decorative focus highlight for a sighted co-player (aria-hidden). -->
+        <div id="highlight" aria-hidden="true"></div>
+
+        <!-- Verb menu: a roving-focus menu for open/close/talk/push. -->
+        <div id="verb-menu" role="menu" aria-label="Actions" hidden></div>
+
+        <!-- Inventory: a keyboard list of carried items. -->
+        <div id="inventory" role="menu" aria-label="Inventory" hidden></div>
+      </div>
+
+      <!-- The one polite live region: every functional line is written here as
+           text. role=log, aria-live=polite, aria-atomic so each line is read
+           whole and the newest interrupts. -->
+      <div
+        id="live-region"
+        class="visually-hidden"
+        role="log"
+        aria-live="polite"
+        aria-atomic="true"
+      ></div>
+
+      <!-- Visible transcript mirror for sighted co-players. Not the screen
+           reader surface; the live region above is. -->
+      <section id="transcript" aria-hidden="true" aria-label="Transcript"></section>
+    </main>
+
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>
