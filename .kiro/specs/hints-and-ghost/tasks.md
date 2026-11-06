@@ -13,7 +13,7 @@ New code lives under `src/hints/` (including the committed audio cache at `src/h
   - Unit-test the evaluator against each condition shape, including nested `all`/`any`/`not`.
   - _Requirements: 1.1, 1.2_
 
-- [ ] 3. Progress tracker with latching
+- [x] 3. Progress tracker with latching
   - Create `src/hints/progress.ts` with `ProgressTracker(pack)`: `update(state)` unions `satisfiedMilestones` into a latched reached set (add only, never remove), iterating to a fixed point so chained `when.milestone` satisfactions all latch in one call, and records the chapter; `progress()` returns `{ chapter, reached: ReadonlySet<string> }`.
   - Unit-test that a milestone stays reached after its `when` stops holding, and that updates never shrink the set.
   - _Requirements: 1.3, 1.4, 1.5_
