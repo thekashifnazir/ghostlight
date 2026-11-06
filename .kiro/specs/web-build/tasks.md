@@ -22,7 +22,7 @@ Scope boundaries for every task below:
   - Depend only on `parseA11yLine` and the adapter event shape — do not import the model or UI, and do not change `adapter.ts` or `a11y-lines.ts`.
   - _Requirements: 2.1, 2.2, 2.3, 2.4, 2.5, 2.6_
 
-- [ ] 3. Finish `src/engine/live-adapter.ts` against the real Module
+- [x] 3. Finish `src/engine/live-adapter.ts` against the real Module
   - Replace the throwing `start()` stub with a real `start()` that calls `boot.ts` to configure the Module and install the reader (reusing `installReader`), loads the wasm, and resolves only after the first `room` event has been dispatched to listeners.
   - Keep `send(cmd)` writing `serializeCommand(cmd) + "\n"` to `/tmp/a11y-cmd.txt` via `Module.FS.writeFile`; keep the clear-error guards on `start()`/`send()` when no Module is available.
   - Keep `LiveAdapter implements EngineAdapter` unchanged (no new interface methods); confine changes to `src/engine/live-adapter.ts` and `src/engine/boot.ts`.
