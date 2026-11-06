@@ -50,6 +50,11 @@ These tasks implement the design. Each cites the requirements it covers. All wor
   - Write `packs/tools/src/cli.ts` exposing `validate <pack>` and `check-coverage <pack> <census>`, wiring stages 1 and 2 and the coverage checker, each exiting with the right status and printing all errors.
   - _Requirements: 5.3, 7.7_
 
+- [ ] 9a. Validate-on-save hook for packs
+  - Create a shell-command agent hook (`.kiro/hooks/pack-validate-on-save.json`, `enabled: true` so it shows in the hooks panel) that runs the pack validator whenever a file under `packs/` is saved (`PostFileSave`, matcher on `packs/`).
+  - Confirm the hook command invokes the `validate` CLI against `packs/drascula-en.json`.
+  - _Requirements: 5.1, 5.2, 5.3_
+
 - [ ] 10. Move and upgrade the Drascula pack
   - Copy `reference/pack-draft/drascula-en.json` to `packs/drascula-en.json`; leave the draft untouched.
   - Set `formatVersion` to v1, point `$schema` at `packs/schema.json`, and bump `pack.version` for the content revision. Change no field shapes.

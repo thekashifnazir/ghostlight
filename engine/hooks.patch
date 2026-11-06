@@ -1,0 +1,18 @@
+# engine/hooks.patch — hooks into the pinned ScummVM Drascula engine.
+#
+# Placeholder. This is where the small hook edits to the engine's existing
+# sources live, as a readable unified diff applied by scripts/build-engine.sh
+# with `git apply` against vendor/scummvm. It is empty for now; the hooks land
+# in later tasks:
+#
+#   drascula.cpp  — construct A11yLayer; call onStartup(), onRoomEntry(), poll()
+#   converse.cpp  — emit A11Y_CHOICES; apply `choose <n>` in the converse loop
+#   graphics.cpp  — emit A11Y_TEXT for each drawn text line
+#   updateEvents()— poll the command file so a queued `skip` is honoured
+#
+# A fresh vendor/ (scripts/fetch.sh) plus scripts/build-engine.sh must reproduce
+# the build from engine/ alone. Never edit vendor/ by hand.
+#
+# When this holds real hunks, `git apply --check` of an empty-but-for-comments
+# file is a no-op, so the build script treats a patch with no diff hunks as
+# "nothing to apply".
