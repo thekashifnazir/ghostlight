@@ -178,3 +178,11 @@ Files changed: `.kiro/specs/pack/tasks.md`, `packs/drascula-en.json` (new), `doc
 Time: about 10 minutes.
 What went wrong or surprised you: nothing. The pack validated and covered clean on the first run, which the earlier draft smoke tests had already predicted (the only prior error was the 0.1 version string, now fixed).
 What was learned: doing the validator and checker first, then migrating the pack, meant the migration was a two-line version change with instant green checks rather than a debugging session.
+
+## 21 · pack · Task 12 done (pack-writing review)
+What was asked: task 12: read `packs/drascula-en.json` against `.kiro/steering/pack-writing.md` and fix any text that breaks a rule; confirm no key or secret.
+What Kiro did: read the whole pack (rooms, items, cutscenes, all 27 milestones). Checked each rule: British English (consistent: centre, colour, learnt, prised, rubbish), no em dashes (schema-enforced, validation passes), plain concrete left-to-right descriptions, lower-case item names except proper nouns (B.J.'s handbag, Von Braun's brew), descriptions name what is there without solving puzzles, every milestone has three graded tiers (nudge points at the area, clue names place and thing, answer gives the exact verb action) in the pack's own words, recaps past tense second person. Grepped for em dashes and common US spellings (color, gray, center, realize, neighbor): none. No keys or secrets (it is game-content text). No changes needed; the text already conforms.
+Files changed: `.kiro/specs/pack/tasks.md`, `docs/kiro-process.md`.
+Time: about 20 minutes of reading and checking.
+What went wrong or surprised you: nothing to fix. The draft had already been written to these rules, so the review was a confirmation pass rather than an edit pass. The hint grading is the part most worth checking by eye, and it holds: answers name the exact verbs the player has (look/take/open/push/use/talk) while nudges stay vague.
+What was learned: the schema's em-dash ban plus a grep for US spellings turns most of the style review into a mechanical check, leaving only the spoiler-grading of hints to read by judgement.

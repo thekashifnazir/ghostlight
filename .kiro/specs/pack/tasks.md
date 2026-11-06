@@ -65,7 +65,7 @@ These tasks implement the design. Each cites the requirements it covers. All wor
   - Run the coverage checker for chapters 1 and 2; resolve every gap or attach a documented override note (inn curtained doorway `to: null`, the chapter-1 street door switched off in data, any shared-number hotspots).
   - _Requirements: 9.2, 9.3_
 
-- [ ] 12. Pack-writing review
+- [x] 12. Pack-writing review
   - Read `packs/drascula-en.json` against `.kiro/steering/pack-writing.md`: British English, plain short sentences, no em dashes, concrete left-to-right positions, lower-case item names unless proper nouns, spoiler-free descriptions, three fresh hint tiers per milestone in the pack's own words.
   - Fix any text that breaks a rule; confirm no key or secret is present.
   - _Requirements: 9.4, 9.6, 10.4_
