@@ -12,4 +12,4 @@ A11Y_TEXT I'VE OPENED THE TRUNK.
 A11Y_DIFF {"cmd":"open 183","appeared":[{"num":182,"name":"BOLSO","rect":[246,132,18,14],"walkTo":[260,160],"visible":true,"door":false}],"flags":{"18":[0,1]},"said":[{"color":"yellow","text":"I'VE OPENED THE TRUNK."}],"changed":true}
 A11Y_CMD take 182
 A11Y_TEXT I'VE FOUND B.J.'S HANDBAG!
-A11Y_DIFF {"cmd":"take 182","disappeared":[{"num":182,"name":"BOLSO","rect":[246,132,18,14],"walkTo":[260,160],"visible":false,"door":false}],"invAdded":[{"id":9,"name":"handbag"}],"flags":{"19":[0,1]},"said":[{"color":"yellow","text":"I'VE FOUND B.J.'S HANDBAG!"}],"changed":true}
+A11Y_DIFF {"cmd":"take 182","disappeared":[{"num":182,"name":"BOLSO","rect":[246,132,18,14],"walkTo":[260,160],"visible":false,"door":false}],"invAdded":[{"id":22,"name":"handbag"}],"flags":{"19":[0,1]},"said":[{"color":"yellow","text":"I'VE FOUND B.J.'S HANDBAG!"}],"changed":true}

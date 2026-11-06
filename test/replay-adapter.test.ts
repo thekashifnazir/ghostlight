@@ -123,12 +123,12 @@ describe("ReplayAdapter", () => {
     rec.events.length = 0;
 
     adapter.send({ verb: "look", target: 188 });
-    adapter.send({ verb: "use", item: 13, target: 188 });
+    adapter.send({ verb: "use", item: 18, target: 188 });
 
     const diff = rec.events.at(-1);
     if (diff?.type !== "diff") throw new Error("no diff");
-    expect(diff.diff.cmd).toBe("use 13 188");
-    expect(diff.diff.invRemoved).toEqual([{ id: 13, name: "coins" }]);
-    expect(diff.diff.invAdded).toEqual([{ id: 14, name: "cigarettes" }]);
+    expect(diff.diff.cmd).toBe("use 18 188");
+    expect(diff.diff.invRemoved).toEqual([{ id: 18, name: "coins" }]);
+    expect(diff.diff.invAdded).toEqual([{ id: 16, name: "cigarettes" }]);
   });
 });

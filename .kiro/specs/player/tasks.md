@@ -80,12 +80,12 @@ All code lives under `src/` and `test/`. Do not edit `engine/`, `packs/` or `scr
   - Add `test/parser.prop.test.ts`: generate a set of visible hotspots; a phrase from one present name resolves to that hotspot; a phrase from a name not in the set never resolves to a hotspot (returns `none` or `ambiguous`).
   - _Requirements: 14.4, 12.2, 12.3_
 
-- [ ] 17. Build the controller and key map
+- [x] 17. Build the controller and key map
   - Create `src/ui/controller.ts`: own the keyboard, stop key events from reaching the engine input, map keys to intents (Left/Right cycle, Up/Enter interact, Down examine, verb-menu key, Tab inventory, Backspace cancel, repeat, read-room, F1, Escape skip), resolve interact by kind (exit→walk, object/person→primary action, or `use activeItem target`), send commands through the adapter targeting hotspot numbers, and return focus to the list after actions.
   - Call a global `stopAudio()` at the top of every key handler.
   - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5, 7.1, 7.2, 7.3, 7.4, 9.5, 13.2, 13.3_
 
-- [ ] 18. Wire main.ts: boot, event routing, room reading
+- [x] 18. Wire main.ts: boot, event routing, room reading
   - Create `src/main.ts`: set up `window.Module` first, show the start gate, create the audio context and call `adapter.start()` on the first key press, pick `ReplayAdapter` (via `?replay=`) or `LiveAdapter`, load the pack, subscribe to adapter events, and route them: `room`→build list, focus first, read the room, show highlight; `diff`→apply visibility/inventory changes, announce `said`, re-read on room change; `text`/`choices`/`inv`/`error`/`saved`→announce.
   - Verify an end-to-end play run against a replay fixture with no live engine.
   - _Requirements: 8.1, 8.2, 8.3, 8.4, 11.5, 13.4, 1.5, 1.6_

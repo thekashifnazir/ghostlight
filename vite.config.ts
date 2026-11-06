@@ -16,6 +16,8 @@ export default defineConfig({
     // Deterministic port so Playwright's webServer can wait on it.
     port: 5173,
     strictPort: true,
+    // Allow serving the read-only pack from ../packs (outside the src root).
+    fs: { allow: [".."] },
   },
   preview: {
     port: 5173,
