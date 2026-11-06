@@ -2,7 +2,7 @@
 
 ## Introduction
 
-The player is the web page a blind or low-vision person uses to play Drascula. It loads the game (through the engine a11y layer), lets the player find things and act on them with the keyboard alone, and reads back what happened as text to their own screen reader. The blind player who pointed us at the reference games asked for one thing above all: a complete, ordered hotspot list that goes strictly in visual order, with duplicates named uniquely, refreshed when the room changes. That list is the primary way to play. Typed plain-English commands are an optional shortcut, not the main mode.
+The player is the web page a blind or low-vision person uses to play Drascula. It loads the game (through the engine a11y layer), lets the player find things and act on them with the keyboard alone, and reads back what happened as text to their own screen reader. The accessibility consultant who pointed us at the reference games asked for one thing above all: a complete, ordered hotspot list that goes strictly in visual order, with duplicates named uniquely, refreshed when the room changes. That list is the primary way to play. Typed plain-English commands are an optional shortcut, not the main mode.
 
 The page never reads the game's pixels. It talks to the engine only through the `A11Y` line contract defined by the engine a11y layer, behind an adapter. A second adapter replays recorded `A11Y` logs, so the whole player can be built and tested before the web build exists. Words that the engine cannot supply (room names and descriptions, exit labels, spoken object names, item names, text fixes) come from the accessibility pack, which the player reads but does not edit.
 
@@ -203,7 +203,7 @@ Requirements use EARS (Easy Approach to Requirements Syntax). Terms:
 
 ## Known gotchas to carry into design and tasks
 
-From spike 07 and the blind player's feedback (6 Nov). Each must be handled or explicitly accounted for.
+From spike 07 and the accessibility consultant's feedback (6 Nov). Each must be handled or explicitly accounted for.
 
 1. **Visual order must match what a sighted player sees.** The reference mod's focus order did not match the train's visual layout. Order strictly left to right, then top to bottom, from the engine's hotspot rectangles.
 2. **Focusing off-screen must still show the highlight.** In the reference games, focusing an off-screen thing did not move the camera, which broke co-play. Keep the focused hotspot indicated on the canvas.
