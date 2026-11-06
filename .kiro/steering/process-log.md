@@ -44,3 +44,12 @@ Do not amend or force push. Leave git config and hooks alone. Flag any file that
 ## Entry 02
 
 Entry 02 covers the first Kiro reading of `reference/` and playing the project back without writing code. Fill in its blanks from the actual chat: what was asked, what was read, time taken, and anything learned. Do this as part of the first logging pass.
+
+## Parallel chats
+
+Two chats share this working tree, each owning a different spec. The git index is shared, so treat the tree as shared state and stay strictly inside your own spec's folders.
+
+- Never run a command that touches files outside your own spec's folders. In particular never run `git stash`, `git checkout -- .`, `git reset`, `git clean`, or any bulk discard, reset, or checkout. These act on the whole tree, including the other chat's uncommitted work.
+- Always commit with explicit paths, and commit only those paths: `git commit -- <path> <path>`. A plain `git commit` commits everything already staged, which may include files the other chat staged. Explicit pathspecs commit only your files regardless of what else is in the index.
+- In `docs/kiro-process.md` and `docs/kiro-features.md`, only append or edit your own rows. Do not touch the other chat's entries or rows.
+- Prefix every new process-log entry heading with the spec name, for example `## 11 · pack · ...` or `## 12 · engine · ...`, so the shared log stays readable across chats.
