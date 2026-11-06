@@ -41,12 +41,12 @@ These tasks implement the design. Each cites the requirements it covers. All wor
   - Collect every gap; exit non-zero with the full list when any room, hotspot or door is uncovered.
   - _Requirements: 6.3, 7.1, 7.2, 7.3, 7.4, 7.5, 7.6, 7.7_
 
-- [ ] 8. Hint-selection rule
+- [x] 8. Hint-selection rule
   - Write `packs/tools/src/hints.ts` with a pure `offeredMilestones(pack, progress)` returning milestones that are not yet reached and whose every `after` is reached.
   - Keep it independent of live flags; it reasons only over the `after` graph and the reached set.
   - _Requirements: 4.5, 8.4_
 
-- [ ] 9. CLI entry points
+- [x] 9. CLI entry points
   - Write `packs/tools/src/cli.ts` exposing `validate <pack>` and `check-coverage <pack> <census>`, wiring stages 1 and 2 and the coverage checker, each exiting with the right status and printing all errors.
   - _Requirements: 5.3, 7.7_
 
