@@ -38,25 +38,31 @@
 #     calls the engine's own methods — and keeps the patch a single readable
 #     line instead of widening the engine's public surface.
 #
+# Task 14 hooks (text capture, R6.2 / gotcha 11):
+#   * drascula.h: forward-declare `class A11yLayer;` (so the pointer member can
+#     be declared before a11y.h is included) and add a `A11yLayer *_a11y` member
+#     on DrasculaEngine. The layer lives on the stack in runCurrentChapter(),
+#     but graphics.cpp's text path (centerText) is a DrasculaEngine method with
+#     only `this` in scope, so the layer registers itself through this pointer
+#     in its constructor and clears it in its destructor. nullptr-initialised in
+#     the engine constructor so a text draw with no layer live is a safe no-op.
+#   * drascula.cpp: `_a11y = nullptr;` in the constructor (init before any layer
+#     exists).
+#   * graphics.cpp: include drascula/a11y.h, and at the top of centerText() —
+#     the single chokepoint every on-screen text line passes through (spoken
+#     dialogue in talk.cpp, narration in animation.cpp, system text in
+#     interface.cpp, hover/examine text in moveCursor) — hand the whole message
+#     to _a11y->onText() so the layer emits one `A11Y_TEXT <line>` per distinct
+#     line. centerText() is called every frame while a subtitle is on screen, so
+#     onText() de-duplicates against the last line it emitted; the string is the
+#     engine's own text (English subtitle data, or raw Spanish object names,
+#     gotcha 10), emitted verbatim. This captures the character replies that
+#     talk.cpp never routes through ScummVM's own TTS (gotcha 11).
+#
 # Later tasks add hooks for converse.cpp (A11Y_CHOICES / choose) and
-# graphics.cpp (A11Y_TEXT); they will extend this patch.
-diff --git a/engines/drascula/drascula.h b/engines/drascula/drascula.h
-index 6784cf39c0..87d121dc0d 100644
---- a/engines/drascula/drascula.h
-+++ b/engines/drascula/drascula.h
-@@ -336,6 +336,10 @@ static const int interf_y[] = { 51, 51, 51, 51, 83, 83, 83 };
- struct RoomHandlers;
- 
- class DrasculaEngine : public Engine {
-+	// Ghostlight a11y layer: reads the engine's own state (including the
-+	// private text/room-action tables used for item look lines, R6.4) and
-+	// drives the game through the engine's own methods. See engine/a11y.cpp.
-+	friend class A11yLayer;
- protected:
- 	// Engine APIs
- 	Common::Error run() override;
+# updateEvents() (skip polling); they will extend this patch.
 diff --git a/engines/drascula/drascula.cpp b/engines/drascula/drascula.cpp
-index aeccc822cb..4fcfdea637 100644
+index aeccc822cb..5d275436e6 100644
 --- a/engines/drascula/drascula.cpp
 +++ b/engines/drascula/drascula.cpp
 @@ -33,6 +33,7 @@
@@ -67,7 +73,18 @@ index aeccc822cb..4fcfdea637 100644
  
  namespace Drascula {
  
-@@ -416,6 +417,12 @@ bool DrasculaEngine::runCurrentChapter() {
+@@ -70,6 +71,10 @@ DrasculaEngine::DrasculaEngine(OSystem *syst, const DrasculaGameDescription *gam
+ 	_talkSequences = nullptr;
+ 	_currentSaveSlot = 0;
+ 
++	// Ghostlight: no a11y layer until runCurrentChapter() constructs one on the
++	// stack (it registers itself here). centerText() checks this before use.
++	_a11y = nullptr;
++
+ 	term_int = 0;
+ 	currentChapter = 0;
+ 	_loadedDifferentChapter = false;
+@@ -416,6 +421,12 @@ bool DrasculaEngine::runCurrentChapter() {
  	int n;
  	int framesWithoutAction = 0;
  
@@ -80,7 +97,7 @@ index aeccc822cb..4fcfdea637 100644
  	_rightMouseButton = 0;
  	_leftMouseButtonHeld = false;
  
-@@ -447,8 +454,15 @@ bool DrasculaEngine::runCurrentChapter() {
+@@ -447,8 +458,15 @@ bool DrasculaEngine::runCurrentChapter() {
  	if (currentChapter == 1) {
  		pickObject(28);
  
@@ -96,7 +113,7 @@ index aeccc822cb..4fcfdea637 100644
  
  		selectVerb(kVerbNone);
  		loadPic("2aux62.alg", drawSurface2);
-@@ -550,7 +564,19 @@ bool DrasculaEngine::runCurrentChapter() {
+@@ -550,7 +568,19 @@ bool DrasculaEngine::runCurrentChapter() {
  
  	showCursor();
  
@@ -116,3 +133,58 @@ index aeccc822cb..4fcfdea637 100644
  		if (!_characterMoved) {
  			stepX = STEP_X;
  			stepY = STEP_Y;
+diff --git a/engines/drascula/drascula.h b/engines/drascula/drascula.h
+index 6784cf39c0..cfa1d0484c 100644
+--- a/engines/drascula/drascula.h
++++ b/engines/drascula/drascula.h
+@@ -335,7 +335,21 @@ static const int interf_y[] = { 51, 51, 51, 51, 83, 83, 83 };
+ 
+ struct RoomHandlers;
+ 
++// Ghostlight a11y layer, defined in engine/a11y.h (copied into this engine by
++// scripts/build-engine.sh). Forward-declared here so DrasculaEngine can hold a
++// pointer to it (the centerText() text-capture hook, R6.2).
++class A11yLayer;
++
+ class DrasculaEngine : public Engine {
++	// Ghostlight a11y layer: reads the engine's own state (including the
++	// private text/room-action tables used for item look lines, R6.4) and
++	// drives the game through the engine's own methods. See engine/a11y.cpp.
++	friend class A11yLayer;
++	// The currently-live a11y layer, or nullptr when none. The layer lives on
++	// the stack in runCurrentChapter() and registers/unregisters itself here in
++	// its constructor/destructor; the centerText() hook reads this to emit
++	// A11Y_TEXT for drawn text (R6.2). nullptr-initialised in the constructor.
++	A11yLayer *_a11y;
+ protected:
+ 	// Engine APIs
+ 	Common::Error run() override;
+diff --git a/engines/drascula/graphics.cpp b/engines/drascula/graphics.cpp
+index d39d58f6f0..2647b13a7d 100644
+--- a/engines/drascula/graphics.cpp
++++ b/engines/drascula/graphics.cpp
+@@ -20,6 +20,7 @@
+  */
+ 
+ #include "drascula/drascula.h"
++#include "drascula/a11y.h"
+ #include "graphics/surface.h"
+ 
+ #include "common/stream.h"
+@@ -360,6 +361,16 @@ bool DrasculaEngine::textFitsCentered(char *text, int x) {
+ }
+ 
+ void DrasculaEngine::centerText(const char *message, int textX, int textY) {
++	// Ghostlight: centerText() is the single chokepoint every on-screen text
++	// line passes through — spoken dialogue (talk.cpp), narration/cutscene text
++	// (animation.cpp), system messages (interface.cpp) and hover/examine text
++	// (moveCursor) all call it with the whole line. Hand the full message to the
++	// a11y layer so it emits A11Y_TEXT (R6.2); the layer de-duplicates the
++	// per-frame redraw so each line is reported once. Guarded on _a11y so it is
++	// a no-op when no layer is live.
++	if (_a11y)
++		_a11y->onText(message);
++
+ 	char msg[200];
+ 	Common::strlcpy(msg, message, 200);
+ 

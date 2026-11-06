@@ -81,6 +81,48 @@ static bool parseInt(const Common::String &s, int &out);
 A11yLayer::A11yLayer(DrasculaEngine *engine)
 	: _engine(engine), _lastChapter(-1), _lastRoom(-1), _queueHead(0),
 	  _clickState(kClickIdle) {
+	// Register as the engine's current a11y layer so the centerText() hook in
+	// graphics.cpp can reach us (the hook has only the DrasculaEngine `this`,
+	// not this stack-local layer). _lastText default-constructs empty, so the
+	// first drawn line is always emitted.
+	_engine->_a11y = this;
+}
+
+// Unregister on destruction. The layer lives on the stack in
+// runCurrentChapter(), so this fires on every return path from that function;
+// clearing the engine's pointer means a centerText() call made after the layer
+// is gone (e.g. between chapters) safely does nothing rather than dereferencing
+// a dangling layer. Guarded so we only clear the pointer if it still refers to
+// us, in case chapters ever nest.
+A11yLayer::~A11yLayer() {
+	if (_engine->_a11y == this)
+		_engine->_a11y = nullptr;
+}
+
+// Capture one whole on-screen text line (R6.2). Called from the centerText()
+// hook with the full message the engine is about to draw — spoken dialogue,
+// narration, system text and hover/examine text all pass through centerText()
+// (gotcha 11: talk.cpp routes nothing through sayText(), so this is the only
+// capture point for character replies). The string is emitted verbatim: it is
+// the engine's own text for whatever data is loaded (English subtitle text, or
+// the raw Spanish object names, gotcha 10), never altered here.
+//
+// centerText() is called once per frame for the full duration a line is on
+// screen (the talk loops call it inside `do { ... } while (!isTalkFinished())`),
+// so onText() de-duplicates: it emits only when the message differs from the
+// last line emitted, so each distinct line appears once when it is drawn, not
+// once per frame. A null or empty message is ignored (nothing was drawn).
+void A11yLayer::onText(const char *message) {
+	if (!message || !*message)
+		return;
+
+	// Same line as last time (the engine is still redrawing the current
+	// subtitle this frame) — already reported, so stay quiet.
+	if (_lastText == message)
+		return;
+
+	_lastText = message;
+	emitLine(Common::String("A11Y_TEXT ") + message);
 }
 
 // Called once at startup, after the intro has been skipped and the first

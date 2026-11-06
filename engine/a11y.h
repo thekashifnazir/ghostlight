@@ -44,9 +44,36 @@ class A11yLayer {
 public:
 	explicit A11yLayer(DrasculaEngine *engine);
 
+	// The engine draws on-screen text through a single chokepoint,
+	// DrasculaEngine::centerText(), which every spoken line, narration line and
+	// hover/examine string passes through as one whole message before it is
+	// wrapped into display lines. The layer registers itself as the engine's
+	// current a11y layer in the constructor and unregisters in the destructor,
+	// so the centerText() hook can reach it (and safely does nothing when no
+	// layer is live). The layer lives on the stack in runCurrentChapter(), so
+	// the destructor fires on every return path (R6.2).
+	~A11yLayer();
+
 	// Called once at startup (after the intro is skipped) to assert subtitles
 	// are on and emit the first room state.
 	void onStartup();
+
+	// Called from the DrasculaEngine::centerText() hook with the whole text
+	// line the engine is about to draw: spoken dialogue, narration, system
+	// messages and hover/examine text all route through centerText() (R6.2 /
+	// gotcha 11 — talk.cpp never calls sayText(), so this is the only capture
+	// point for character replies). Emits `A11Y_TEXT <text>` so the player's
+	// screen reader reads exactly what the game draws (gotcha 10: the string is
+	// the engine's own — Spanish object names or the English subtitle data,
+	// whatever is loaded — never altered here).
+	//
+	// centerText() is called every frame for the whole time a line is on screen
+	// (the talk loops in talk.cpp call it inside `do { ... } while
+	// (!isTalkFinished())`), so emitting on every call would spam one line
+	// hundreds of times. onText() de-duplicates against the last line it emitted
+	// and only emits when the text changes, so each distinct line appears once
+	// when it is drawn, not once per frame.
+	void onText(const char *message);
 
 	// Called on every room entry; emits one `A11Y { ... }` room-state line.
 	void onRoomEntry();
@@ -294,6 +321,14 @@ private:
 	// (which the patch does not touch). -1 means "nothing emitted yet".
 	int _lastChapter;
 	int _lastRoom;
+
+	// The last text line emitted by onText(). The engine's centerText() redraws
+	// the current subtitle every frame while it is on screen, so onText() is
+	// called repeatedly with the same string; we emit `A11Y_TEXT` only when the
+	// message differs from this, so each distinct spoken/narration/hover line
+	// appears exactly once when it is drawn rather than once per frame (R6.2).
+	// Empty means nothing has been emitted yet.
+	Common::String _lastText;
 
 	// Commands waiting to run. The command file is read every frame and its
 	// lines are appended here; poll() runs exactly one per frame, dequeuing the
