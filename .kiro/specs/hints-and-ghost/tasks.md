@@ -2,7 +2,7 @@
 
 New code lives under `src/hints/` (including the committed audio cache at `src/hints/ghost/`), `scripts/` and `test/`. Do not edit `packs/` or `vite.config.ts`; the pack is read-only input, and the cache lives under `src/` so Vite serves and builds it. Import `offeredMilestones` from the pack tools (`packs/tools/src/hints.ts`), do not reimplement it. Copy nothing from `reference/`. The pure core must have no DOM, engine or network dependency so fast-check can drive it directly. Only the final task touches the player, and only `src/ui/controller.ts` and `src/main.ts`, as a small additive change. Confirm current fast-check, Node `crypto`/Web Crypto and ElevenLabs power APIs via the relevant power as each is first used. Never print the ElevenLabs key. Real voice generation waits for Kash's go-ahead; `--dry-run` first.
 
-- [ ] 1. Fold diffs into a complete engine state (pure)
+- [x] 1. Fold diffs into a complete engine state (pure)
   - Create `src/hints/fold.ts` with `foldDiff(prev, diff): EngineHintState` where `EngineHintState` is `{ chapter, room, flags, inventory }` (full 50-flag array, full inventory). Apply the diff's sparse `flags` map onto a copy of `prev.flags`, add/remove `invAdded`/`invRemoved` on a copy of `prev.inventory`, take any `chapter`/`room` change's `to` value, and return a new object without mutating `prev`.
   - Add `test/hints-fold.test.ts`: changed flags land on the right indices with the rest unchanged; inventory deltas apply; chapter/room update; `prev` is not mutated.
   - _Requirements: 11.1, 11.2, 11.3, 11.4, 11.5_
