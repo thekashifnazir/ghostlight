@@ -107,6 +107,32 @@ private:
 	// value for the a11y verb word. Returns true if it handled the command.
 	bool dispatchVerb(int verbConst, const Common::String &arg);
 
+	// Handle the `use` command (task 10, R3.4 / R3.5). The only form this task
+	// handles is applying an inventory item to a room object:
+	//   * `use <item> on <obj>`  — apply inventory item <item> to room object
+	//                              whose engine hotspot number is <obj>.
+	//   * `use <item> <obj>`     — same, without the literal `on` word (R3.4
+	//                              spells the command `use <item> <object>`).
+	// Emits A11Y_ERR and keeps running (R2.5) when the item is not in the
+	// inventory, the object is not in the room, or the syntax is malformed. A
+	// bare `use <item>` (no target) has no standalone-use path in this engine,
+	// so it is an A11Y_ERR here; self / object-50 targets belong to task 11.
+	void dispatchUse(const Common::String &arg);
+
+	// True when inventory item id `itemId` (a real item, id >= 7) is currently
+	// held in a live inventory slot (inventoryObjects[1..]). Used to reject a
+	// `use` of an item the hero does not have before anything is disturbed, so
+	// the command is a clean A11Y_ERR with no state change (R2.5).
+	bool itemInInventory(int itemId) const;
+
+	// Apply inventory item `itemId` to the room object in `slot` by reproducing
+	// the engine's own "click a room object while holding an item" path (R3.4),
+	// then return the item to the inventory if the use did not consume it
+	// (R3.5). Runs the GAME'S OWN room-action handler (checkAction), so applying
+	// uses behave exactly as a mouse would, and a non-applying use leaves the
+	// item safely back in inventory rather than lost.
+	void useItemOnSlot(int itemId, int slot);
+
 	// Handle the `walk` command. Two forms (R3.8, R2.6):
 	//   * `walk <num>`     — one argument: walk to / through the room object
 	//                        whose engine hotspot number is <num>. A door runs

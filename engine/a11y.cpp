@@ -74,6 +74,10 @@ static Common::String jsonEscape(const char *s) {
 	return out;
 }
 
+// Parse a whole-string signed integer. Defined below (used by both the `use`
+// and `walk` dispatchers); forward-declared here so dispatchUse can call it.
+static bool parseInt(const Common::String &s, int &out);
+
 A11yLayer::A11yLayer(DrasculaEngine *engine)
 	: _engine(engine), _lastChapter(-1), _lastRoom(-1), _queueHead(0),
 	  _clickState(kClickIdle) {
@@ -320,6 +324,13 @@ void A11yLayer::runCommand(const Common::String &cmd) {
 		return;
 	}
 
+	// Use an inventory item on a room object (task 10, R3.4 / R3.5):
+	// `use <item> on <obj>` or `use <item> <obj>`.
+	if (verb == "use") {
+		dispatchUse(arg);
+		return;
+	}
+
 	// No handler yet (lands in a later task). Report and continue (R2.5).
 	emitLine(Common::String("A11Y_ERR no handler for command: ") + cmd);
 }
@@ -443,6 +454,187 @@ bool A11yLayer::dispatchVerb(int verbConst, const Common::String &arg) {
 
 	runVerbOnSlot(verbConst, slot);
 	return true;
+}
+
+// --- Use an inventory item on a room object (task 10, R3.4 / R3.5) ----------
+//
+// In the real game, using an item on a room object is three clicks:
+//
+//   1. right-click to open the inventory screen;
+//   2. left-click the item — removeObject() takes it out of its slot and
+//      chooseObject() makes it the cursor (takeObject == 1, pickedObject == id);
+//   3. right-click to close the screen, then left-click the room object —
+//      verify2() calls checkAction(objectNum), and the room handler branches on
+//      `pickedObject == <itemId> && fl == <objNum>` (see the room_N() handlers
+//      in rooms.cpp, e.g. room_15: `pickedObject == 18 && fl == 188`).
+//
+// The item is the ENGINE'S picked object for that click, exactly as a verb is
+// for a plain verb command. So the a11y path mirrors the design table:
+//   selectVerb(kVerbNone)  — drop whatever was held, as a right-click does
+//   removeObject(item)     — take the item out of its inventory slot
+//   pickObject(item)       — make it the picked object / cursor
+//   run the action on the object slot (walk + checkAction)
+//   return the item if it is still held afterwards (R3.5)
+//
+// The crucial safety property (R3.5, gotcha on item loss): a use that does NOT
+// apply must leave the item back in the inventory, not lost. When the room
+// handler consumes the item it calls removeObject()/selectVerb(kVerbNone)
+// itself, so takeObject drops to 0. When it does NOT apply (the generic room_0
+// refusal), the item is still held as the cursor and absent from the inventory
+// array; we put it back with selectVerb(kVerbNone), whose own top-of-function
+// `if (takeObject == 1) addObject(pickedObject)` is the very right-click return
+// a player would do. Either way the item ends up in inventory unless the game
+// deliberately used it up.
+
+// True when the real item `itemId` (>= 7) sits in a live inventory slot.
+bool A11yLayer::itemInInventory(int itemId) const {
+	DrasculaEngine *e = _engine;
+	for (int n = 1; n < ARRAYSIZE(e->inventoryObjects); n++) {
+		if (e->inventoryObjects[n] == itemId)
+			return true;
+	}
+	return false;
+}
+
+// Apply item `itemId` to the room object in `slot`, then return the item to the
+// inventory if the action did not consume it (R3.4, R3.5).
+void A11yLayer::useItemOnSlot(int itemId, int slot) {
+	DrasculaEngine *e = _engine;
+
+	// Drop whatever verb/item is currently held, returning it to the inventory,
+	// exactly as a right-click does. selectVerb(kVerbNone) runs
+	// `if (takeObject == 1) addObject(pickedObject)` then clears takeObject, so
+	// after this the hero holds nothing and no stale verb number can leak into
+	// the inventory on the next pick (interface.cpp selectVerb).
+	if (e->takeObject == 1)
+		e->selectVerb(kVerbNone);
+
+	// Pick up the item the game's way: take it out of its inventory slot
+	// (removeObject(id)) and make it the picked object / cursor (pickObject ->
+	// chooseObject sets takeObject = 1, pickedObject = id). This is the state a
+	// left-click on the item in the inventory screen leaves behind, and it is
+	// what the room-action handlers read.
+	e->removeObject(itemId);
+	e->pickObject(itemId);
+
+	// Warp the cursor to the object's hotspot centre so the engine's hover name
+	// matches the object the use runs on (R3.3), the same as a verb command.
+	const Common::Rect &r = e->_objectRect[slot];
+	int hx = r.left + r.width() / 2;
+	int hy = r.top + r.height() / 2;
+	e->_mouseX = hx;
+	e->_mouseY = hy;
+	if (g_system)
+		g_system->warpMouse(hx, hy);
+
+	// Run the engine's own action for this object slot while the item is held:
+	// walk to the object, then checkAction(objectNum) — the verify2() per-object
+	// body (drascula.cpp), keyed on the resolved slot rather than a pixel hit
+	// test (gotcha 6). The room handler branches on pickedObject == itemId.
+	e->trackFinal = e->trackObj[slot];
+	e->_walkToObject = true;
+	e->walkToPoint(e->_roomObject[slot]);
+	e->checkAction(e->objectNum[slot]);
+
+	// R3.5 — item return. If the item was consumed, the handler already removed
+	// it and cleared the picked object (takeObject == 0). If the use did not
+	// apply, the item is still held (takeObject == 1, pickedObject == itemId)
+	// and currently absent from the inventory array, so selectVerb(kVerbNone)
+	// puts it back (its addObject(pickedObject)) and clears the cursor — the
+	// right-click a player would do. Guarding on `takeObject == 1` means we
+	// never double-add a consumed item.
+	if (e->takeObject == 1)
+		e->selectVerb(kVerbNone);
+}
+
+// Parse and dispatch `use <item> on <obj>` / `use <item> <obj>` (R3.4). Rejects
+// an item not in inventory, an object not in the room, and malformed syntax
+// with A11Y_ERR, keeping the layer running (R2.5).
+void A11yLayer::dispatchUse(const Common::String &arg) {
+	// Split the argument into whitespace-separated words, collapsing runs of
+	// spaces. arg is already trimmed by runCommand().
+	Common::Array<Common::String> words;
+	Common::String cur;
+	for (uint i = 0; i < arg.size(); i++) {
+		char c = arg[i];
+		if (c == ' ' || c == '\t') {
+			if (!cur.empty()) {
+				words.push_back(cur);
+				cur.clear();
+			}
+		} else {
+			cur += c;
+		}
+	}
+	if (!cur.empty())
+		words.push_back(cur);
+
+	// A bare `use` or `use <item>` has no target. There is no standalone-use
+	// path in this engine (items are always applied to an object or the hero),
+	// so this is an error here; self / object-50 is task 11 (R2.5).
+	if (words.empty()) {
+		emitLine("A11Y_ERR use needs an item and a target: `use <item> on <object>`");
+		return;
+	}
+	if (words.size() == 1) {
+		emitLine("A11Y_ERR use needs a target object: `use <item> on <object>` "
+		         "(standalone / self-use is not supported here)");
+		return;
+	}
+
+	// Accept both `use <item> on <obj>` and `use <item> <obj>`. When the middle
+	// word is the literal `on`, there must be exactly `item on obj` (3 words);
+	// otherwise it is the two-word `item obj` form. Anything else is malformed.
+	Common::String itemWord;
+	Common::String objWord;
+	if (words.size() == 3 && words[1].equalsIgnoreCase("on")) {
+		itemWord = words[0];
+		objWord = words[2];
+	} else if (words.size() == 2) {
+		itemWord = words[0];
+		objWord = words[1];
+	} else {
+		emitLine("A11Y_ERR use takes `<item> on <object>` or `<item> <object>`, "
+		         "e.g. `use 18 on 188`");
+		return;
+	}
+
+	// Both the item id and the object number must be plain strings of digits
+	// (a11y ids are numeric), so a non-numeric token is a clear error rather
+	// than a silent atoi() 0.
+	int itemId, objNum;
+	if (!parseInt(itemWord, itemId) || itemId < 0) {
+		emitLine(Common::String("A11Y_ERR use item must be a number, got: ") + itemWord);
+		return;
+	}
+	if (!parseInt(objWord, objNum) || objNum < 0) {
+		emitLine(Common::String("A11Y_ERR use object must be a number, got: ") + objWord);
+		return;
+	}
+
+	// The item must actually be in the inventory (gotcha 7: real items are
+	// id >= 7; verb slots 1..6 are not items). Reject before touching any state
+	// so a bad `use` changes nothing (R2.5).
+	if (itemId < 7) {
+		emitLine(Common::String::format(
+			"A11Y_ERR %d is a verb slot, not an inventory item (items are id 7+)", itemId));
+		return;
+	}
+	if (!itemInInventory(itemId)) {
+		emitLine(Common::String::format(
+			"A11Y_ERR item %d is not in the inventory", itemId));
+		return;
+	}
+
+	// The object must be a live object in this room.
+	int slot = slotForObjectNum(objNum);
+	if (slot < 0) {
+		emitLine(Common::String::format(
+			"A11Y_ERR object %d is not in this room", objNum));
+		return;
+	}
+
+	useItemOnSlot(itemId, slot);
 }
 
 // --- Doors and walking (task 9, R3.8 / R2.6) --------------------------------
