@@ -43,7 +43,7 @@ New code lives under `src/hints/` (including the committed audio cache at `src/h
   - Unit-test that disabled `play` is a no-op, a key with no glob entry is silent (no throw), and `stop` is safe when nothing is playing.
   - _Requirements: 6.1, 6.2, 6.4, 6.5, 8.4_
 
-- [ ] 9. Voice generation script with dry-run
+- [-] 9. Voice generation script with dry-run
   - Create `scripts/gen-voice.ts`: load the pack via the pack tools, collect every milestone's `nudge`/`clue`/`answer`.
   - `--dry-run` mode: print the number of hint lines and their total character count (with a per-chapter or per-tier breakdown for cost estimation), make no ElevenLabs call and write nothing, then exit. This is the mode to run first.
   - Real mode (no `--dry-run`): compute each line's `cacheKey(text, "nbk2esDn4RRk4cVDdoiE", "eleven_v4")`, skip lines already present in `src/hints/ghost/`, and generate the rest through the ElevenLabs power (voice Alice, model `eleven_v4`), writing `<key>.mp3`.
@@ -51,7 +51,7 @@ New code lives under `src/hints/` (including the committed audio cache at `src/h
   - Run `--dry-run` and report the counts; do NOT run real generation until Kash gives the go-ahead. When approved, run it once to populate `src/hints/ghost/` and commit the files; confirm re-running skips everything.
   - _Requirements: 8.1, 8.2, 8.3, 8.4, 8.5, 8.6, 8.7, 8.9, 8.10, 9.1, 9.2, 9.3, 9.4_
 
-- [ ] 10. Property tests for the invariants
+- [x] 10. Property tests for the invariants
   - Add `test/hints-select.prop.test.ts`: fast-check generates reachable progress (a chapter and an `after`-closed subset of milestone ids, plus a room); assert `selectTarget`'s defined result is always in `offeredMilestones(...)`, so never a milestone ahead of the player.
   - Add `test/hints-tiers.prop.test.ts`: for any count of plain asks on a fixed target, tiers are a prefix of `nudge, clue, answer` then repeated `answer`, never skipping; and a direct-answer ask only returns the `answer` of an offered milestone.
   - Run both against the real pack's milestones, with no live engine or network.
