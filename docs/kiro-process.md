@@ -170,3 +170,11 @@ Files changed: `.kiro/specs/pack/tasks.md`, `.kiro/hooks/pack-validate-on-save.j
 Time: a few minutes.
 What went wrong or surprised you: same as the engine hook in entry 03, createHook writes no `enabled` field, so it was added manually. The hook becomes active on the next session start.
 What was learned: the PostFileSave matcher tests against the file path, so `packs/` catches saves to the pack, the schema and the tools alike; validating the pack on any of those saves is the useful backstop.
+
+## 20 · pack · Tasks 10 and 11 done (pack moved, upgraded, validated, covered)
+What was asked: task 10, copy the draft pack to `packs/drascula-en.json`, set formatVersion to v1 and bump pack.version, leaving the draft untouched; task 11, validate it clean and run coverage for chapters 1 and 2.
+What Kiro did: copied `reference/pack-draft/drascula-en.json` to `packs/drascula-en.json` (936 lines), set `formatVersion` to "1.0", `pack.version` to "1.0.0", changed `licence` to "MIT", `authors` to ["Ghostlight"], and refreshed `notes` to say it is the first v1 pack promoted from the draft. `$schema` stays "schema.json" (relative, beside the pack). No field shapes changed. Validator: valid, exit 0. Coverage against the census for chapters 1 and 2: fully covered, exit 0. `git diff` on the draft shows no change.
+Files changed: `.kiro/specs/pack/tasks.md`, `packs/drascula-en.json` (new), `docs/kiro-process.md`.
+Time: about 10 minutes.
+What went wrong or surprised you: nothing. The pack validated and covered clean on the first run, which the earlier draft smoke tests had already predicted (the only prior error was the 0.1 version string, now fixed).
+What was learned: doing the validator and checker first, then migrating the pack, meant the migration was a two-line version change with instant green checks rather than a debugging session.

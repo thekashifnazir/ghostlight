@@ -1,0 +1,936 @@
+{
+  "$schema": "schema.json",
+  "format": "scummvm-a11y-pack",
+  "formatVersion": "1.0",
+  "game": {
+    "engine": "drascula",
+    "gameId": "drascula",
+    "language": "en",
+    "platform": "dos",
+    "title": "Drascula: The Vampire Strikes Back",
+    "variant": "English freeware release (Packet.001, files dated Oct 1996), as detected by ScummVM as DOS/English"
+  },
+  "pack": {
+    "version": "1.0.0",
+    "updated": "2026-11-06",
+    "coverage": { "chapters": [1, 2] },
+    "speechLocale": "en-GB",
+    "authors": ["Ghostlight"],
+    "licence": "MIT",
+    "notes": "First pack for the v1 format, covering Drascula chapters 1 and 2. Room descriptions written from decoded background pictures; hotspot numbers and destinations from the game-data census. Promoted from the format 0.1 draft in reference/pack-draft."
+  },
+  "textFixes": [
+    { "from": "ESCALERA", "to": "stairs", "context": "hotspot", "rooms": [14], "reason": "spanish" },
+    { "from": "ESCALERAS", "to": "stairs", "context": "hotspot", "rooms": [15, 24, 27], "reason": "spanish" },
+    { "from": "HABITACIONES", "to": "rooms", "context": "hotspot", "rooms": [14], "reason": "spanish" },
+    { "from": "SALIDA", "to": "way out", "context": "hotspot", "reason": "spanish" },
+    { "from": "PUERTA", "to": "door", "context": "hotspot", "reason": "spanish" },
+    { "from": "P", "to": "door", "context": "hotspot", "rooms": [37, 38, 39], "reason": "spanish" },
+    { "from": "CAMINO", "to": "path", "context": "hotspot", "rooms": [3], "reason": "spanish" },
+    { "from": "LAPIDA", "to": "gravestone", "context": "hotspot", "rooms": [3], "reason": "spanish" },
+    { "from": "AJO", "to": "garlic", "context": "hotspot", "rooms": [18], "reason": "spanish" },
+    { "from": "ARBOLITO", "to": "small tree", "context": "hotspot", "rooms": [21], "reason": "spanish" },
+    { "from": "PASADIZO", "to": "passage", "context": "hotspot", "rooms": [35], "reason": "spanish" },
+    { "from": "CHIMENEA", "to": "fireplace", "context": "hotspot", "rooms": [31], "reason": "spanish" },
+    { "from": "GRILLETES", "to": "shackles", "context": "hotspot", "rooms": [102], "reason": "spanish" },
+    { "from": "CEMENTERY", "to": "cemetery", "context": "hotspot", "rooms": [2], "reason": "spelling" },
+    { "from": "GRAFFITTI", "to": "graffiti", "context": "hotspot", "rooms": [18], "reason": "spelling" },
+    { "from": "TAPESTRIE", "to": "tapestry", "context": "hotspot", "rooms": [24], "reason": "spelling" },
+    { "from": "CYPRES", "to": "cypress trees", "context": "hotspot", "rooms": [19], "reason": "spelling" },
+    { "from": "RETABLUM", "to": "altarpiece", "context": "hotspot", "rooms": [7], "reason": "clarity" },
+    { "from": "V.BRAUN", "to": "Von Braun", "context": "hotspot", "rooms": [18], "reason": "clarity" },
+    { "from": "BLIND-MAN", "to": "blind man", "context": "hotspot", "rooms": [9], "reason": "clarity" },
+    { "from": "BLIND-ALLEY", "to": "blind alley", "context": "hotspot", "rooms": [10], "reason": "clarity" },
+    { "from": "DON'T DE AFRAID", "to": "DON'T BE AFRAID", "context": "dialogue", "match": "substring", "reason": "typo", "note": "Conversation choice 2 in op_3.cal (Von Braun's door)." },
+    { "from": "CANT YOU PLAY", "to": "CAN'T YOU PLAY", "context": "dialogue", "match": "substring", "reason": "typo", "note": "_text[207], chapter 1 pianist." }
+  ],
+  "chapters": {
+    "1": {
+      "name": "The inn",
+      "startRoom": 62,
+      "summary": "You arrived at a Transylvanian village inn on business, looking for Count Drascula, and took a room for the night. That night B.J., a girl you'd only just met, was snatched from your room by a caped figure."
+    },
+    "2": {
+      "name": "The village",
+      "startRoom": 14,
+      "summary": "You searched the village for a way to fight Drascula. Professor Von Braun tested your nerve, made you a brew against vampire bites and told you about an old well by the church."
+    }
+  },
+  "rooms": {
+    "62": {
+      "chapters": [1],
+      "name": "Inn bar",
+      "short": "A stone tavern with a wooden floor. The bar runs along the back wall with the bartender behind it, and a pianist plays in the front right corner.",
+      "long": "A gloomy stone tavern lit by an iron chandelier. The bar runs along the back wall, with a burger poster above it and the bartender, a big bald man, leaning on the counter. A drunk in a brown jacket props up the right-hand end of the bar. On the far left, under a hand-painted EXIT sign, stairs lead down to the street. Right of the bar, a red curtain hangs in a doorway under a sign reading HABITACIONES, Spanish for rooms, and further right a stone arch leads to a back room. A blond pianist in a tailcoat plays an upright piano in the front right corner, with a skull on top. Beer barrels fill the foreground.",
+      "seen": true,
+      "exits": {
+        "105": { "label": "curtained doorway to the guest rooms", "to": null, "direction": "up", "opensWhen": { "flags": { "0": 1 } }, "note": "Engine data says room 63, but in chapter 1 this door runs the bedtime cutscene (animation_2_1) and starts chapter 2. Until the bartender gives you a room it answers I DON'T HAVE A ROOM YET." },
+        "106": { "label": "stone arch to the back room", "to": 63, "direction": "right" }
+      },
+      "objects": {
+        "52": { "name": "bartender", "type": "npc", "description": "A big bald man in a vest, leaning on the bar." },
+        "53": { "name": "drunk", "type": "npc", "description": "An old man in a brown jacket at the end of the bar." },
+        "54": { "name": "pianist", "type": "npc", "description": "A blond man in a tailcoat at the upright piano." },
+        "100": { "name": "skull", "type": "object", "description": "A skull sitting on top of the piano." },
+        "101": { "name": "bin", "type": "object", "description": "A white jug-shaped bin at the left end of the bar." },
+        "102": { "name": "burger poster", "type": "object", "description": "A poster of a burger above the bar." },
+        "103": { "name": "menu board", "type": "object", "description": "A small blackboard on the wall left of the bar." },
+        "104": { "name": "stairs to the street", "type": "exit", "description": "Stairs down to the street under the EXIT sign.", "note": "A door in the data, but chapter 1 switches it off (isDoor[7] = 0 in enterRoom, exitRoom refuses 104). You can't leave the inn in chapter 1." }
+      }
+    },
+    "63": {
+      "chapters": [1],
+      "name": "Inn back room",
+      "short": "A small back room with a long wooden table and two chairs. The way back to the bar is on the left and a vending machine stands on the right.",
+      "long": "A cramped room with cracked plaster walls. A long wooden table with two high-backed chairs fills the middle. On the back wall, left of centre, a red curtain hangs from a rail next to a candle sconce; right of centre a sheet of paper is pinned up. On the right a green vending machine stands under a bat-shaped sign. A stone archway on the left leads back to the bar.",
+      "seen": true,
+      "exits": {
+        "107": { "label": "stone arch back to the bar", "to": 62, "direction": "left" }
+      },
+      "objects": {
+        "103": { "name": "vending machine", "type": "object", "description": "A green cigarette machine covered in stickers." },
+        "109": { "name": "red curtain", "type": "object", "description": "A red curtain on the back wall." },
+        "110": { "name": "papers", "type": "object", "description": "A sheet of paper pinned to the wall." }
+      }
+    },
+    "14": {
+      "chapters": [2],
+      "name": "Inn bar",
+      "short": "The inn's tavern again. Stairs to the street are on the left, the doorway to the guest rooms right of the bar, and the back room through the stone arch on the right.",
+      "long": "The same stone tavern, the morning after. The bartender stands behind the bar along the back wall, under the burger poster, and the drunk still leans on the right-hand end. On the far left, under the EXIT sign, stairs lead down to the street. Right of the bar, the red curtain marks the doorway up to the guest rooms, and further right a stone arch leads to the back room. The pianist plays the upright piano in the front right corner. A small poster hangs on the wall above the piano, next to the skull.",
+      "seen": true,
+      "note": "Same background file as room 62.",
+      "exits": {
+        "159": { "label": "stairs down to the street", "to": 12, "direction": "left" },
+        "162": { "label": "curtained doorway to the guest rooms", "to": 16, "direction": "up" },
+        "171": { "label": "stone arch to the back room", "to": 15, "direction": "right" }
+      },
+      "objects": {
+        "52": { "name": "bartender", "type": "npc", "description": "A big bald man in a vest, leaning on the bar." },
+        "53": { "name": "drunk", "type": "npc", "description": "An old man in a brown jacket at the end of the bar." },
+        "54": { "name": "pianist", "type": "npc", "description": "A blond man in a tailcoat at the upright piano." },
+        "199": { "name": "piano", "type": "object", "description": "An upright piano in the front right corner." },
+        "200": { "name": "small poster", "type": "object", "description": "A little poster on the wall above the piano." },
+        "201": { "name": "menu board", "type": "object", "description": "A small blackboard on the wall left of the bar." },
+        "202": { "name": "burger poster", "type": "object", "description": "A poster of a burger above the bar." },
+        "203": { "name": "skull", "type": "object", "description": "A skull sitting on top of the piano." },
+        "204": { "name": "bin", "type": "object", "description": "A white jug-shaped bin at the left end of the bar." }
+      }
+    },
+    "15": {
+      "chapters": [2],
+      "name": "Inn back room",
+      "short": "The small back room with the long table. The way back to the bar is on the left and the vending machine is on the right.",
+      "long": "A cramped room with cracked plaster walls. A long wooden table with two high-backed chairs fills the middle. On the back wall, left of centre, a red curtain hangs from a rail; right of centre a sheet of paper is pinned up. On the right a green cigarette machine stands under a bat-shaped sign. A stone archway on the left leads back to the bar.",
+      "seen": true,
+      "note": "Same background file as room 63. The engine calls the arch ESCALERAS (stairs).",
+      "exits": {
+        "172": { "label": "stone arch back to the bar", "to": 14, "direction": "left" }
+      },
+      "objects": {
+        "188": { "name": "vending machine", "type": "object", "description": "A green cigarette machine covered in stickers." },
+        "205": { "name": "papers", "type": "object", "description": "A sheet of paper pinned to the wall." },
+        "206": { "name": "red curtain", "type": "object", "description": "A red curtain on the back wall." }
+      }
+    },
+    "16": {
+      "chapters": [2],
+      "name": "Guest bedroom",
+      "short": "An attic bedroom. The door is on the left, the bed and a mirror left of centre, a wardrobe at the back, and a trunk under the window on the right.",
+      "long": "A sloping attic room with dark beams overhead and a green rug on the floor. The door is in the left wall, with a lamp beside it. A rumpled bed sits left of centre, its red cover spilling across the rug, and an oval mirror hangs on the wall above it. A tall wooden wardrobe stands against the back wall. On the right, a big arched window looks out into the night, with a wooden trunk on the floor beneath it.",
+      "seen": true,
+      "exits": {
+        "163": { "label": "door to the stairs", "to": 14, "direction": "left", "opensWhen": { "flags": { "17": 1 } }, "note": "Open at chapter start; open and close toggle flag 17." }
+      },
+      "objects": {
+        "183": { "name": "trunk", "type": "object", "description": "A wooden chest with an iron lock, under the window." },
+        "184": { "name": "bed", "type": "object", "description": "An unmade bed with a red cover trailing onto the floor." },
+        "185": { "name": "wardrobe", "type": "object", "description": "A tall carved wardrobe with two doors." },
+        "186": { "name": "window", "type": "object", "description": "A big arched window with small panes." },
+        "187": { "name": "mirror", "type": "object", "description": "An oval mirror in a dark frame." }
+      }
+    },
+    "12": {
+      "chapters": [2],
+      "name": "Street outside the inn",
+      "short": "A crooked village street at night. The inn door is straight ahead, an archway leads off on the left, and the street carries on to the right.",
+      "long": "A narrow street at night, the houses leaning at odd angles. Straight ahead stands the inn, a lopsided building with a POSADA sign, Spanish for inn, hung between two balconies with green shutters, and its door at street level. On the left, a house with a glowing wall lamp has a dark archway at its foot. To the right the street curves away past more lamplit houses towards the village square.",
+      "seen": true,
+      "exits": {
+        "151": { "label": "street to the village square", "to": 10, "direction": "right" },
+        "156": { "label": "inn door", "to": 14, "direction": "ahead", "opensWhen": { "flags": { "16": 1 } }, "note": "Open at chapter start; open and close toggle flag 16." },
+        "158": { "label": "archway into the side lane", "to": 8, "direction": "left" }
+      },
+      "objects": {
+        "154": { "name": "balconies", "type": "object", "description": "Two small balconies on the front of the inn." },
+        "155": { "name": "street lamp", "type": "object", "description": "A lamp on the wall of the house on the left." }
+      }
+    },
+    "8": {
+      "chapters": [2],
+      "name": "Lane with a statue",
+      "short": "A dark lane between two leaning houses, with a pale statue in the distance. The way back to the inn is on the left; the lane goes on to the square on the right.",
+      "long": "Two crooked houses face each other across a dark lane. The left house has a pink tiled roof and a lamp on its corner, with a small bin on the pavement beneath it. The right house has a round window and a door with a heart cut into it. Between them, in the distance, a pale statue stands on a round plinth. The lane leads back towards the inn on the left and on to the village square on the right.",
+      "seen": true,
+      "exits": {
+        "160": { "label": "lane back to the inn", "to": 12, "direction": "left" },
+        "161": { "label": "lane on to the village square", "to": 10, "direction": "right" }
+      },
+      "objects": {
+        "147": { "name": "bin", "type": "object", "description": "A small rubbish bin under the lamp." }
+      }
+    },
+    "10": {
+      "chapters": [2],
+      "name": "Village square",
+      "short": "The village square, seen from high above the rooftops. Streets lead to the inn at the top left, a dead-end alley at the top middle, and the edge of the village at the bottom left.",
+      "long": "A bird's-eye view over the village. In the foreground are dark rooftops and a clock tower with a weathervane. Beyond them a grey square opens out, ringed by crooked houses with green shutters and wall lamps. At the top left, past a house with a sign over its door, a street leads back to the inn. At the top middle a narrow gap leads into a dead-end alley. At the bottom left a road heads out to the edge of the village.",
+      "seen": true,
+      "note": "A map-style screen: three exits and nothing else.",
+      "exits": {
+        "146": { "label": "road to the edge of the village", "to": 4, "direction": "left" },
+        "148": { "label": "street back to the inn", "to": 12, "direction": "ahead" },
+        "149": { "label": "dead-end alley", "to": 9, "direction": "ahead" }
+      },
+      "objects": {}
+    },
+    "9": {
+      "chapters": [2],
+      "name": "Dead-end alley",
+      "short": "A walled alley lit by one lamp, with a heavy wooden door in the far wall and bins along the front. The only way out is on the left.",
+      "long": "A cramped yard closed in by walls. On the left wall is a window with green shutters and a wall lamp above it. Straight ahead, an arched wooden door with a small grille sits in a stone frame, with a blank wooden plaque beside it and a barred window to its right. A row of overflowing rubbish bins runs along the front. The only way out is back the way you came, on the left.",
+      "seen": true,
+      "exits": {
+        "152": { "label": "way back to the square", "to": 10, "direction": "left" }
+      },
+      "objects": {
+        "150": { "name": "wooden door", "type": "object", "description": "An arched wooden door in the far wall." },
+        "51": { "name": "blind man", "type": "npc", "description": "A man in dark glasses, in the middle of the alley." }
+      }
+    },
+    "4": {
+      "chapters": [2],
+      "name": "Edge of the village",
+      "short": "The last houses of the village, with a forest on the left and a castle on a hill against the moon. The road back into the village is on the right.",
+      "long": "The edge of the village at night. On the left, dark pine trees cover a slope, and above them a black castle rises on a round hill in front of a huge full moon. Right of centre, two crooked houses glow from their windows. The nearer one has a red door with a poster on the wall beside it, and a wooden barrel stands by the wall further right. A path leaves the village on the far left, and the road back into the village is on the far right.",
+      "seen": true,
+      "exits": {
+        "126": { "label": "path out into the valley", "to": 2, "direction": "left" },
+        "145": { "label": "road back to the square", "to": 10, "direction": "right" }
+      },
+      "objects": {
+        "189": { "name": "barrel", "type": "object", "description": "A squat wooden barrel by the house wall." },
+        "207": { "name": "castle", "type": "object", "description": "A black castle on a hill, far off against the moon." },
+        "208": { "name": "forest", "type": "object", "description": "Dark pine trees on the slope to the left." },
+        "209": { "name": "poster", "type": "object", "description": "A poster on the house wall, left of the door." },
+        "210": { "name": "house door", "type": "object", "description": "A red wooden door with a small window." }
+      }
+    },
+    "2": {
+      "chapters": [2],
+      "name": "Valley map",
+      "short": "A view over the whole valley. The village is in the middle distance, a small hut at the bottom left, and the church and cemetery on the right.",
+      "long": "The valley at night, seen from above like a map. At the top left a black castle stands on a hill against the moon. Below it the village huddles around a pale statue in the middle distance. At the bottom left a small cottage sits behind a picket fence. On the right a white church with a bell tower stands behind a wall, and gravestones are scattered across the grass in front of it at the bottom right. A dead tree grows between the church and the village.",
+      "seen": true,
+      "note": "A map screen: four exits and nothing else.",
+      "exits": {
+        "123": { "label": "church", "to": 1, "direction": "right" },
+        "125": { "label": "village", "to": 4, "direction": "ahead" },
+        "127": { "label": "cemetery", "to": 3, "direction": "right" },
+        "175": { "label": "hut", "to": 17, "direction": "left", "opensWhen": { "flags": { "40": 1 } }, "note": "doors[] gate: only works once flag 40 is set." }
+      },
+      "objects": {}
+    },
+    "1": {
+      "chapters": [2],
+      "name": "Church gate",
+      "short": "The front of a boarded-up church. A stone gateway with a barred gate is on the left; a wall and iron fence run off to the right.",
+      "long": "On the left a stone archway is carved with the words CAVE CANEM, Latin for beware of the dog, and its iron gate is nailed shut with planks. Beside it rises a yellow tower whose window is boarded up too, and behind that a crooked blue building has a slanting window. A low stone wall topped with an iron fence runs off to the right, towards a hill under the moon. Paths lead away at the bottom left and the bottom right.",
+      "seen": true,
+      "exits": {
+        "121": { "label": "path back to the valley", "to": 2, "direction": "left" },
+        "122": { "label": "path to the cemetery", "to": 3, "direction": "right" }
+      },
+      "objects": {
+        "118": { "name": "boarded-up gate", "type": "object", "description": "A huge iron gate under the stone arch, nailed shut with planks." },
+        "119": { "name": "tower window", "type": "object", "description": "A boarded window in the yellow tower." },
+        "120": { "name": "blue window", "type": "object", "description": "The slanting window of the blue building, behind the fence." }
+      }
+    },
+    "3": {
+      "chapters": [2],
+      "name": "Cemetery",
+      "short": "A grassy cemetery inside an iron fence. A mausoleum is on the left, a gateway between two stone dragons straight ahead, and tombs in the foreground.",
+      "long": "A cemetery on a grassy slope. On the left stands a small white mausoleum with a barred door, a creeper growing up its side. An iron fence with spiked railings runs behind it. Straight ahead, a stone path leads between two pillars, each topped by a stone dragon. Gravestones lean in the bottom left corner, and a flat tomb strewn with red petals lies across the bottom right. Ways out lead up to the top right and round to the right.",
+      "seen": true,
+      "exits": {
+        "124": { "label": "path up to the church gate", "to": 1, "direction": "up" },
+        "128": { "label": "path between the dragon pillars", "to": 2, "direction": "ahead" },
+        "134": { "label": "way round behind the church fence", "to": 5, "direction": "right" }
+      },
+      "objects": {
+        "129": { "name": "flat tomb", "type": "object", "description": "A flat stone tomb with red petals on it." },
+        "130": { "name": "gravestone", "type": "object", "note": "Hotspot rectangle is 0,0,0,0 in the data, so it can never be hovered. Kept for completeness." },
+        "131": { "name": "gravestone, left", "type": "object", "description": "A rounded gravestone in the bottom left corner." },
+        "132": { "name": "gravestone, front", "type": "object", "description": "A small gravestone at the front." },
+        "133": { "name": "mausoleum", "type": "object", "description": "A small white tomb house with a barred door." },
+        "165": { "name": "fence spike", "type": "object", "description": "One of the iron spikes on the railing just right of the mausoleum." },
+        "166": { "name": "creeper", "type": "object", "description": "A leafy creeper growing up the side of the mausoleum." },
+        "211": { "name": "stone dragons", "type": "object", "description": "Two stone dragons on top of the gate pillars." }
+      }
+    },
+    "5": {
+      "chapters": [2],
+      "name": "Behind the church fence",
+      "short": "The church front again, but you're on the far side of the iron fence, by the blue building. The way back to the cemetery is on the right.",
+      "long": "The same view of the church front, seen from the same spot, but you're standing in the narrow strip behind the iron fence on the right, small in the distance. Just to your left is the crooked blue building, with a boarded window and a second window beside it. The moon hangs above you on the right. The way back to the cemetery is at the far right.",
+      "seen": true,
+      "note": "Same background file as room 1, with a smaller hero sprite and a walk area behind the fence.",
+      "exits": {
+        "135": { "label": "way back to the cemetery", "to": 3, "direction": "right" },
+        "136": { "label": "boarded window", "to": 6, "direction": "left", "opensWhen": { "flags": { "8": 1 } }, "note": "doors[] gate: works once flag 8 is set. Looking at it says IF ONLY THIS WINDOW WASN'T BOARDED UP." }
+      },
+      "objects": {
+        "212": { "name": "moon", "type": "object", "description": "A full moon over the hill." },
+        "213": { "name": "other window", "type": "object", "description": "A second window, left of the boarded one." }
+      }
+    },
+    "6": {
+      "chapters": [2],
+      "name": "Church vestry",
+      "short": "A dim room under the church roof. A window and a long bench are on the left, an arched door in the middle, and a tall wardrobe on the right.",
+      "long": "A bare room under sloping roof beams, with moonlight falling through two small windows on the left. Below the windows runs a long wooden bench with a drawer, and a three-branched candelabrum stands on it. In the back wall a niche holds a small white statue. Next to it an arched wooden door leads further into the church. On the right a tall, dark wardrobe stands against the wall, with cobwebs above it.",
+      "seen": true,
+      "note": "The engine darkens and brightens this room with the hero's position. No gameplay effect.",
+      "exits": {
+        "137": { "label": "window you climbed in by", "to": 5, "direction": "left" },
+        "138": { "label": "arched door into the church", "to": 7, "direction": "ahead", "opensWhen": { "flags": { "0": 1 } }, "note": "doors[] gate: opening the door sets flag 0." }
+      },
+      "objects": {
+        "139": { "name": "drawer", "type": "object", "description": "A drawer in the long bench under the windows." },
+        "140": { "name": "crucifix", "type": "object", "note": "Hidden until revealed in play (visible flag 0 at room entry)." },
+        "143": { "name": "wardrobe", "type": "object", "description": "A tall dark wooden wardrobe on the right." },
+        "144": { "name": "candelabrum", "type": "object", "description": "An old three-branched candelabrum on the bench." },
+        "999": { "name": "statue", "type": "object", "description": "A small white statue of a saint in a wall niche." }
+      }
+    },
+    "7": {
+      "chapters": [2],
+      "name": "Church nave",
+      "short": "A wrecked church with broken pews everywhere. The altar and a big stained-glass window are at the far end, a double door on the left, and a small arched door on the right.",
+      "long": "The inside of the church, long abandoned. Broken pews lie scattered across a cracked stone floor, and a round iron chandelier has crashed down in the middle. At the far end, behind a red altar cloth, stands a stained-glass window with a crucifix at its centre and painted saints either side. A wooden double door in the left wall leads back to the vestry. A small dark arched door in the right wall leads outside.",
+      "seen": true,
+      "exits": {
+        "142": { "label": "double door back to the vestry", "to": 6, "direction": "left" },
+        "164": { "label": "small arched door outside", "to": 19, "direction": "right" }
+      },
+      "objects": {
+        "169": { "name": "altarpiece", "type": "object", "description": "The stained-glass altarpiece with a crucifix at its centre." },
+        "190": { "name": "candle", "type": "object", "description": "A candle on the floor near the fallen chandelier." }
+      }
+    },
+    "19": {
+      "chapters": [2],
+      "name": "Churchyard well",
+      "short": "A dark yard behind the church. An old stone well is on the left; the doorway back into the church is on the right.",
+      "long": "A bare yard behind the church, closed in by a stone wall with a spiked iron fence on top. Tall cypress trees rise beyond the fence. On the left stands a round stone well with an iron arch over it. On the right, the church wall has a dark open doorway with a crumbling brick lintel.",
+      "seen": true,
+      "exits": {
+        "170": { "label": "doorway back into the church", "to": 7, "direction": "right" },
+        "173": { "label": "well", "to": null, "direction": "down", "opensWhen": { "flags": { "36": 1 } }, "note": "doors[] gate: works once flag 36 is set. Runs animation_35_2 and starts chapter 3 (engine data says room 20)." }
+      },
+      "objects": {
+        "214": { "name": "cypress trees", "type": "object", "description": "Tall dark cypress trees beyond the fence." }
+      }
+    },
+    "17": {
+      "chapters": [2],
+      "name": "Outside Von Braun's hut",
+      "short": "A crooked cottage, number 13, behind a coil of barbed wire and a lot of signs. The front door is in the middle; the way back is on the left.",
+      "long": "A lopsided blue cottage with a steep roof stands behind a tangle of barbed wire. A green plate by the door shows the number 13. The front door is in the middle, with a DO NOT DISTURB sign beside it and a doormat reading FUERA, Spanish for out. Hand-painted signs are stuck in the grass on the left: one says VOLVERE, NO ESTOY, meaning I'll be back, I'm out, and another says EL QUE ENTRA NO SALE, meaning whoever comes in doesn't leave. In the foreground a sign reads SALIDA, exit, and another NO QUIERO NADA, I don't want anything. A pile of junk leans against the right-hand wall.",
+      "seen": true,
+      "exits": {
+        "176": { "label": "path back to the valley", "to": 2, "direction": "left" },
+        "177": { "label": "front door", "to": 18, "direction": "ahead", "opensWhen": { "flags": { "15": 1 } }, "note": "doors[] gate: flag 15, set when Von Braun lets you in." }
+      },
+      "objects": {}
+    },
+    "18": {
+      "chapters": [2],
+      "name": "Von Braun's den",
+      "short": "A cluttered sitting room. Von Braun sits in a big armchair in the middle, with shelves on his right and the door out on the far right.",
+      "long": "A cluttered room with purple walls and bunches of garlic hanging from the ceiling. In the middle stands a big orange armchair with a crucifix hung on its back, a footstool in front and a standing lamp beside it. Red letters on the wall above spell ALUCSARD ETEREUM. On the left a reel-to-reel tape machine sits on a small table, under a pinned-up notice. Right of the armchair are a framed certificate and a shelf of books and papers. The open doorway out is on the far right. In the foreground are an old television, a box of books and a potted rose.",
+      "seen": true,
+      "exits": {
+        "178": { "label": "doorway out", "to": 17, "direction": "right" }
+      },
+      "objects": {
+        "55": { "name": "Von Braun", "type": "npc", "description": "An old man in the armchair." },
+        "179": { "name": "garlic", "type": "object", "description": "Bunches of garlic hanging from the ceiling." },
+        "180": { "name": "writing on the wall", "type": "object", "description": "Red letters painted on the wall: ALUCSARD ETEREUM." },
+        "181": { "name": "certificates", "type": "object", "description": "A framed certificate and a pinned-up notice." },
+        "182": { "name": "book", "type": "object", "description": "A book lying open on the shelf." }
+      }
+    }
+  },
+  "items": [
+    { "id": 28, "chapters": [1, 2, 3], "name": "mobile phone", "description": "Your mobile phone, a Christmas present." },
+    { "id": 7, "chapters": [2, 3], "name": "money", "description": "A large banknote." },
+    { "id": 8, "chapters": [2, 3], "name": "leaves", "description": "A handful of strange leaves." },
+    { "id": 9, "chapters": [2, 3], "name": "crucifix", "description": "A carved wooden crucifix." },
+    { "id": 10, "chapters": [2, 3], "name": "iron spike", "description": "A spike from a railing." },
+    { "id": 11, "chapters": [2, 3], "name": "earplugs", "description": "A pair of slightly waxy earplugs." },
+    { "id": 12, "chapters": [2, 3], "name": "music book", "description": "A book of sheet music: Tchaikovsky's Sleeping Beauty." },
+    { "id": 13, "chapters": [2, 3], "name": "bubble gum", "description": "A piece of chewed bubble gum." },
+    { "id": 14, "chapters": [2, 3], "name": "sickle", "description": "A curved sickle." },
+    { "id": 15, "chapters": [2, 3], "name": "tissues", "description": "A packet of tissues, one still unused." },
+    { "id": 16, "chapters": [2, 3], "name": "cigarettes", "description": "A packet of cigarettes." },
+    { "id": 17, "chapters": [2, 3], "name": "candle", "description": "A plain wax candle." },
+    { "id": 18, "chapters": [2, 3], "name": "two coins", "description": "Two shiny coins." },
+    { "id": 19, "chapters": [2, 3], "name": "one coin", "description": "A single shiny coin." },
+    { "id": 20, "chapters": [2, 3], "name": "Von Braun's brew", "description": "A hand-rolled cigarette of Von Braun's brew. He says it protects against vampire bites." },
+    { "id": 22, "chapters": [2, 3], "name": "B.J.'s handbag", "description": "A lady's handbag." },
+    { "id": 23, "chapters": [2, 3], "name": "earplugs, in your ears", "description": "You're wearing the earplugs." }
+  ],
+  "cutscenes": {
+    "animation_1_1": {
+      "chapter": 1,
+      "trigger": "start of a new game",
+      "hasDialogue": true,
+      "description": "A stormy night at Count Drascula's castle. In his laboratory the count and his hunchbacked servant Igor try to bring a body to life, and the experiment fails.",
+      "seen": false,
+      "note": "Written from the dialogue only. The spike builds skip this intro."
+    },
+    "animation_3_1": {
+      "chapter": 1,
+      "trigger": "talking to the bartender for the first time",
+      "hasDialogue": true,
+      "description": "John leans on the bar and talks to the bartender.",
+      "seen": false,
+      "note": "Dialogue comes from talk sequence 3, not talk() calls, so spike 05 listed it as silent."
+    },
+    "animation_4_1": {
+      "chapter": 1,
+      "trigger": "talking to the pianist",
+      "hasDialogue": true,
+      "description": "John goes over to the piano to talk to the pianist.",
+      "seen": false
+    },
+    "animation_2_1": {
+      "chapter": 1,
+      "trigger": "going through the curtained doorway once you have a room",
+      "hasDialogue": true,
+      "description": "John crosses the bar to the curtained doorway and goes up to bed. Later, in the attic bedroom, he wakes up on the bed to find a blonde young woman, B.J., standing by the wardrobe. He puts his glasses on to get a better look. As she leans in to kiss him, a caped vampire bursts into the room, seizes her and vanishes with her, leaving John alone.",
+      "seen": true,
+      "note": "Seen from keyframes of AG, LEV, GAF, BJB, BES and RAP.BIN (tools/bin2png.py)."
+    },
+    "animation_2_2": {
+      "chapter": 2,
+      "trigger": "going through the opened window behind the church",
+      "hasDialogue": false,
+      "description": "John hauls himself up the wall, squeezes through the window and drops down inside the church with a thump.",
+      "seen": true,
+      "note": "Seen from the an2_1.alg sprite sheet; sounds 2 and 1."
+    },
+    "animation_4_2": {
+      "chapter": 2,
+      "trigger": "talking to the blind man",
+      "hasDialogue": true,
+      "description": "John walks up to the blind man and his accordion.",
+      "seen": false
+    },
+    "animation_5_2": {
+      "chapter": 2,
+      "trigger": "using the iron spike on the boarded window",
+      "hasDialogue": true,
+      "description": "John jams the spike behind the planks and levers them off the window.",
+      "seen": false,
+      "note": "Frames in an5_1 to an5_4.alg not yet looked at."
+    },
+    "animation_6_2": {
+      "chapter": 2,
+      "trigger": "giving the money to the blind man",
+      "hasDialogue": true,
+      "description": "John hands over the banknote and the blind man passes him a sickle.",
+      "seen": false
+    },
+    "animation_7_2": {
+      "chapter": 2,
+      "trigger": "using the sickle on the creeper in the cemetery",
+      "hasDialogue": false,
+      "description": "John swings the sickle at the creeper on the mausoleum and cuts away a handful of leaves.",
+      "seen": true,
+      "note": "Seen from the an7_1.alg sprite sheet."
+    },
+    "animation_11_2": {
+      "chapter": 2,
+      "trigger": "talking to the bartender in chapter 2",
+      "hasDialogue": true,
+      "description": "John talks to the bartender across the bar.",
+      "seen": false,
+      "note": "Dialogue from talk sequence 11; spike 05 listed it as silent."
+    },
+    "animation_12_2": {
+      "chapter": 2,
+      "trigger": "talking to the pianist in chapter 2",
+      "hasDialogue": true,
+      "description": "John goes over to talk to the pianist.",
+      "seen": false
+    },
+    "animation_13_2": {
+      "chapter": 2,
+      "trigger": "talking to the drunk in chapter 2",
+      "hasDialogue": true,
+      "description": "John talks to the drunk at the end of the bar.",
+      "seen": false,
+      "note": "Dialogue from talk sequence 13; spike 05 listed it as silent."
+    },
+    "animation_14_2": {
+      "chapter": 2,
+      "trigger": "during Von Braun's test",
+      "hasDialogue": false,
+      "description": "A glass-sided cage hung with loudspeakers is lowered from the ceiling over John.",
+      "seen": true,
+      "note": "Seen from the an14_2.alg sprite. Called from animation_23_2."
+    },
+    "animation_16_2": {
+      "chapter": 2,
+      "trigger": "asking the drunk who Von Braun is",
+      "hasDialogue": true,
+      "description": "The drunk's story is told in pictures with narration. The last picture shows a castle on a rocky crag, then an old man sitting alone on a rock, looking away.",
+      "seen": true,
+      "note": "Narration is on-screen text (_texthis), which ScummVM's TTS reads. his4_1 and his4_2 seen; his1 to his3 not yet."
+    },
+    "animation_20_2": {
+      "chapter": 2,
+      "trigger": "persuading Von Braun through his door",
+      "hasDialogue": true,
+      "description": "Von Braun argues through the closed door. If he's convinced, he opens it and lets John in.",
+      "seen": false
+    },
+    "animation_23_2": {
+      "chapter": 2,
+      "trigger": "agreeing to Von Braun's test",
+      "hasDialogue": true,
+      "description": "Von Braun has John stand in the middle of the room and puts on a record of horrible noises. John winces and clutches his head.",
+      "seen": true,
+      "note": "Partly seen from the an23.alg sprite sheet."
+    },
+    "animation_24_2": {
+      "chapter": 2,
+      "trigger": "talking to Von Braun in his den",
+      "hasDialogue": true,
+      "description": "John goes up to Von Braun in his armchair.",
+      "seen": false
+    },
+    "animation_25_2": {
+      "chapter": 2,
+      "trigger": "end of Von Braun's test",
+      "hasDialogue": false,
+      "description": "The loudspeaker cage is winched back up to the ceiling.",
+      "seen": true,
+      "note": "Same sprite as animation_14_2, moving the other way."
+    },
+    "animation_26_2": {
+      "chapter": 2,
+      "trigger": "giving the music book to the pianist",
+      "hasDialogue": true,
+      "description": "John hands the pianist the book of sheet music.",
+      "seen": false
+    },
+    "animation_27_2": {
+      "chapter": 2,
+      "trigger": "passing Von Braun's test",
+      "hasDialogue": true,
+      "description": "John takes his earplugs out. Von Braun, impressed, hands back his money.",
+      "seen": false
+    },
+    "animation_29_2": {
+      "chapter": 2,
+      "trigger": "asking Von Braun why Drascula never killed him",
+      "hasDialogue": true,
+      "description": "Von Braun explains from his armchair.",
+      "seen": false
+    },
+    "animation_31_2": {
+      "chapter": 2,
+      "trigger": "telling Von Braun you have all the ingredients",
+      "hasDialogue": true,
+      "description": "Von Braun makes up the brew while he talks, then hands John the result.",
+      "seen": false
+    },
+    "animation_34_2": {
+      "chapter": 2,
+      "trigger": "pushing the cigarette machine after it swallows your coin",
+      "hasDialogue": false,
+      "description": "John gives the cigarette machine a hefty shove. A packet of cigarettes drops out.",
+      "seen": true,
+      "note": "Seen from the an34_1.alg sprite sheet."
+    },
+    "animation_35_2": {
+      "chapter": 2,
+      "trigger": "walking into the well",
+      "hasDialogue": false,
+      "description": "John climbs onto the rim of the well, crouches and jumps in. The screen fades to black.",
+      "seen": true,
+      "note": "Seen from the an35_1.alg sprite sheet. Ends chapter 2."
+    },
+    "animation_36_2": {
+      "chapter": 2,
+      "trigger": "talking to the bartender after the pianist changes his tune",
+      "hasDialogue": true,
+      "description": "John talks to the bartender.",
+      "seen": false
+    }
+  },
+  "milestones": [
+    {
+      "id": "ch1.start",
+      "chapter": 1,
+      "title": "Arrived at the inn",
+      "when": { "chapter": 1 },
+      "recap": "You arrived at the village inn, looking for Count Drascula.",
+      "hints": {
+        "nudge": "You've just arrived. Have a look around the bar.",
+        "clue": "There are three people in the bar you can talk to.",
+        "answer": "Talk to the bartender, the drunk and the pianist."
+      }
+    },
+    {
+      "id": "ch1.room",
+      "chapter": 1,
+      "title": "Got a room",
+      "after": ["ch1.start"],
+      "when": { "flags": { "0": 1 } },
+      "rooms": [62, 63],
+      "recap": "You asked the bartender for a room and told him why you're here.",
+      "hints": {
+        "nudge": "It's late, and you'll need somewhere to sleep.",
+        "clue": "The bartender runs the place. He handles the rooms.",
+        "answer": "Talk to the bartender."
+      }
+    },
+    {
+      "id": "ch1.bed",
+      "chapter": 1,
+      "title": "Went up to bed",
+      "after": ["ch1.room"],
+      "end": true,
+      "rooms": [62],
+      "recap": "You went up to your room. That night B.J. was snatched by a caped figure.",
+      "hints": {
+        "nudge": "You've got a room. Time for bed.",
+        "clue": "The guest rooms are up through the curtained doorway, right of the bar.",
+        "answer": "Walk through the curtained doorway under the HABITACIONES sign."
+      }
+    },
+    {
+      "id": "ch2.start",
+      "chapter": 2,
+      "title": "Woke up alone",
+      "when": { "chapter": 2 },
+      "recap": "B.J. was taken in the night, and you set out to find her.",
+      "hints": {
+        "nudge": "B.J. has been kidnapped. Start where she was staying.",
+        "clue": "Her things might still be in the bedroom upstairs.",
+        "answer": "Go up through the curtained doorway to the guest bedroom."
+      }
+    },
+    {
+      "id": "ch2.handbag",
+      "chapter": 2,
+      "title": "Found B.J.'s handbag",
+      "after": ["ch2.start"],
+      "when": { "flags": { "20": 1 } },
+      "rooms": [14, 16],
+      "recap": "You found B.J.'s handbag in the bedroom upstairs.",
+      "hints": {
+        "nudge": "B.J. was staying in your room. Did she leave anything behind?",
+        "clue": "Something in the guest bedroom can be opened.",
+        "answer": "In the guest bedroom, open the trunk under the window."
+      }
+    },
+    {
+      "id": "ch2.money",
+      "chapter": 2,
+      "title": "Found money",
+      "after": ["ch2.handbag"],
+      "when": { "flags": { "23": 1 } },
+      "recap": "You found a banknote and two coins in B.J.'s handbag.",
+      "hints": {
+        "nudge": "You're carrying something of B.J.'s. Have a closer look at it.",
+        "clue": "Check inside the handbag.",
+        "answer": "Open the handbag in your inventory."
+      }
+    },
+    {
+      "id": "ch2.cigarettes",
+      "chapter": 2,
+      "title": "Got cigarettes",
+      "after": ["ch2.money"],
+      "when": { "flags": { "26": 1 } },
+      "rooms": [14, 15],
+      "recap": "You beat the cigarette machine in the back room and got a packet of cigarettes.",
+      "hints": {
+        "nudge": "The machine in the back room takes coins. It isn't very honest, though.",
+        "clue": "Feed the cigarette machine your coins. When nothing comes out, don't take it lying down.",
+        "answer": "In the back room, use the two coins on the machine, then push the machine."
+      }
+    },
+    {
+      "id": "ch2.von-braun-named",
+      "chapter": 2,
+      "title": "Heard about Von Braun",
+      "after": ["ch2.start"],
+      "when": { "flags": { "40": 1 } },
+      "rooms": [14],
+      "recap": "The drunk told you about Von Braun, and where he lives.",
+      "hints": {
+        "nudge": "Somebody in the bar knows more about this village than he lets on.",
+        "clue": "Talk to the drunk, and keep asking until he names someone who can help.",
+        "answer": "Talk to the drunk, then choose AND WHERE CAN I FIND VON BRAUN? His hut then appears on the valley map."
+      }
+    },
+    {
+      "id": "ch2.blind-man",
+      "chapter": 2,
+      "title": "Met the blind man",
+      "after": ["ch2.start"],
+      "when": { "flags": { "4": 1 } },
+      "rooms": [9, 10],
+      "optional": true,
+      "recap": "You met a blind man in an alley who sells sickles.",
+      "hints": {
+        "nudge": "Explore the village streets. Someone is trading in an out-of-the-way spot.",
+        "clue": "There's a man in the dead-end alley off the square.",
+        "answer": "From the square, go into the dead-end alley and talk to the blind man."
+      }
+    },
+    {
+      "id": "ch2.sickle",
+      "chapter": 2,
+      "title": "Got the sickle",
+      "after": ["ch2.money"],
+      "when": { "any": [{ "has": [14] }, { "flags": { "37": 1 } }] },
+      "rooms": [9],
+      "recap": "You paid the blind man for his sickle.",
+      "hints": {
+        "nudge": "Someone in the village sells tools, and he isn't cheap.",
+        "clue": "The blind man in the alley wants a large sum of money.",
+        "answer": "Use the money on the blind man."
+      }
+    },
+    {
+      "id": "ch2.spike",
+      "chapter": 2,
+      "title": "Got the iron spike",
+      "after": ["ch2.start"],
+      "when": { "flags": { "3": 1 } },
+      "rooms": [3],
+      "recap": "You pulled a loose spike off the cemetery railing.",
+      "hints": {
+        "nudge": "The cemetery hasn't been looked after. Not everything in it is fixed down.",
+        "clue": "Look at the railing next to the mausoleum.",
+        "answer": "In the cemetery, take the fence spike."
+      }
+    },
+    {
+      "id": "ch2.church",
+      "chapter": 2,
+      "title": "Got into the church",
+      "after": ["ch2.spike"],
+      "when": { "flags": { "8": 1 } },
+      "rooms": [3, 5],
+      "recap": "You prised the boards off a church window and climbed in.",
+      "hints": {
+        "nudge": "The church is boarded up, but there's more than one way in.",
+        "clue": "Go round behind the church fence from the cemetery. The boarded window there could be forced.",
+        "answer": "From the cemetery take the way round behind the fence, then use the iron spike on the boarded window."
+      }
+    },
+    {
+      "id": "ch2.crucifix",
+      "chapter": 2,
+      "title": "Found a crucifix",
+      "after": ["ch2.church"],
+      "when": { "flags": { "10": 1 } },
+      "rooms": [6],
+      "optional": true,
+      "recap": "You found a wooden crucifix in the church vestry.",
+      "hints": {
+        "nudge": "A church is a good place to look for protection against vampires.",
+        "clue": "The bench in the vestry has storage in it.",
+        "answer": "In the vestry, open the drawer, then take the crucifix."
+      }
+    },
+    {
+      "id": "ch2.candle",
+      "chapter": 2,
+      "title": "Got a candle",
+      "after": ["ch2.church"],
+      "when": { "flags": { "35": 1 } },
+      "rooms": [6, 7],
+      "recap": "You picked up a candle in the church.",
+      "hints": {
+        "nudge": "The church itself is through the vestry. It's a mess, but not everything in there is broken.",
+        "clue": "Open the arched door in the vestry and search the floor of the church.",
+        "answer": "In the vestry, open the arched door and go through. In the nave, take the candle."
+      }
+    },
+    {
+      "id": "ch2.leaves",
+      "chapter": 2,
+      "title": "Cut some leaves",
+      "after": ["ch2.sickle"],
+      "when": { "flags": { "37": 1 } },
+      "rooms": [3],
+      "recap": "You cut leaves from the creeper in the cemetery with the sickle.",
+      "hints": {
+        "nudge": "Something green in the cemetery could be useful, but you'll need a blade.",
+        "clue": "The creeper on the mausoleum. Your sickle will cut it.",
+        "answer": "In the cemetery, use the sickle on the creeper."
+      }
+    },
+    {
+      "id": "ch2.bubble-gum",
+      "chapter": 2,
+      "title": "Found bubble gum",
+      "after": ["ch2.start"],
+      "when": { "flags": { "34": 1 } },
+      "rooms": [4],
+      "recap": "You found bubble gum stuck to a barrel at the edge of the village.",
+      "hints": {
+        "nudge": "Check what's lying around outside the houses at the edge of the village.",
+        "clue": "The barrel by the house wall. Something might be stuck to it.",
+        "answer": "At the edge of the village, push the barrel."
+      }
+    },
+    {
+      "id": "ch2.tissues",
+      "chapter": 2,
+      "title": "Found tissues",
+      "after": ["ch2.start"],
+      "when": { "flags": { "7": 1 } },
+      "rooms": [8],
+      "recap": "You found a packet of tissues in a bin in the lane.",
+      "hints": {
+        "nudge": "One person's rubbish is another's treasure.",
+        "clue": "The bin in the lane with the statue.",
+        "answer": "In the lane between the inn and the square, look at the bin."
+      }
+    },
+    {
+      "id": "ch2.into-hut",
+      "chapter": 2,
+      "title": "Got into Von Braun's hut",
+      "after": ["ch2.von-braun-named", "ch2.money"],
+      "when": { "flags": { "14": 1 } },
+      "rooms": [2, 17],
+      "recap": "You talked Von Braun into letting you in, betting your money on it.",
+      "hints": {
+        "nudge": "Von Braun doesn't open up to just anyone. He wants proof you're serious, and something at stake.",
+        "clue": "Knock first, then talk to him through the door. He'll ask you to bet your money, so make sure you have some.",
+        "answer": "At the hut, open the door to knock, then talk to the door and choose DON'T BE AFRAID, WE WILL BEAT DRASCULA TOGETHER."
+      }
+    },
+    {
+      "id": "ch2.book",
+      "chapter": 2,
+      "title": "Took a book",
+      "after": ["ch2.into-hut"],
+      "when": { "flags": { "28": 1 } },
+      "rooms": [18],
+      "recap": "You took a book of sheet music from Von Braun's shelf.",
+      "hints": {
+        "nudge": "Von Braun's den is full of clutter. Some of it might cheer someone else up.",
+        "clue": "There's a book on his shelf.",
+        "answer": "In Von Braun's den, take the book."
+      }
+    },
+    {
+      "id": "ch2.earplugs",
+      "chapter": 2,
+      "title": "Got earplugs",
+      "after": ["ch2.book"],
+      "when": { "flags": { "39": 1 } },
+      "rooms": [14],
+      "recap": "You gave the pianist some new music, and he gave you his earplugs.",
+      "hints": {
+        "nudge": "Someone at the inn is sick of playing the same song.",
+        "clue": "Give the pianist something new to play.",
+        "answer": "Use the music book on the pianist."
+      }
+    },
+    {
+      "id": "ch2.test",
+      "chapter": 2,
+      "title": "Passed Von Braun's test",
+      "after": ["ch2.into-hut", "ch2.earplugs"],
+      "when": { "flags": { "22": 1 } },
+      "rooms": [17, 18],
+      "recap": "You passed Von Braun's noise test and got your money back.",
+      "hints": {
+        "nudge": "Von Braun's test is all about noise.",
+        "clue": "Wear the earplugs before you take the test. They only go in near Von Braun's.",
+        "answer": "At the hut or in the den, use the earplugs on yourself. Then talk to Von Braun and choose I AM READY TO FACE YOUR TEST."
+      }
+    },
+    {
+      "id": "ch2.recipe",
+      "chapter": 2,
+      "title": "Learnt the brew recipe",
+      "after": ["ch2.test"],
+      "when": { "flags": { "22": 1, "33": 1 } },
+      "rooms": [18],
+      "recap": "Von Braun told you how to make a brew that protects against vampires.",
+      "hints": {
+        "nudge": "Von Braun takes you seriously now. Ask how he survived Drascula.",
+        "clue": "Talk to Von Braun about why Drascula didn't kill him.",
+        "answer": "Talk to Von Braun and choose WHY WOULDN'T DRASCULA KILL YOU?"
+      },
+      "note": "Flag 33 is also set by talking to the blind man a second time (animation_4_2), so the condition includes flag 22."
+    },
+    {
+      "id": "ch2.ingredients",
+      "chapter": 2,
+      "title": "Collected the ingredients",
+      "after": ["ch2.recipe"],
+      "when": { "any": [{ "flags": { "38": 1 } }, { "flags": { "36": 1 } }] },
+      "recap": "You collected everything for Von Braun's brew.",
+      "hints": {
+        "nudge": "Von Braun's brew needs five things. Check what you still haven't got.",
+        "clue": "Wax, nicotine, bubble gum, paper and leaves cut with a sickle: a candle, cigarettes, bubble gum, tissues and leaves.",
+        "answer": "Candle: on the church floor. Cigarettes: the machine in the inn's back room. Bubble gum: the barrel at the edge of the village. Tissues: the bin in the lane. Leaves: cut the cemetery creeper with the sickle."
+      },
+      "note": "Flag 38 is set when flags 7, 26, 34, 35 and 37 are all 1, and cleared again by talk sequence 31, hence the any."
+    },
+    {
+      "id": "ch2.brew",
+      "chapter": 2,
+      "title": "Got Von Braun's brew",
+      "after": ["ch2.ingredients"],
+      "when": { "flags": { "36": 1 } },
+      "rooms": [18],
+      "recap": "Von Braun made you his brew and told you about an old well by the church.",
+      "hints": {
+        "nudge": "You've got everything Von Braun asked for.",
+        "clue": "Talk to Von Braun. There's a new thing to tell him.",
+        "answer": "Talk to Von Braun and choose I HAVE ALL THE INGREDIENTS OF THAT BREW."
+      }
+    },
+    {
+      "id": "ch2.well",
+      "chapter": 2,
+      "title": "Went down the well",
+      "after": ["ch2.brew"],
+      "end": true,
+      "rooms": [7, 19],
+      "recap": "You climbed into the old well behind the church.",
+      "hints": {
+        "nudge": "Von Braun told you how to get closer to Drascula. Remember what he said about a well?",
+        "clue": "The well is in the yard behind the church. Go through the church and out of the small door.",
+        "answer": "In the churchyard behind the church, walk into the well."
+      }
+    }
+  ]
+}

@@ -55,12 +55,12 @@ These tasks implement the design. Each cites the requirements it covers. All wor
   - Confirm the hook command invokes the `validate` CLI against `packs/drascula-en.json`.
   - _Requirements: 5.1, 5.2, 5.3_
 
-- [ ] 10. Move and upgrade the Drascula pack
+- [x] 10. Move and upgrade the Drascula pack
   - Copy `reference/pack-draft/drascula-en.json` to `packs/drascula-en.json`; leave the draft untouched.
   - Set `formatVersion` to v1, point `$schema` at `packs/schema.json`, and bump `pack.version` for the content revision. Change no field shapes.
   - _Requirements: 9.1, 9.5, 10.2_
 
-- [ ] 11. Validate and cover the Drascula pack
+- [x] 11. Validate and cover the Drascula pack
   - Run the validator on `packs/drascula-en.json` until it is clean (schema + cross-reference).
   - Run the coverage checker for chapters 1 and 2; resolve every gap or attach a documented override note (inn curtained doorway `to: null`, the chapter-1 street door switched off in data, any shared-number hotspots).
   - _Requirements: 9.2, 9.3_
