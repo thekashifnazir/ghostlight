@@ -1,18 +1,74 @@
 # engine/hooks.patch — hooks into the pinned ScummVM Drascula engine.
 #
-# Placeholder. This is where the small hook edits to the engine's existing
-# sources live, as a readable unified diff applied by scripts/build-engine.sh
-# with `git apply` against vendor/scummvm. It is empty for now; the hooks land
-# in later tasks:
+# Small, readable edits to the engine's own sources, applied by
+# scripts/build-engine.sh with `git apply` against vendor/scummvm. The work
+# itself lives in engine/a11y.cpp (copied in by the build script); these hunks
+# are only the few lines that construct the A11yLayer and call into it.
 #
-#   drascula.cpp  — construct A11yLayer; call onStartup(), onRoomEntry(), poll()
-#   converse.cpp  — emit A11Y_CHOICES; apply `choose <n>` in the converse loop
-#   graphics.cpp  — emit A11Y_TEXT for each drawn text line
-#   updateEvents()— poll the command file so a queued `skip` is honoured
-#
-# A fresh vendor/ (scripts/fetch.sh) plus scripts/build-engine.sh must reproduce
-# the build from engine/ alone. Never edit vendor/ by hand.
-#
-# When this holds real hunks, `git apply --check` of an empty-but-for-comments
-# file is a no-op, so the build script treats a patch with no diff hunks as
+# Lines starting with `#` above the first `diff` line are comments and are
+# ignored by git apply. The build script treats a file with no diff hunks as
 # "nothing to apply".
+#
+# Task 3 hooks (drascula.cpp):
+#   * include drascula/a11y.h
+#   * construct A11yLayer on the stack at the top of runCurrentChapter(), so it
+#     is in scope for both chapter setup and the per-frame main loop
+#   * hard-code the intro skip: animation_1_1() is guarded out (R1.4)
+#   * call _a11y.onStartup() once the first playable room is entered, to assert
+#     subtitles and emit the first A11Y room-state line (R1.4, R6.1)
+#
+# Later tasks add hooks for poll() (main loop), converse.cpp (A11Y_CHOICES /
+# choose) and graphics.cpp (A11Y_TEXT); they will extend this patch.
+diff --git a/engines/drascula/drascula.cpp b/engines/drascula/drascula.cpp
+index aeccc822cb..fbb824be67 100644
+--- a/engines/drascula/drascula.cpp
++++ b/engines/drascula/drascula.cpp
+@@ -33,6 +33,7 @@
+ 
+ #include "drascula/drascula.h"
+ #include "drascula/console.h"
++#include "drascula/a11y.h"
+ 
+ namespace Drascula {
+ 
+@@ -416,6 +417,12 @@ bool DrasculaEngine::runCurrentChapter() {
+ 	int n;
+ 	int framesWithoutAction = 0;
+ 
++	// Ghostlight a11y layer: observes room/inventory/flag state, drives the
++	// game from a command file and emits A11Y* log lines. Lives on the stack
++	// for this chapter so it is in scope for both the chapter setup (intro
++	// skip, first room state) and the per-frame poll() in the main loop.
++	A11yLayer _a11y(this);
++
+ 	_rightMouseButton = 0;
+ 	_leftMouseButtonHeld = false;
+ 
+@@ -447,8 +454,15 @@ bool DrasculaEngine::runCurrentChapter() {
+ 	if (currentChapter == 1) {
+ 		pickObject(28);
+ 
++		// Ghostlight: hard-code the intro skip (R1.4). animation_1_1() is the
++		// chapter-1 intro cutscene (logos, Dracula/Igor, BJ abduction); it sets
++		// no progress flags and the first playable room is set up by enterRoom(62)
++		// below regardless, so skipping it lands the player straight in the tavern.
++		// Kept behind GHOSTLIGHT_PLAY_INTRO so a sighted run can restore the intro.
++#ifdef GHOSTLIGHT_PLAY_INTRO
+ 		if (!_loadedDifferentChapter)
+ 			animation_1_1();
++#endif
+ 
+ 		selectVerb(kVerbNone);
+ 		loadPic("2aux62.alg", drawSurface2);
+@@ -550,6 +564,11 @@ bool DrasculaEngine::runCurrentChapter() {
+ 
+ 	showCursor();
+ 
++	// Ghostlight: the chapter is now set up and the first playable room entered,
++	// so assert subtitles are on and emit the first A11Y room-state line (R1.4,
++	// R6.1). Runs once per chapter start, which also covers a --save-slot launch.
++	_a11y.onStartup();
++
+ 	while (!shouldQuit()) {
+ 		if (!_characterMoved) {
+ 			stepX = STEP_X;
