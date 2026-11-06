@@ -21,3 +21,11 @@ Prompted by a blind player on the Games for Blind Gamers Discord, who pointed at
 **Our design call:** list mode with Left/Right is the primary way to play. Sonar becomes a "where is it" helper on the focused item, not the main navigation. Typed commands stay as an optional shortcut.
 
 **Person worth knowing:** Lirin111 made the Loco Motive and The Drifter mods and consulted on BROK's blind access.
+
+
+## Player feedback, 6 Nov 21:49 (Discord, blind player who recommended these games)
+
+- Loco Motive mod: **focus order did not match the visual order** of things in the train. Keep the list strictly left to right (then top to bottom).
+- **Focusing something off-screen did not move the camera**, a problem when playing alongside someone sighted. Show the focused hotspot on the canvas (a highlight) and keep it in view, so a sighted co-player can follow. Also useful in the demo video.
+- **Neither game has room descriptions**, "which would have been helpful". Our pack descriptions are a real differentiator.
+- A Crisis of Fae lists its known bugs on its itch page.
