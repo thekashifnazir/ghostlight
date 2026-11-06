@@ -38,7 +38,7 @@ New code lives under `src/hints/` (including the committed audio cache at `src/h
   - Unit-test `ask` on a scripted progress sequence (none when nothing offered, correct text and key when offered) and `askAnswer` giving the answer directly for an offered milestone.
   - _Requirements: 2.6, 3.1, 3.2, 3.3, 4.1, 4.2, 4.3, 5.2, 8.8_
 
-- [ ] 8. Ghost audio playback glue
+- [x] 8. Ghost audio playback glue
   - Create `src/hints/audio.ts` with `GhostAudio(ctx)`: build a URL map with `import.meta.glob('./ghost/*.mp3', { query: '?url', eager: true })`; an `enabled` flag defaulting to on with a toggle; `play(key)` is a no-op when disabled, otherwise resolves `cacheFileName(key)` in the glob map and plays it, silently doing nothing if the key is absent from the map or playback fails; `stop()` stops immediately.
   - Unit-test that disabled `play` is a no-op, a key with no glob entry is silent (no throw), and `stop` is safe when nothing is playing.
   - _Requirements: 6.1, 6.2, 6.4, 6.5, 8.4_
