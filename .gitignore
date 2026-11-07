@@ -12,6 +12,8 @@ test-results/
 web/public/
 # Wrangler's local state (Miniflare cache, local R2/KV, logs). Build-time only.
 web/.wrangler/
+# Workflow/agent run artifacts (task reports, review scratch). Not source.
+.agents/
 # Raw screen-capture footage for the demo video — large binaries, not source.
 docs/video-raw/
 # Player replay fixtures are committed test data, not logs. The global
