@@ -134,7 +134,17 @@ These tasks implement the design. Each cites the requirements it covers. Our eng
   - Confirm a clean `scripts/fetch.sh` then `scripts/build-engine.sh` reproduces the build from `engine/` alone.
   - _Requirements: 10.1, 10.2, 10.3, 10.5_
 
-- [ ] 25. Verifier custom agent against requirements
+- [x] 25. Verifier custom agent against requirements
   - Create a verifier custom agent (in `.kiro/agents/`) that re-runs the replay fixtures and property-based tests and compares the layer's observed behaviour against each acceptance criterion in `requirements.md`.
   - Run it and record the result; file any gaps it finds as follow-up tasks.
+  - Done: agent at `.kiro/agents/engine-a11y-verifier.md`; report at `.kiro/specs/engine-a11y-layer/verification.md`; fixture suite ran 26/26 pass; live native ch2-handbag spot-check run; two gaps filed as tasks 26 and 27 below.
   - _Requirements: all_
+
+- [ ] 26. Follow-up (from task 25): live native ch2-handbag `open 22` returns A11Y_ERR (R3.6)
+  - Loading the chapter-2 save (slot 9) and running the ch2-handbag script live, `open 183` sets flags 19/20 but adds no handbag (item 22), so `open 22` emits `A11Y_ERR object 22 is not in this room or inventory` instead of the golden diff (money + two coins, flag 23). This is a live-vs-golden divergence surfaced during task 19 and reconfirmed by the verifier (`verification.md`, Gap 1).
+  - Separate the two possible causes: (a) the live slot-9 save is stale/drifted (its room-14 object and flag set differs from the save the golden transcript was recorded against), versus (b) a genuine inventory-screen dispatch bug where `open 183` fails to grant item 22 on the live engine. Regenerate the chapter-2 save with `scripts/make-ch2-save.sh` and re-run; if `open 183` still grants no handbag, fix the dispatch so R3.6 holds live and re-record the golden fixture from the real engine.
+  - _Requirements: 3.6; gotcha 6_
+
+- [ ] 27. Follow-up (from task 25): register task 22 property tests for PBT status tracking
+  - Task 22's fast-check property tests run and pass, but task 22 is a normal task in `tasks.meta.json`, so `pbtResults` stays `{}` and `update_pbt_status` never applies. Register the property-test task as a PBT task (or mark it so the PBT tooling records a status) so the property run is tracked. Tooling/registration loose end, no behavioural impact (`verification.md`, Gap 2).
+  - _Requirements: 2.2, 2.5, 4.1, 4.5, 4.8, 5.*_
