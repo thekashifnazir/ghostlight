@@ -1337,3 +1337,11 @@ Files changed: `packs/FORMAT.md`, `.kiro/specs/description-variants/tasks.md`, `
 Time taken: about 10 minutes.
 What went wrong or surprised you: nothing.
 What was learned: documenting the union as "a default with no variants" for the plain form makes the backward-compatibility story one sentence and keeps authors from thinking variants are a separate, heavier mechanism.
+
+## 103 · description-variants · 2026-11-07 · Task 3: describable types in the pack tools
+What was asked: task 3, add describable types to `packs/tools/src/types.ts` and change the description fields to match the schema.
+What Kiro did: added `DescriptionVariant` (`when`, `text`, optional `note`), `VariantList` (`default`, `variants`), `Describable = string | VariantList`, and an `isVariantList` discriminator. Changed `Room.short`, `Room.long` and `RoomObject.description` from `string` to `Describable` (description still optional). Ran `tsc --noEmit` for the tools package: clean, no consumers broke.
+Files changed: `packs/tools/src/types.ts`, `.kiro/specs/description-variants/tasks.md`, `docs/kiro-process.md`.
+Time taken: a few minutes.
+What went wrong or surprised you: the type widening compiled with zero errors, which confirmed the existing validator and coverage checker never read description text as a string; they key on hotspot numbers and presence. That makes tasks 4 and 5 small.
+What was learned: when a type widens from `string` to a union, a clean typecheck is a quick proof of how many call sites actually depend on the narrow type; here, none did.

@@ -15,7 +15,7 @@ These tasks implement the design. Each cites the requirements it covers. Work sp
   - Add a worked example using the room 5 church window (boarded default, opened-when-flag-8 variant), walking the schema field by field so document and schema agree.
   - _Requirements: 1.1, 1.4, 1.6_
 
-- [ ] 3. Types for describable in the pack tools
+- [x] 3. Types for describable in the pack tools
   - In `packs/tools/src/types.ts`, add `DescriptionVariant { when: Condition; text: string; note?: string }`, `VariantList { default: string; variants: DescriptionVariant[] }`, and `Describable = string | VariantList`.
   - Change `Room.short`, `Room.long`, and the object `description` type to `Describable` (description stays optional), matching the schema.
   - Add an `isVariantList(d): d is VariantList` discriminator helper.
