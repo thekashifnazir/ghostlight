@@ -61,6 +61,7 @@ function toDiff(raw: Record<string, unknown>): Diff {
   if (raw.disappeared !== undefined)
     d.disappeared = raw.disappeared as Diff["disappeared"];
   if (raw.doors !== undefined) d.doors = raw.doors as Diff["doors"];
+  if (raw.hero !== undefined) d.hero = raw.hero as { x: number; y: number };
   if (raw.invAdded !== undefined) d.invAdded = raw.invAdded as InvEntry[];
   if (raw.invRemoved !== undefined) d.invRemoved = raw.invRemoved as InvEntry[];
   if (raw.flags !== undefined)

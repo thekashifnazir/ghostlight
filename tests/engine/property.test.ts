@@ -144,6 +144,52 @@ describe("property: invariants over random valid command sequences", () => {
   });
 });
 
+describe("property: the optional hero field (task 30, R5)", () => {
+  it("every hero field over random valid sequences is well-formed and never forces changed:true", () => {
+    let sawHero = false;
+    fc.assert(
+      fc.property(
+        fc.array(fc.nat(), { minLength: 1, maxLength: 40 }),
+        (picks) => {
+          for (const obs of runValidSequence(picks)) {
+            const d = diffOf(obs.lines);
+            if (!d) continue;
+            if (d.hero !== undefined) {
+              sawHero = true;
+              // Well-formed point.
+              expect(typeof d.hero.x).toBe("number");
+              expect(typeof d.hero.y).toBe("number");
+              expect(Number.isFinite(d.hero.x)).toBe(true);
+              expect(Number.isFinite(d.hero.y)).toBe(true);
+            }
+            // A hero move alone must NOT flip `changed`: the invariant checker
+            // deliberately excludes hero from its move-keys, so a changed:false
+            // diff that carries only a hero field still passes.
+            const res = checkInvariants(obs);
+            expect(res.ok, res.failures.join("; ")).toBe(true);
+          }
+        },
+      ),
+      { numRuns: 200 },
+    );
+    // The pool includes movement commands (walks, verbs that walk to an
+    // object), so the hero field is actually exercised.
+    expect(sawHero, "expected some diff to carry a hero field").toBe(true);
+  });
+
+  it("a changed:false diff may still carry a hero field (free-point walk / verb walk)", () => {
+    // Find a recorded accepted command whose diff is changed:false AND carries a
+    // hero field, proving the two coexist (task 30: hero is positional data, not
+    // a world change).
+    const run = new ReplayOracle();
+    const withHeroNoChange = accepted
+      .map((c) => diffOf(run.run(c).lines))
+      .filter((d): d is NonNullable<typeof d> => d != null)
+      .some((d) => d.changed === false && d.hero !== undefined);
+    expect(withHeroNoChange).toBe(true);
+  });
+});
+
 describe("property: the command pool is non-trivial", () => {
   it("has accepted commands covering verbs, walking and use-on-object", () => {
     expect(accepted.length).toBeGreaterThan(0);

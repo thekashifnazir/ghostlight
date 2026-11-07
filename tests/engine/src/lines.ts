@@ -63,6 +63,13 @@ export interface Diff {
   appeared?: A11yObject[];
   disappeared?: A11yObject[];
   doors?: A11yObject[];
+  /**
+   * The hero's NEW point, present only when the command moved the hero (a walk
+   * to a free point or through a door). Same point/space as RoomState.hero
+   * (curX + curWidth/2, curY + curHeight). Sonar pans object pings relative to
+   * this; omitted when the hero did not move.
+   */
+  hero?: { x: number; y: number };
   invAdded?: InvEntry[];
   invRemoved?: InvEntry[];
   /** Flag changes keyed by index string, value [from, to]. */

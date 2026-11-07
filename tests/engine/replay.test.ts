@@ -139,6 +139,36 @@ describe("replay fixtures: the recorded A11Y_DIFF sequence", () => {
     expect(crossing.room).toEqual([62, 14]);
     const doorToRoom = crossing.objects?.find((o) => o.num === 171);
     expect(doorToRoom?.toRoom).toBe(15);
+
+    // Task 30 (R5): the crossing moved the hero, so its diff carries the NEW
+    // room's hero point, in the same coordinate space as the new room's objects.
+    expect(crossing.hero).toBeDefined();
+    expect(typeof crossing.hero!.x).toBe("number");
+    expect(typeof crossing.hero!.y).toBe("number");
+
+    // A non-movement command (inventory) carries NO hero field: opening the
+    // inventory listing does not move the hero (R5, the field is omitted when
+    // the hero did not move).
+    const invDiff = diffOf(steps.find((s) => s.cmd === "inventory")!.lines)!;
+    expect(invDiff.hero).toBeUndefined();
+  });
+
+  it("tavern: a walk/verb that moves the hero carries the new point, a conversation choice does not", async () => {
+    // Task 30 / R5.1-5.3: the optional hero field is present exactly when a
+    // command moved the hero, and reports the hero's new point.
+    const steps = await replay("tavern");
+
+    // talk 53 walks the hero to the drunkard before the conversation opens, so
+    // its diff carries the hero's new point.
+    const talk53 = diffOf(steps.find((s) => s.cmd === "talk 53")!.lines)!;
+    expect(talk53.hero).toBeDefined();
+
+    // A conversation choice runs in place (the hero is already at the NPC), so
+    // choose 2 / choose 4 carry no hero field.
+    const choose2 = diffOf(steps.find((s) => s.cmd === "choose 2")!.lines)!;
+    const choose4 = diffOf(steps.find((s) => s.cmd === "choose 4")!.lines)!;
+    expect(choose2.hero).toBeUndefined();
+    expect(choose4.hero).toBeUndefined();
   });
 
   it("leave-tavern: the door/cutscene/chapter crossing in one diff", async () => {
@@ -162,6 +192,9 @@ describe("replay fixtures: the recorded A11Y_DIFF sequence", () => {
     // Door walk changes room 14 -> 16 (R3.8, R4.3).
     const walk = diffOf(steps.find((s) => s.cmd === "walk 162")!.lines)!;
     expect(walk.room).toEqual([14, 16]);
+    // Task 30 (R5): the door walk moved the hero into room 16, so the diff
+    // carries the new hero point.
+    expect(walk.hero).toBeDefined();
 
     // Open the trunk: handbag gained, flags 19/20 set (R4.5, R4.6).
     const trunk = diffOf(steps.find((s) => s.cmd === "open 183")!.lines)!;
@@ -174,10 +207,19 @@ describe("replay fixtures: the recorded A11Y_DIFF sequence", () => {
       { id: 7, name: "money" },
       { id: 18, name: "two coins" },
     ]);
+    // Task 30 (R5): opening an inventory item does not move the hero, so no
+    // hero field is emitted.
+    expect(handbag.hero).toBeUndefined();
   });
 
   it("ch2-vending-machine: use-item-on-object, item return, error case, push", async () => {
     const steps = await replay("ch2-vending-machine");
+
+    // Door walk 14 -> 15 moves the hero, so its diff carries the new point
+    // (task 30, R5).
+    const walk = diffOf(steps.find((s) => s.cmd === "walk 171")!.lines)!;
+    expect(walk.room).toEqual([14, 15]);
+    expect(walk.hero).toBeDefined();
 
     // use 18 188: two coins go in, one coin comes back; the net diff shows the
     // swap, not the transient pickup (R3.4, R3.5, R4.5).
@@ -185,6 +227,9 @@ describe("replay fixtures: the recorded A11Y_DIFF sequence", () => {
     expect(use.invRemoved).toEqual([{ id: 18, name: "two coins" }]);
     expect(use.invAdded).toEqual([{ id: 19, name: "one coin" }]);
     expect(use.flags).toEqual({ "27": [1, 0] });
+    // By use-time the hero is already at the machine (look 188 walked there), so
+    // using the item on it does not move the hero: no hero field (task 30, R5).
+    expect(use.hero).toBeUndefined();
 
     // The error case: a verb on an object not in the room yields an A11Y_ERR
     // and no diff, and the run keeps going (R2.5).
@@ -197,6 +242,31 @@ describe("replay fixtures: the recorded A11Y_DIFF sequence", () => {
     expect(push.invAdded).toEqual([{ id: 16, name: "cigarettes" }]);
     expect(push.flags).toEqual({ "26": [0, 1], "27": [0, 1] });
   });
+});
+
+describe("replay fixtures: the optional hero field (task 30, R5)", () => {
+  for (const name of FIXTURE_NAMES) {
+    it(`${name}: a present hero field is well-formed; a room change always carries one`, async () => {
+      const steps = await replay(name);
+      for (const { lines } of steps) {
+        const d = diffOf(lines);
+        if (!d) continue;
+        if (d.hero !== undefined) {
+          // When present, hero is {x:number,y:number} in object coordinate
+          // space (same point as the room state's hero).
+          expect(typeof d.hero.x).toBe("number");
+          expect(typeof d.hero.y).toBe("number");
+          expect(Number.isFinite(d.hero.x)).toBe(true);
+          expect(Number.isFinite(d.hero.y)).toBe(true);
+        }
+        // A room/chapter change moves the hero into the new room, so a
+        // room-change diff must carry the new room's hero point (R5).
+        if (d.room || d.chapter) {
+          expect(d.hero, "room change must carry the new hero point").toBeDefined();
+        }
+      }
+    });
+  }
 });
 
 describe("replay fixtures: room-change diffs agree with the next room state", () => {

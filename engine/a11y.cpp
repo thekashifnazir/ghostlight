@@ -75,6 +75,8 @@ struct CrossChapterDiff {
 	// before-snapshot parts
 	int chapter;
 	int room;
+	int heroX;
+	int heroY;
 	Common::Array<int> objNums;
 	Common::Array<bool> objVisible;
 	Common::Array<bool> objDoor;
@@ -84,7 +86,8 @@ struct CrossChapterDiff {
 	Common::Array<Common::String> saidColor;
 	Common::Array<Common::String> saidText;
 
-	CrossChapterDiff() : pending(false), errCountBefore(0), chapter(0), room(0) {
+	CrossChapterDiff() : pending(false), errCountBefore(0), chapter(0), room(0),
+	                     heroX(0), heroY(0) {
 		for (int f = 0; f < NUM_FLAGS; f++)
 			flags[f] = 0;
 	}
@@ -324,6 +327,12 @@ void A11yLayer::takeSnapshot(Snapshot &snap) const {
 	snap.chapter = e->currentChapter;
 	snap.room = e->_roomNumber;
 
+	// Hero point (R5.2/R5.3) — the SAME point buildRoomState() reports, via the
+	// shared helpers, so the room state and the diff's optional `hero` field can
+	// never drift (task 30, R5.1).
+	snap.heroX = heroX();
+	snap.heroY = heroY();
+
 	snap.objNums.clear();
 	snap.objVisible.clear();
 	snap.objDoor.clear();
@@ -344,17 +353,25 @@ void A11yLayer::takeSnapshot(Snapshot &snap) const {
 		snap.flags[f] = e->flags[f];
 }
 
+// The hero point: horizontal centre and foot of the hero sprite (R5.2), in the
+// same coordinate space as the object rects and walk-to points (R5.3). One
+// definition shared by buildRoomState(), takeSnapshot() and the diff's optional
+// `hero` field (task 30) so the point is identical everywhere and can never
+// drift. curX/curWidth/curY/curHeight are the hero sprite's live screen box.
+int A11yLayer::heroX() const {
+	return _engine->curX + _engine->curWidth / 2;
+}
+
+int A11yLayer::heroY() const {
+	return _engine->curY + _engine->curHeight;
+}
+
 Common::String A11yLayer::buildRoomState() {
 	DrasculaEngine *e = _engine;
 
-	// Hero point: horizontal centre and foot of the hero (R5.2), in the same
-	// coordinate space as the object rects and walk-to points (R5.3).
-	int heroX = e->curX + e->curWidth / 2;
-	int heroY = e->curY + e->curHeight;
-
 	Common::String json = Common::String::format(
 		"{\"chapter\":%d,\"room\":%d,\"hero\":{\"x\":%d,\"y\":%d},\"objects\":[",
-		e->currentChapter, e->_roomNumber, heroX, heroY);
+		e->currentChapter, e->_roomNumber, heroX(), heroY());
 
 	// Objects: indices 0 .. numRoomObjs-1 are the live room-object slots; the
 	// parallel arrays (objectNum/objName/_objectRect/_roomObject/visible/isDoor/
@@ -550,6 +567,23 @@ void A11yLayer::emitDiff(const Common::String &cmd, const Snapshot &before,
 			json += ",\"disappeared\":[" + disappeared + "]";
 		if (!doors.empty())
 			json += ",\"doors\":[" + doors + "]";
+	}
+
+	// --- hero moved (task 30, R5.1/R5.2/R5.3) -------------------------------
+	// Sonar pans object pings relative to where the hero stands (R5), so when a
+	// command moved the hero (a `walk` to a free point or through a door) the
+	// diff carries the hero's NEW point — same point as the room state (R5.2),
+	// same coordinate space as object rects/walkTo (R5.3). Emitted ONLY when the
+	// hero moved, so every non-movement diff (look/talk/inventory/...) stays
+	// byte-identical to before. The after-position is reported (where the hero
+	// ended up), not a delta. A hero move alone does NOT set `changed` — this is
+	// purely additional positional data; whatever moved `changed` (a room
+	// change on a walk through a door) is handled by the existing rules above.
+	// Placed right after the object fields and before invAdded for a stable,
+	// readable field order.
+	if (after.heroX != before.heroX || after.heroY != before.heroY) {
+		json += Common::String::format(",\"hero\":{\"x\":%d,\"y\":%d}",
+		                               after.heroX, after.heroY);
 	}
 
 	// --- inventory gained / lost (R4.5) -------------------------------------
@@ -2357,6 +2391,8 @@ void A11yLayer::stashCrossChapterDiff(const Common::String &cmd,
 
 	cd.chapter = before.chapter;
 	cd.room = before.room;
+	cd.heroX = before.heroX;
+	cd.heroY = before.heroY;
 	cd.objNums = before.objNums;
 	cd.objVisible = before.objVisible;
 	cd.objDoor = before.objDoor;
@@ -2396,6 +2432,8 @@ bool A11yLayer::emitPendingCrossChapterDiff() {
 	Snapshot before;
 	before.chapter = cd.chapter;
 	before.room = cd.room;
+	before.heroX = cd.heroX;
+	before.heroY = cd.heroY;
 	before.objNums = cd.objNums;
 	before.objVisible = cd.objVisible;
 	before.objDoor = cd.objDoor;
@@ -2428,7 +2466,12 @@ bool A11yLayer::emitPendingCrossChapterDiff() {
 	cd.saidText.clear();
 
 	// emitDiff() takes the after-snapshot from the live engine (now the new
-	// chapter's room) and builds the one coherent crossing diff.
+	// chapter's room) and builds the one coherent crossing diff. Task 30: the
+	// hero definitely moved across the crossing (room 62 -> room 14), so the
+	// before hero point (chapter 1) and after hero point (chapter 2) differ and
+	// emitDiff() includes the `hero` field carrying the NEW room's hero point.
+	// That is exactly the point sonar wants for the room the player is now in,
+	// so the crossing diff carries it like any other movement command.
 	emitDiff(cmd, before, errCountBefore);
 
 	// Task 23 (R7.3/R7.4, gotcha 5): belt-and-braces over-skip guard on the

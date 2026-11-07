@@ -27,9 +27,13 @@ export interface InvariantResult {
 // Fields that represent a change to the game world. `said` is deliberately
 // excluded: speech is not a state change, and the spike transcript records
 // spoken lines together with `changed:false` (e.g. look 102, choose 2, the
-// locked-door walk). `flags` is included but flag 12 is filtered first, because
-// flag 12 flips on its own as animation/timing noise and the engine reports it
-// faithfully alongside `changed:false` (gotcha 8).
+// locked-door walk). `hero` is ALSO deliberately excluded (task 30): a command
+// that only moves the hero (a free-point walk, or a verb that walks to its
+// object) is `changed:false` yet carries the hero's new point for sonar, so the
+// hero field is positional data, not a world change — it must not trip the
+// changed:false invariant. `flags` is included but flag 12 is filtered first,
+// because flag 12 flips on its own as animation/timing noise and the engine
+// reports it faithfully alongside `changed:false` (gotcha 8).
 const DIFF_MOVE_KEYS: (keyof Diff)[] = [
   "chapter",
   "room",

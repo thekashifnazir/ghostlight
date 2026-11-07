@@ -198,6 +198,14 @@ private:
 	struct Snapshot {
 		int chapter;
 		int room;
+		// The hero point at snapshot time — curX + curWidth/2, curY + curHeight
+		// (R5.2), the SAME point buildRoomState() reports, in object coordinate
+		// space (R5.3). Captured so emitDiff() can compare before vs after and
+		// add an optional `hero` field only when the command moved the hero
+		// (task 30, R5.1). It is purely positional data for sonar panning; a
+		// hero move alone does NOT set the diff's `changed` flag.
+		int heroX;
+		int heroY;
 		// Room objects present when the snapshot was taken. Each entry is the
 		// object's engine hotspot number and whether it was visible, so the
 		// after-comparison can tell appeared/disappeared within the same room.
@@ -448,6 +456,17 @@ private:
 	// engine's own free-point click path (verify1()) applies, so an off-walk
 	// target lands on the nearest reachable spot rather than wandering.
 	void walkPoint(int x, int y);
+
+	// The hero point: horizontal centre and foot of the hero sprite —
+	// curX + curWidth/2, curY + curHeight (R5.2) — in the same coordinate
+	// space as object rects and walk-to points (R5.3). Factored into one place
+	// so buildRoomState() (the A11Y room-state line), takeSnapshot() (the diff
+	// before/after) and the diff's optional `hero` field all use the exact same
+	// point and can never drift (task 30). Sonar pans object pings relative to
+	// this point (R5), so the diff reports the NEW hero point after a command
+	// that moved the hero.
+	int heroX() const;
+	int heroY() const;
 
 	// Build the full room-state JSON object (chapter, room, hero point,
 	// objects, inventory, flags) as a single line. Shared by onRoomEntry()

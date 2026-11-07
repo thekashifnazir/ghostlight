@@ -133,6 +133,7 @@ Fields present only when relevant:
   "room": [62, 14],
   "objects": [ ... new room's objects, doors carry toRoom ... ],
   "appeared": [ ... ], "disappeared": [ ... ], "doors": [ ... ],
+  "hero": { "x": 80, "y": 165 },
   "invAdded": [ { "id": 22, "name": "handbag" } ],
   "invRemoved": [ { "id": 18, "name": "two coins" } ],
   "flags": { "19": [0, 1], "20": [0, 1] },
@@ -142,6 +143,10 @@ Fields present only when relevant:
 ```
 
 `changed: false` when nothing moved (R4.8). `room` change includes the new objects (R4.3); same-room visibility uses `appeared`/`disappeared` (R4.4).
+
+**`hero` — the new hero point, present only when the command moved the hero (R5.1, R5.2, R5.3).** Sonar pans each object ping relative to where the hero stands (R5), so after a command that moved the hero — a `walk` to a free point or through a door, or any verb that walks to its object before acting — the diff carries the hero's **new** position so the player's next sonar sweep pans from where they now are, without waiting for a fresh `A11Y` room-state line. It is the **same** point the room state reports — `curX + curWidth/2`, `curY + curHeight` (R5.2) — in the **same** coordinate space as object `rect`/`walkTo` (R5.3); one shared helper (`heroX()`/`heroY()`) feeds both the room state and this field so they can never drift. The field reports the **after**-position (where the hero ended up), not a delta. It is **omitted entirely** when the hero did not move (an `inventory` listing, a `look` at an object the hero already stands on, every conversation `choose`), so those diffs are byte-identical to before this field existed. A hero move **does not by itself set `changed`**: `hero` is purely positional data, so a free-point `walk` that moves the hero but changes nothing else stays `changed: false` while still carrying its new `hero` point; whatever else moved (a room change on a walk through a door) sets `changed` by the existing rules. Field order is fixed (after the object fields, before `invAdded`) so fixtures stay stable.
+
+**The chapter-crossing diff carries `hero` too.** A `walk` through a chapter-ending door produces one coherent crossing diff (chapter `[1,2]`, room `[62,14]`) built in the next chapter's `onStartup()` from the stashed before-state. The hero obviously moved across the crossing, and the before/after points are in different rooms; the diff reports the **after** hero point — the hero's spot in the **new** room — which is exactly the point sonar wants for the room the player is now in. So the crossing diff carries `hero` like any other movement command (the before hero point is stashed alongside the rest of the crossing's before-snapshot, so the before/after comparison is faithful).
 
 ### Other lines
 

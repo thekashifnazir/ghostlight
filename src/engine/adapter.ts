@@ -64,6 +64,13 @@ export interface Diff {
   appeared?: RoomObject[];
   /** Objects that stopped being visible within the current room. */
   disappeared?: RoomObject[];
+  /**
+   * The hero's NEW point, present only when the command moved the hero (a walk
+   * to a free point or through a door). Same point and coordinate space as
+   * RoomState.hero (curX + curWidth/2, curY + curHeight). Sonar pans object
+   * pings relative to this; omitted when the hero did not move.
+   */
+  hero?: { x: number; y: number };
   /** Items gained, with the engine's name. */
   invAdded?: { id: number; name: string }[];
   /** Items lost or used up, with the engine's name. */
