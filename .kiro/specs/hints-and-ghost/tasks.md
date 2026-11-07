@@ -67,7 +67,7 @@ New code lives under `src/hints/` (including the committed audio cache at `src/h
   - Verify an end-to-end run against a replay fixture: pressing `H` announces the nudge, then the clue, then the answer; a direct-answer path gives the answer; with nothing offered it says there is nothing to hint at; audio is silent when no file exists and stops on the next key; and the folded flags drive the reached set (a diff that sets a milestone's flag makes that milestone reached so the ghost no longer hints at it).
   - _Requirements: 5.1, 5.3, 5.4, 6.3, 7.1, 7.2, 7.3, 7.4, 7.5, 11.6_
 
-- [ ] 13. Final verification against requirements
+- [x] 13. Final verification against requirements
   - Run the full test suite (the fold unit test, the two properties, the cache-coverage test, the other unit tests) with no live engine or network, and confirm the no-spoiler and tier-order invariants hold, diffs fold correctly, and every pack hint line is cached.
   - Confirm the player edits are limited to `src/ui/controller.ts` and `src/main.ts`, `packs/` is untouched, `vite.config.ts` is untouched, and the ElevenLabs key never appears in any output or committed file.
   - Walk each requirement and confirm it is met.
