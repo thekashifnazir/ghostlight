@@ -44,7 +44,7 @@ These tasks implement the design. Each cites the requirements it covers. Work sp
   - Guarantee exactly one return per call path; never zero, never more than one.
   - _Requirements: 2.1, 2.2, 2.3, 2.4, 2.5, 2.6_
 
-- [ ] 8. Property test for single selection
+- [x] 8. Property test for single selection
   - Add a fast-check suite (player test setup) that generates arbitrary `EngineHintState` and reached sets and asserts: resolving any description yields exactly one string; with no matching variant the result is `default`; a plain-string description resolves to itself; and with two overlapping always-true-together variants the earlier one wins.
   - _Requirements: 2.4, 2.6, 8.1, 8.2, 8.3, 8.4, 8.5_
 

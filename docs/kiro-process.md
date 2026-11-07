@@ -1377,3 +1377,11 @@ Files changed: `src/model/variants.ts`, `.kiro/specs/description-variants/tasks.
 Time taken: about 10 minutes.
 What went wrong or surprised you: nothing in the code. The bash wrapper intermittently swallowed tsc/vitest stdout, so ran the player typecheck through the npm script and smoke tests through tsx to get reliable output.
 What was learned: keeping the resolver a single pure function with one return per path is what makes the "exactly one string" property provable in task 8 without any branching cleverness.
+
+## 108 · description-variants · 2026-11-07 · Task 8: property test for single selection
+What was asked: task 8, a fast-check suite proving the resolver picks exactly one description for any flag state and falls back to the default.
+What Kiro did: added `test/variants.prop.test.ts` with generators for an arbitrary complete `EngineHintState` (chapter, room, 50 flags, inventory) and an arbitrary reached set. Four properties: resolving any object-form description yields exactly one string that is one of the variant texts or the default (300 runs); with all flags 0 (matching no flag-keyed variant) the result is the default (200 runs); a plain string resolves to itself for any state (200 runs); and with two always-true-for-the-state variants plus a trailing one, the earliest is chosen (200 runs). All 4 pass.
+Files changed: `test/variants.prop.test.ts`, `.kiro/specs/description-variants/tasks.md`, `docs/kiro-process.md`.
+Time taken: about 15 minutes.
+What went wrong or surprised you: nothing. Keying the generated variants on a single flag index/value made the "no match -> default" property trivial to arrange (a zero-flag state matches none), and using `{chapter}` / `{room}` from the generated state itself gave guaranteed-true overlapping conditions for the first-wins property.
+What was learned: generating variant conditions from the same state the property asserts against (always-true by construction) is the clean way to test ordering without fighting the random generator to produce a simultaneous match.
