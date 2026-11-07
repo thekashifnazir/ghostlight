@@ -55,7 +55,7 @@ These tasks implement the design. Each cites the requirements it covers. Work sp
   - Add unit tests for the accessors' plain, single-variant and overlapping cases.
   - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5, 2.5_
 
-- [ ] 10. Add the church-window variants to the pack
+- [x] 10. Add the church-window variants to the pack
   - In `packs/drascula-en.json`, change room 5's `short` and `long` to the object form: keep the current boarded-window wording as `default`, and add one variant each with `when: { "flags": { "8": 1 } }` describing the window as forced open with the way into the church available, following pack-writing rules (plain British English, no em dashes, left-to-right positioning, no spoilers about how it opened or what to do next).
   - Run the validator and coverage checker against the updated pack and confirm no new errors.
   - _Requirements: 7.1, 7.2, 7.3, 7.4_

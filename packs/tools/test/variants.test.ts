@@ -23,6 +23,11 @@ function freshPack(): Pack {
   return loadPack(PACK) as Pack;
 }
 
+/** The default form of a description, whether it is a plain string or object. */
+function plainDefault(d: Describable): string {
+  return typeof d === "string" ? d : d.default;
+}
+
 /** Errors whose path points inside a variant `when`. */
 function variantErrors(pack: Pack) {
   return validatePack(pack, schema).errors.filter((e) =>
@@ -34,11 +39,11 @@ describe("validator: variant conditions", () => {
   it("accepts valid variants with no new errors", () => {
     const pack = freshPack();
     pack.rooms["5"].short = {
-      default: pack.rooms["5"].short as string,
+      default: plainDefault(pack.rooms["5"].short),
       variants: [{ when: { flags: { "8": 1 } }, text: "The window is open." }],
     };
     pack.rooms["5"].long = {
-      default: pack.rooms["5"].long as string,
+      default: plainDefault(pack.rooms["5"].long),
       variants: [{ when: { flags: { "8": 1 } }, text: "The window stands open now." }],
     };
     const result = validatePack(pack, schema);
@@ -113,7 +118,7 @@ describe("coverage: unaffected by description shape", () => {
   it("covers the real pack with no gaps once it carries variants", () => {
     const pack = freshPack();
     const toVariant = (d: Describable): Describable => ({
-      default: d as string,
+      default: plainDefault(d),
       variants: [{ when: { flags: { "8": 1 } }, text: "open" }],
     });
     pack.rooms["5"].short = toVariant(pack.rooms["5"].short);

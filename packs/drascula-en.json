@@ -11,8 +11,8 @@
     "variant": "English freeware release (Packet.001, files dated Oct 1996), as detected by ScummVM as DOS/English"
   },
   "pack": {
-    "version": "1.0.0",
-    "updated": "2026-11-06",
+    "version": "1.1.0",
+    "updated": "2026-11-07",
     "coverage": { "chapters": [1, 2] },
     "speechLocale": "en-GB",
     "authors": ["Ghostlight"],
@@ -282,8 +282,18 @@
     "5": {
       "chapters": [2],
       "name": "Behind the church fence",
-      "short": "The church front again, but you're on the far side of the iron fence, by the blue building. The way back to the cemetery is on the right.",
-      "long": "The same view of the church front, seen from the same spot, but you're standing in the narrow strip behind the iron fence on the right, small in the distance. Just to your left is the crooked blue building, with a boarded window and a second window beside it. The moon hangs above you on the right. The way back to the cemetery is at the far right.",
+      "short": {
+        "default": "The church front again, but you're on the far side of the iron fence, by the blue building. The way back to the cemetery is on the right.",
+        "variants": [
+          { "when": { "flags": { "8": 1 } }, "text": "The church front from behind the iron fence, by the blue building. The window on the left is open now, a way into the church. The way back to the cemetery is on the right." }
+        ]
+      },
+      "long": {
+        "default": "The same view of the church front, seen from the same spot, but you're standing in the narrow strip behind the iron fence on the right, small in the distance. Just to your left is the crooked blue building, with a boarded window and a second window beside it. The moon hangs above you on the right. The way back to the cemetery is at the far right.",
+        "variants": [
+          { "when": { "flags": { "8": 1 } }, "text": "The same view of the church front, from the narrow strip behind the iron fence on the right. Just to your left is the crooked blue building. Its left window stands open, the boards off and lying below it, and a second window is beside it. The moon hangs above you on the right. Through the open window is a way into the church. The way back to the cemetery is at the far right." }
+        ]
+      },
       "seen": true,
       "note": "Same background file as room 1, with a smaller hero sprite and a walk area behind the fence.",
       "exits": {
