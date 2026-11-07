@@ -78,6 +78,6 @@ These tasks build the server incrementally, replay-first so everything is runnab
   - Verify (when the native build exists): `start` reaches the tavern room; the first few `tavern.cmd` commands return diffs matching the replay JSON. Until then, confirm it fails loud with a clear message when the binary is absent, and that selecting `native` with a present binary boots to a room. Launch with the MCP save path `/tmp/ghostlight-mcp`; `kill -9` the window when done; never share a save dir with another chat.
   - _Requirements: 6.1, 6.2, 6.3, 6.4, 6.5, 6.6, 6.7, 4.5, 5.2, 5.3_
 
-- [ ] 15. Final verification pass
+- [x] 15. Final verification pass
   - Run `tsc --noEmit` over `mcp/` and `vitest run`; confirm the replay regression and the property test pass, the contract-sharing guard holds, and the `drascula` MCP entry lists and drives on replay. Confirm no file under `engine/` was touched and the only `.kiro/settings/mcp.json` change is the `drascula` entry.
   - _Requirements: 1.1, 2.1, 3.1, 5.3, 7.3, 8.2, 9.1, 10.2, 10.3_
