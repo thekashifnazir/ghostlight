@@ -90,3 +90,31 @@ from R2 on first load.
   above. The Ghostlight page, Worker and config are MIT.
 - **No committed game data, no committed key.** `web/public/` is gitignored and
   rebuilt each deploy; credentials are supplied at deploy time by name.
+
+## Custom domain
+
+The Worker is served on a custom domain **in addition to** its default
+`*.workers.dev` URL:
+
+- Live: <https://ghostlight.kashifnazir.com> (custom domain)
+- Also live: <https://ghostlight.kash-553.workers.dev> (default workers.dev URL)
+
+The custom domain is declared in `wrangler.jsonc`:
+
+```jsonc
+"routes": [
+  { "pattern": "ghostlight.kashifnazir.com", "custom_domain": true }
+],
+"workers_dev": true
+```
+
+- `custom_domain: true` makes Cloudflare create and manage the DNS record and
+  the edge TLS certificate for the hostname. The `kashifnazir.com` zone must be
+  on the same Cloudflare account; `wrangler deploy` provisions the record and
+  cert on first deploy (DNS + cert take a short while to go live).
+- `workers_dev: true` is required to **keep the default `*.workers.dev` URL
+  working once any `routes` are declared** — otherwise wrangler disables
+  workers.dev for the deployment (it warns about this). Both URLs then serve the
+  same Worker, including `Packet.001` from R2.
+- No secret or DNS token is committed; the domain is managed by Cloudflare from
+  the account the deploy authenticates against (by name, as above).

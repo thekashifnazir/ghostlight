@@ -15,6 +15,20 @@
   "main": "src/index.ts",
   // Set to the date the Worker was authored; bump deliberately, not on a whim.
   "compatibility_date": "2026-11-06",
+  // Custom domain, in addition to the default <name>.<subdomain>.workers.dev URL.
+  // `custom_domain: true` makes Cloudflare create and manage the DNS record and
+  // certificate for this hostname in the kashifnazir.com zone (which must be on
+  // this Cloudflare account).
+  "routes": [
+    {
+      "pattern": "ghostlight.kashifnazir.com",
+      "custom_domain": true
+    }
+  ],
+  // Keep the default workers.dev URL working alongside the custom domain. Once
+  // any `routes` are declared, wrangler disables workers.dev unless this is set
+  // explicitly to true.
+  "workers_dev": true,
   "assets": {
     // The build output from scripts/build-web.sh, MINUS Packet.001 (which goes
     // to R2). The deploy step (see DEPLOY.md) copies
