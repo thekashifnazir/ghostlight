@@ -29,6 +29,10 @@
 #include "common/array.h"
 #include "common/str.h"
 
+// NUM_FLAGS (the size of DrasculaEngine::flags[]) is defined in drascula.h,
+// which every translation unit that includes this header also includes. We use
+// it to size the snapshot's flag array below.
+
 // Scaffold for the engine a11y layer. Implementation lands in tasks 3 onward.
 // This header declares the surface the hooks in hooks.patch call into, so the
 // patch stays small (a few lines per file) and all logic lives here.
@@ -175,6 +179,63 @@ public:
 	bool clickSettled() const;
 
 private:
+	// --- Snapshot + diff (task 17, R4 / gotcha 8) ---------------------------
+	//
+	// A command's `A11Y_DIFF` is computed by snapshotting the game state just
+	// before the command runs and comparing it to the state once the command
+	// has settled. The snapshot captures only what the diff reports: chapter,
+	// room, the visible room objects (by engine number), the inventory item
+	// ids, and all 50 flags. It is a cheap value struct taken on the stack in
+	// poll()/the converse hook; no engine state is held across frames.
+	struct Snapshot {
+		int chapter;
+		int room;
+		// Room objects present when the snapshot was taken. Each entry is the
+		// object's engine hotspot number and whether it was visible, so the
+		// after-comparison can tell appeared/disappeared within the same room.
+		Common::Array<int> objNums;
+		Common::Array<bool> objVisible;
+		Common::Array<bool> objDoor;
+		// Inventory item ids (>= 7) held at snapshot time (gotcha 7).
+		Common::Array<int> inventory;
+		// All 50 progress flags, verbatim (flag 12 included — gotcha 8).
+		int flags[NUM_FLAGS];
+	};
+
+	// Fill `snap` from the engine's live state. Reused for the before- and
+	// after-snapshots; the diff is the difference between two of these.
+	void takeSnapshot(Snapshot &snap) const;
+
+	// Build and emit one `A11Y_DIFF` line for command `cmd`, comparing `before`
+	// (taken just before dispatch) with the engine's current (settled) state.
+	// `errCountBefore` is g_errCount at dispatch start: if it has risen, the
+	// command emitted an A11Y_ERR, so NO diff is emitted (exactly one diff XOR
+	// at least one err per command). The `said` lines captured during the
+	// command (_said) are included and then cleared. Called from poll() for
+	// main-loop commands and from the converse hook for `choose`.
+	void emitDiff(const Common::String &cmd, const Snapshot &before,
+	              uint32 errCountBefore);
+
+	// Build the JSON object for a single room object (by slot), in the same
+	// shape buildRoomState() uses: {"num":..,"name":..,"rect":[..],"walkTo":
+	// [..],"visible":..,"door":..[,"toRoom":..]}. Shared by the room-state
+	// builder and the diff's objects/appeared/disappeared/doors lists so an
+	// object looks identical wherever it is reported.
+	Common::String objectJson(int slot) const;
+
+	// Map a Drascula text colour (the engine's `Colors` enum value, as held in
+	// _color when a line is drawn) to the lower-case colour name the design's
+	// `said` field uses ("yellow", "darkgreen", ...). An unknown value yields
+	// "color<N>" so the line is never dropped and the raw value is still
+	// recoverable downstream.
+	Common::String colorName(int color) const;
+
+	// Begin capturing spoken/narration lines for the command about to run:
+	// clears the _said buffer so the diff carries only this command's text.
+	// Called at the top of a command's dispatch window (poll() and the converse
+	// `choose` path); onText() appends to _said while a capture is open.
+	void beginSaidCapture();
+
 	// Find the room-object slot whose engine hotspot number is `num`, or -1 if
 	// no live room object has that number. a11y commands name objects by the
 	// engine's own per-room hotspot number (the `num` field in the A11Y room
@@ -439,6 +500,26 @@ private:
 	// Empty means nothing has been emitted yet.
 	Common::String _lastText;
 
+	// --- Said capture for the diff (task 17, R4.7) --------------------------
+	//
+	// The lines a character said DURING the command currently running, each
+	// with its on-screen text colour, in the order they were drawn. onText()
+	// appends to this (in addition to emitting A11Y_TEXT) whenever a capture is
+	// open; emitDiff() reads it for the diff's `said` field and clears it.
+	// Captured per command so one command's diff never carries another's text.
+	struct SaidLine {
+		Common::String color;
+		Common::String text;
+	};
+	Common::Array<SaidLine> _said;
+
+	// True while a command's dispatch window is open, so onText() should append
+	// the drawn line to _said. Set by beginSaidCapture() at the top of a
+	// command and cleared by emitDiff() once the diff has been built. Text drawn
+	// outside any command (e.g. an idle hover) is still emitted as A11Y_TEXT but
+	// is not attributed to a command's `said`.
+	bool _capturingSaid;
+
 	// --- Conversation state (task 15, R7.1/R7.2/R6.3) -----------------------
 	//
 	// A conversation runs its own modal loop in converse() (gotcha 4), so these
@@ -472,6 +553,26 @@ private:
 	// re-press within one frame would be dropped (gotcha 2), and a held button
 	// would skip the reply lines (gotcha 3).
 	bool _choicePressed;
+
+	// --- Deferred A11Y_DIFF for a `choose` (task 17, R4) --------------------
+	//
+	// A conversation runs its own modal loop, so poll() does not run and cannot
+	// build the diff for a `choose`. Instead the converse hook snapshots state
+	// and arms said-capture just before applying the choice, then emits the
+	// diff once the choice's reply has settled: for a non-ending choice that is
+	// the NEXT converse frame (after the engine ran talk()+response() and
+	// control returned to the loop); for the ending choice (option 4) it is
+	// onConverseEnd(), since the loop exits and no further frame runs. These
+	// fields carry the pending diff across that gap.
+	//
+	// _choiceDiffPending is true between applying a choice and emitting its
+	// diff; _choiceCmd is the `choose <n>` command string for the diff's `cmd`;
+	// _choiceSnapshot is the before-state; _choiceErrCount is g_errCount at
+	// apply time so a choice that somehow erred emits no diff.
+	bool _choiceDiffPending;
+	Common::String _choiceCmd;
+	Snapshot _choiceSnapshot;
+	uint32 _choiceErrCount;
 
 	// Commands waiting to run. The command file is read every frame and its
 	// lines are appended here; poll() runs exactly one per frame, dequeuing the

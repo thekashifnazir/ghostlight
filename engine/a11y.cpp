@@ -35,6 +35,17 @@
 
 namespace Drascula {
 
+// Monotonic count of `A11Y_ERR ` lines emitted. The diff layer (task 17) needs
+// to know whether the command it just ran failed, because a command that erred
+// emits an A11Y_ERR and NO A11Y_DIFF (the replay fixtures and the task-22
+// invariant: exactly one diff XOR at least one err, never both). Rather than
+// thread an "errored" flag through every dispatch path (errors are reported
+// from ~20 call sites), emitLine() bumps this counter whenever it writes an
+// A11Y_ERR line, so the diff builder can compare the count before and after a
+// dispatch and suppress the diff when it rose. Module-local and single-threaded
+// (the engine runs one frame at a time), so no synchronisation is needed.
+static uint32 g_errCount = 0;
+
 // All a11y output is one prefixed line on stderr, so a web page reads it via
 // Module.printErr and a native run reads it on fd 2 (Requirement 10.6). We go
 // through g_system->logMessage() with the error type because, on the SDL
@@ -43,6 +54,11 @@ namespace Drascula {
 // "WARNING:"/"ERROR:" text is added by the warning()/error() callers, not here
 // — so each A11Y line comes out clean and parseable line by line (R1.6).
 static void emitLine(const Common::String &line) {
+	// Track error lines so the diff layer can tell a command failed and skip
+	// the diff (exactly one A11Y_DIFF XOR at least one A11Y_ERR per command).
+	if (line.hasPrefix("A11Y_ERR"))
+		g_errCount++;
+
 	if (!g_system)
 		return;
 	Common::String out = line + "\n";
@@ -79,9 +95,10 @@ static Common::String jsonEscape(const char *s) {
 static bool parseInt(const Common::String &s, int &out);
 
 A11yLayer::A11yLayer(DrasculaEngine *engine)
-	: _engine(engine), _lastChapter(-1), _lastRoom(-1), _queueHead(0),
+	: _engine(engine), _lastChapter(-1), _lastRoom(-1), _capturingSaid(false),
 	  _converseActive(false), _converseNeedChoices(false), _choicePressed(false),
-	  _clickState(kClickIdle), _lastSkipPollMs(0) {
+	  _choiceDiffPending(false), _choiceErrCount(0),
+	  _queueHead(0), _lastSkipPollMs(0), _clickState(kClickIdle) {
 	for (int i = 0; i < 4; i++)
 		_choiceBottom[i] = 0;
 	// Register as the engine's current a11y layer so the centerText() hook in
@@ -126,6 +143,20 @@ void A11yLayer::onText(const char *message) {
 
 	_lastText = message;
 	emitLine(Common::String("A11Y_TEXT ") + message);
+
+	// Task 17 (R4.7): while a command's dispatch window is open, attribute each
+	// distinct drawn line to that command's diff `said`, with the engine's own
+	// text colour for the line (_color is set by the talker/narrator before
+	// centerText() draws). The de-dup above means each distinct line is appended
+	// exactly once, in draw order, so the diff's `said` mirrors what the player
+	// heard during the command. Text drawn outside a command (an idle hover
+	// name) is still emitted as A11Y_TEXT above but is not attributed here.
+	if (_capturingSaid) {
+		SaidLine s;
+		s.color = colorName(_engine->_color);
+		s.text = message;
+		_said.push_back(s);
+	}
 }
 
 // Called once at startup, after the intro has been skipped and the first
@@ -157,6 +188,96 @@ void A11yLayer::onStartup() {
 //                "walkTo":[x,y],"visible":true,"door":false}, ...
 //               {"num":105,...,"door":true,"toRoom":63}],
 //    "inventory":[28],"flags":[0,0,...]}
+// Build the JSON object for the room object in `slot`, in the shape used by
+// both the room-state line and the diff's objects/appeared/disappeared/doors
+// lists (R1.3, R4.3, R4.4):
+//   {"num":52,"name":"BARTENDER","rect":[x,y,w,h],"walkTo":[x,y],
+//    "visible":true,"door":false[,"toRoom":63]}
+// rect is [x, y, w, h]; the engine stores a Common::Rect(left, top, right,
+// bottom), so width()/height() give the size. A door also carries toRoom.
+Common::String A11yLayer::objectJson(int slot) const {
+	DrasculaEngine *e = _engine;
+
+	const Common::Rect &r = e->_objectRect[slot];
+	const Common::Point &w = e->_roomObject[slot];
+
+	Common::String json = Common::String::format(
+		"{\"num\":%d,\"name\":\"%s\",\"rect\":[%d,%d,%d,%d],"
+		"\"walkTo\":[%d,%d],\"visible\":%s,\"door\":%s",
+		e->objectNum[slot],
+		jsonEscape(e->objName[slot]).c_str(),
+		r.left, r.top, r.width(), r.height(),
+		w.x, w.y,
+		e->visible[slot] ? "true" : "false",
+		e->isDoor[slot] ? "true" : "false");
+
+	if (e->isDoor[slot])
+		json += Common::String::format(",\"toRoom\":%d", e->_doorDestRoom[slot]);
+
+	json += "}";
+	return json;
+}
+
+// Map a Drascula text colour (the `Colors` enum in drascula.h, as held in
+// _color when a line is drawn) to the lower-case name the design's `said` field
+// uses. The game's palette indices 1..11 are the named colours; anything else
+// is reported as "color<N>" so no line is dropped and the raw value survives.
+Common::String A11yLayer::colorName(int color) const {
+	switch (color) {
+	case kColorBrown:      return "brown";
+	case kColorDarkBlue:   return "darkblue";
+	case kColorLightGreen: return "lightgreen";
+	case kColorDarkGreen:  return "darkgreen";
+	case kColorYellow:     return "yellow";
+	case kColorOrange:     return "orange";
+	case kColorRed:        return "red";
+	case kColorMaroon:     return "maroon";
+	case kColorPurple:     return "purple";
+	case kColorWhite:      return "white";
+	case kColorPink:       return "pink";
+	default:               return Common::String::format("color%d", color);
+	}
+}
+
+// Begin capturing spoken/narration lines for a command: clear the per-command
+// buffer and arm onText() to append to it. Called at the top of a command's
+// dispatch window so the diff carries only this command's text (R4.7).
+void A11yLayer::beginSaidCapture() {
+	_said.clear();
+	_capturingSaid = true;
+}
+
+// Snapshot the engine's live state into `snap` for the before/after diff (R4).
+// Captures only what the diff reports: chapter, room, the visible room objects
+// (by engine number + visible/door flags), the inventory item ids (>= 7,
+// gotcha 7), and all 50 flags verbatim (flag 12 included — gotcha 8). Cheap
+// enough to take on the stack each command; holds no engine references.
+void A11yLayer::takeSnapshot(Snapshot &snap) const {
+	DrasculaEngine *e = _engine;
+
+	snap.chapter = e->currentChapter;
+	snap.room = e->_roomNumber;
+
+	snap.objNums.clear();
+	snap.objVisible.clear();
+	snap.objDoor.clear();
+	for (int l = 0; l < e->numRoomObjs; l++) {
+		snap.objNums.push_back(e->objectNum[l]);
+		snap.objVisible.push_back(e->visible[l]);
+		snap.objDoor.push_back(e->isDoor[l]);
+	}
+
+	snap.inventory.clear();
+	for (int n = 1; n < ARRAYSIZE(e->inventoryObjects); n++) {
+		int id = e->inventoryObjects[n];
+		if (id >= 7)
+			snap.inventory.push_back(id);
+	}
+
+	for (int f = 0; f < NUM_FLAGS; f++)
+		snap.flags[f] = e->flags[f];
+}
+
 Common::String A11yLayer::buildRoomState() {
 	DrasculaEngine *e = _engine;
 
@@ -172,32 +293,12 @@ Common::String A11yLayer::buildRoomState() {
 	// Objects: indices 0 .. numRoomObjs-1 are the live room-object slots; the
 	// parallel arrays (objectNum/objName/_objectRect/_roomObject/visible/isDoor/
 	// _doorDestRoom) are all keyed on that same slot index (see rooms.cpp room
-	// parse and objects.cpp checkObjects).
+	// parse and objects.cpp checkObjects). Each object's JSON is built by
+	// objectJson() so room state and the diff report an object identically.
 	for (int l = 0; l < e->numRoomObjs; l++) {
 		if (l > 0)
 			json += ",";
-
-		// rect is reported as [x, y, w, h]; the engine stores it as a
-		// Common::Rect(left, top, right, bottom), so width()/height() give the
-		// size (R1.3).
-		const Common::Rect &r = e->_objectRect[l];
-		const Common::Point &w = e->_roomObject[l];
-
-		json += Common::String::format(
-			"{\"num\":%d,\"name\":\"%s\",\"rect\":[%d,%d,%d,%d],"
-			"\"walkTo\":[%d,%d],\"visible\":%s,\"door\":%s",
-			e->objectNum[l],
-			jsonEscape(e->objName[l]).c_str(),
-			r.left, r.top, r.width(), r.height(),
-			w.x, w.y,
-			e->visible[l] ? "true" : "false",
-			e->isDoor[l] ? "true" : "false");
-
-		// A door also carries its destination room (R1.3).
-		if (e->isDoor[l])
-			json += Common::String::format(",\"toRoom\":%d", e->_doorDestRoom[l]);
-
-		json += "}";
+		json += objectJson(l);
 	}
 
 	// Inventory: slots 1..6 are the verb icons, not real items (gotcha 7), so
@@ -247,6 +348,245 @@ void A11yLayer::onRoomEntry() {
 // a dump on room entry are indistinguishable to an external reader.
 void A11yLayer::dump() {
 	emitRoomState();
+}
+
+// --- Snapshot diff and A11Y_DIFF emission (task 17, R4 / gotcha 8) ----------
+//
+// After a command settles, this builds ONE `A11Y_DIFF` line describing what
+// changed between the before-snapshot (taken in poll()/the converse hook just
+// before dispatch) and the engine's current, settled state. Shape and field
+// order follow design.md "A11Y_DIFF" and the recorded spike transcripts:
+//
+//   {"cmd":..,"chapter":[from,to],"room":[from,to],"objects":[ newroom ],
+//    "appeared":[..],"disappeared":[..],"doors":[..],
+//    "invAdded":[{id,name}],"invRemoved":[{id,name}],
+//    "flags":{"idx":[from,to]},"said":[{color,text}],"changed":bool}
+//
+// Rules the fixtures pin down:
+//   * A command that emitted an A11Y_ERR gets NO diff (errCountBefore compare):
+//     exactly one diff XOR at least one err per command.
+//   * Room/chapter change (R4.3) reports [from,to] and the NEW room's objects
+//     (doors carry toRoom); same-room visibility uses appeared/disappeared and
+//     a door whose state changed goes in doors (R4.4). On a room change the
+//     appeared/disappeared/doors sets are not emitted — the whole object list
+//     replaces them.
+//   * Inventory gained/lost (R4.5) is invAdded/invRemoved, each {id,name} in
+//     ascending id order; name from itemName().
+//   * Flags (R4.6) are reported as {"idx":[from,to]} in ascending index order,
+//     flag 12 INCLUDED faithfully (gotcha 8 — the engine layer reports it; a
+//     later layer filters it).
+//   * `said` (R4.7) carries each spoken line with its colour, in draw order.
+//   * `changed` (R4.8) is true iff a REAL change moved — any of room/chapter/
+//     object visibility/doors/inventory, or a flag OTHER than flag 12. Flag 12
+//     alone and `said` alone do NOT make a command "changed": flag 12 is
+//     animation noise (gotcha 8) and speech is not a world change. So a look
+//     that only speaks a line and flips flag 12 is `changed:false`, yet still
+//     reports the flag-12 move and the said line faithfully.
+void A11yLayer::emitDiff(const Common::String &cmd, const Snapshot &before,
+                         uint32 errCountBefore) {
+	// The command emitted an error (and so no diff): exactly one diff XOR at
+	// least one err. Still close the said-capture window so stray later text is
+	// not misattributed, and drop any text the failed command happened to draw.
+	if (g_errCount != errCountBefore) {
+		_capturingSaid = false;
+		_said.clear();
+		return;
+	}
+
+	DrasculaEngine *e = _engine;
+
+	// After-snapshot of the settled state.
+	Snapshot after;
+	takeSnapshot(after);
+
+	const bool roomChanged = (after.room != before.room) ||
+	                         (after.chapter != before.chapter);
+
+	// `changed` accumulates only REAL moves (flag 12 and said excluded).
+	bool changed = false;
+
+	Common::String json = Common::String("A11Y_DIFF {\"cmd\":\"") +
+	                      jsonEscape(cmd.c_str()) + "\"";
+
+	// --- chapter / room change (R4.3) ---------------------------------------
+	if (after.chapter != before.chapter) {
+		json += Common::String::format(",\"chapter\":[%d,%d]",
+		                               before.chapter, after.chapter);
+		changed = true;
+	}
+	if (after.room != before.room) {
+		json += Common::String::format(",\"room\":[%d,%d]",
+		                               before.room, after.room);
+		changed = true;
+	}
+
+	if (roomChanged) {
+		// On a room change the whole new-room object list is reported (doors
+		// carry toRoom); appeared/disappeared/doors are not used, because every
+		// object is new to this room (R4.3). Objects are the live slots now.
+		json += ",\"objects\":[";
+		for (int l = 0; l < e->numRoomObjs; l++) {
+			if (l > 0)
+				json += ",";
+			json += objectJson(l);
+		}
+		json += "]";
+	} else {
+		// --- same-room visibility + door changes (R4.4) ---------------------
+		// Objects that became visible / hidden, and doors whose door/visible
+		// state changed, keyed on the engine object number so a slot reshuffle
+		// does not masquerade as a change. We compare the before-snapshot's
+		// per-number visible/door flags against the live slots.
+		Common::String appeared, disappeared, doors;
+
+		for (int l = 0; l < e->numRoomObjs; l++) {
+			int num = e->objectNum[l];
+
+			// Find this number in the before-snapshot.
+			int bi = -1;
+			for (uint k = 0; k < before.objNums.size(); k++) {
+				if (before.objNums[k] == num) {
+					bi = (int)k;
+					break;
+				}
+			}
+
+			bool wasVisible = (bi >= 0) ? before.objVisible[bi] : false;
+			bool nowVisible = e->visible[l];
+
+			if (nowVisible && !wasVisible) {
+				if (!appeared.empty())
+					appeared += ",";
+				appeared += objectJson(l);
+				changed = true;
+			} else if (!nowVisible && wasVisible) {
+				if (!disappeared.empty())
+					disappeared += ",";
+				disappeared += objectJson(l);
+				changed = true;
+			}
+
+			// A door whose door-ness changed (a passage opened/closed) is
+			// reported under doors (R4.4). Visible-state is handled above, so
+			// this catches a door toggling while staying present.
+			bool wasDoor = (bi >= 0) ? before.objDoor[bi] : false;
+			if (e->isDoor[l] != wasDoor) {
+				if (!doors.empty())
+					doors += ",";
+				doors += objectJson(l);
+				changed = true;
+			}
+		}
+
+		if (!appeared.empty())
+			json += ",\"appeared\":[" + appeared + "]";
+		if (!disappeared.empty())
+			json += ",\"disappeared\":[" + disappeared + "]";
+		if (!doors.empty())
+			json += ",\"doors\":[" + doors + "]";
+	}
+
+	// --- inventory gained / lost (R4.5) -------------------------------------
+	// invAdded: ids in `after` not in `before`; invRemoved: in `before` not in
+	// `after`. Both in ascending id order with the item's name from itemName().
+	// buildRoomState()/the snapshot already filter to real items (id >= 7).
+	{
+		Common::String added, removed;
+
+		// Added.
+		for (uint i = 0; i < after.inventory.size(); i++) {
+			int id = after.inventory[i];
+			bool inBefore = false;
+			for (uint k = 0; k < before.inventory.size(); k++) {
+				if (before.inventory[k] == id) { inBefore = true; break; }
+			}
+			if (!inBefore) {
+				if (!added.empty())
+					added += ",";
+				added += Common::String::format("{\"id\":%d", id);
+				Common::String nm = itemName(id);
+				if (!nm.empty())
+					added += Common::String::format(",\"name\":\"%s\"",
+					                                 jsonEscape(nm.c_str()).c_str());
+				added += "}";
+				changed = true;
+			}
+		}
+
+		// Removed.
+		for (uint i = 0; i < before.inventory.size(); i++) {
+			int id = before.inventory[i];
+			bool inAfter = false;
+			for (uint k = 0; k < after.inventory.size(); k++) {
+				if (after.inventory[k] == id) { inAfter = true; break; }
+			}
+			if (!inAfter) {
+				if (!removed.empty())
+					removed += ",";
+				removed += Common::String::format("{\"id\":%d", id);
+				Common::String nm = itemName(id);
+				if (!nm.empty())
+					removed += Common::String::format(",\"name\":\"%s\"",
+					                                   jsonEscape(nm.c_str()).c_str());
+				removed += "}";
+				changed = true;
+			}
+		}
+
+		if (!added.empty())
+			json += ",\"invAdded\":[" + added + "]";
+		if (!removed.empty())
+			json += ",\"invRemoved\":[" + removed + "]";
+	}
+
+	// --- flags (R4.6 / gotcha 8) --------------------------------------------
+	// Every flag whose value changed, as {"idx":[from,to]} in ascending index
+	// order. Flag 12 is reported faithfully (gotcha 8), but a flag-12-only move
+	// does NOT set `changed` — it is known animation/timing noise that a later
+	// layer filters; the raw layer reports it so downstream can decide.
+	{
+		Common::String flagsJson;
+		for (int f = 0; f < NUM_FLAGS; f++) {
+			if (after.flags[f] != before.flags[f]) {
+				if (!flagsJson.empty())
+					flagsJson += ",";
+				flagsJson += Common::String::format("\"%d\":[%d,%d]",
+				                                    f, before.flags[f], after.flags[f]);
+				// Flag 12 is noise (gotcha 8): report it, but it alone is not a
+				// "change" for the `changed` flag. Any other flag is a real move.
+				if (f != 12)
+					changed = true;
+			}
+		}
+		if (!flagsJson.empty())
+			json += ",\"flags\":{" + flagsJson + "}";
+	}
+
+	// --- said (R4.7) --------------------------------------------------------
+	// The lines spoken/drawn during the command, in order, each with its colour.
+	// Speech is not a world change, so it never sets `changed` (a line-only
+	// command such as `look 102` is changed:false, per the transcript).
+	if (!_said.empty()) {
+		json += ",\"said\":[";
+		for (uint i = 0; i < _said.size(); i++) {
+			if (i > 0)
+				json += ",";
+			json += Common::String::format("{\"color\":\"%s\",\"text\":\"%s\"}",
+			                               jsonEscape(_said[i].color.c_str()).c_str(),
+			                               jsonEscape(_said[i].text.c_str()).c_str());
+		}
+		json += "]";
+	}
+
+	// --- changed (R4.8) -----------------------------------------------------
+	json += Common::String::format(",\"changed\":%s}", changed ? "true" : "false");
+
+	emitLine(json);
+
+	// Close the capture window and clear the buffer so the next command starts
+	// clean.
+	_capturingSaid = false;
+	_said.clear();
 }
 
 // The command file lives at <savepath>/a11y-cmd.txt (design.md, R2). savepath
@@ -1293,9 +1633,10 @@ void A11yLayer::walkObject(int slot) {
 
 	if (e->isDoor[slot]) {
 		// The engine's own door path: walk to the door, play any door
-		// animation, run exitRoom()/enterRoom() for _doorDestRoom[slot]. poll()
-		// detects the resulting room/chapter change and re-emits the A11Y room
-		// state (task 4), so we do not emit it here.
+		// animation, run exitRoom()/enterRoom() for _doorDestRoom[slot]. When
+		// this is driven by a `walk` command, poll()'s A11Y_DIFF carries the
+		// resulting room/chapter change and the new room's objects (task 17), so
+		// we do not emit a room-state line here.
 		e->exitRoom(slot);
 		return;
 	}
@@ -1371,6 +1712,16 @@ void A11yLayer::onConverseBegin() {
 // state so a later conversation starts clean and the main-loop reader treats
 // `choices`/`choose` as "no conversation open" again (R2.5).
 void A11yLayer::onConverseEnd() {
+	// Task 17 (R4): the ending choice (option 4, or a breakOut) exits the loop,
+	// so its deferred A11Y_DIFF never reaches onConverseFrame's step (3b). Flush
+	// it here so a `choose 4` still yields exactly one diff (R4.1). The ending
+	// choice does not run a reply, so _said is normally empty; emitDiff() clears
+	// the capture window regardless.
+	if (_choiceDiffPending) {
+		emitDiff(_choiceCmd, _choiceSnapshot, _choiceErrCount);
+		_choiceDiffPending = false;
+	}
+
 	_converseActive = false;
 	_converseNeedChoices = false;
 	_choicePressed = false;
@@ -1511,6 +1862,17 @@ void A11yLayer::onConverseFrame(const char *phrase1, const char *phrase2,
 		_converseNeedChoices = false;
 	}
 
+	// (3b) Task 17 (R4): a non-ending choice applied on a previous frame has now
+	// had its reply run (talk()+response()) and control is back in the loop, so
+	// the choice has settled — emit its deferred A11Y_DIFF. The said lines drawn
+	// during the reply are already in _said (captured by onText since the choice
+	// armed the window). emitDiff() clears the capture and the buffer. An ending
+	// choice (option 4) never reaches here — onConverseEnd() flushes it instead.
+	if (_choiceDiffPending) {
+		emitDiff(_choiceCmd, _choiceSnapshot, _choiceErrCount);
+		_choiceDiffPending = false;
+	}
+
 	// (4) Service the command file. Append any new lines, then look at the next
 	// queued command.
 	readCommandFile();
@@ -1547,6 +1909,23 @@ void A11yLayer::onConverseFrame(const char *phrase1, const char *phrase2,
 				continue;
 			}
 			_queueHead++;
+
+			// Task 17 (R4): poll() cannot build this command's diff — the
+			// conversation loop runs instead. Snapshot the state and arm said-
+			// capture NOW, before the choice runs, and defer the A11Y_DIFF until
+			// the choice's reply has settled: the next converse frame for a non-
+			// ending choice (options 1-3, where talk()+response() runs and
+			// control returns to the loop), or onConverseEnd() for the ending
+			// choice (option 4). applyChoose() may itself A11Y_ERR on a bad n,
+			// in which case the deferred diff is suppressed by the errCount
+			// compare in emitDiff(), so the command still yields one err and no
+			// diff (R4.1).
+			takeSnapshot(_choiceSnapshot);
+			_choiceErrCount = g_errCount;
+			_choiceCmd = cmd;
+			_choiceDiffPending = true;
+			beginSaidCapture();
+
 			// Apply the choice: this presses the button so the engine selects
 			// option n THIS frame, below in converse(). Return so the engine's
 			// own selection/reply runs before we look at the next command.
@@ -1683,10 +2062,32 @@ void A11yLayer::poll() {
 	if (!clickSettled())
 		return;
 
+	bool ranCommand = false;
 	if (_queueHead < _commandQueue.size()) {
 		Common::String cmd = _commandQueue[_queueHead];
 		_queueHead++;
+		ranCommand = true;
+
+		// Task 17 (R4): snapshot the state and arm the said-capture window just
+		// before dispatch, run the command to settle, then emit ONE A11Y_DIFF
+		// describing what moved. runCommand() calls the engine's own action
+		// code, which runs its walk/speech/cutscene loops to completion before
+		// returning, so by the time control is back here the command has
+		// settled and the after-snapshot inside emitDiff() is the settled state
+		// — a single `walk` that crosses a chapter boundary (walk out, cutscene,
+		// enter chapter 2) yields one coherent diff (design "Settling").
+		//
+		// emitDiff() suppresses the diff when the command emitted an A11Y_ERR
+		// (errCountBefore compare), so an erring command yields one err and no
+		// diff (R2.5 / R4.1).
+		Snapshot before;
+		takeSnapshot(before);
+		uint32 errCountBefore = g_errCount;
+		beginSaidCapture();
+
 		runCommand(cmd);
+
+		emitDiff(cmd, before, errCountBefore);
 
 		// Reclaim the spent prefix once the queue has fully drained, so a long
 		// session does not grow the array without bound. Nothing is pending, so
@@ -1697,8 +2098,22 @@ void A11yLayer::poll() {
 		}
 	}
 
-	if (_engine->currentChapter != _lastChapter || _engine->_roomNumber != _lastRoom)
+	if (ranCommand) {
+		// A command-driven room/chapter change is carried by the A11Y_DIFF above
+		// (its `chapter`/`room`/`objects` fields), so we do NOT emit a separate
+		// A11Y room-state line for it — the leave-tavern/tavern transcripts show
+		// the crossing as one diff with no accompanying A11Y line. Just sync the
+		// last-room markers to the settled state.
+		_lastChapter = _engine->currentChapter;
+		_lastRoom = _engine->_roomNumber;
+	} else if (_engine->currentChapter != _lastChapter ||
+	           _engine->_roomNumber != _lastRoom) {
+		// A room/chapter change that NO command drove (a spontaneous engine
+		// transition — none occur in chapters 1-2, but guard anyway). There is
+		// no command to attribute a diff to, so re-emit the full A11Y room state
+		// as the original per-frame room-change watch did (R1.1).
 		emitRoomState();
+	}
 }
 
 // --- Cutscene / speech skipping (task 16, R7.3 / R7.4 / gotcha 5) -----------
