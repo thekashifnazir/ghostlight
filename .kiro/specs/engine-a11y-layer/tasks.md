@@ -97,9 +97,11 @@ These tasks implement the design. Each cites the requirements it covers. Our eng
   - Confirm conversations emit `A11Y_CHOICES`, `said` carries colours, flags appear in diffs, and the chapter 1-to-2 crossing yields one coherent diff.
   - _Requirements: 4.*, 6.3, 7.*, gotcha 12_
 
-- [ ] 19. Saving and loading
+- [x] 19. Saving and loading
   - `save <slot>`: save and emit `A11Y_SAVED`.
   - Confirm `--save-slot=<n>` at launch loads from that slot so a run can start partway through.
+  - Add `scripts/drive.sh` as the standard replay harness: launches the native build (own save path, optional `--save-slot`, `--subtitles`, `--extrapath`, Ogg pack) and WAITS ON LOG MARKERS (A11Y / A11Y_DIFF / A11Y_SAVED / A11Y_CMD) rather than fixed sleeps, under a hard 60-second cap; cleans up with `kill -9` (ScummVM ignores SIGTERM) and tracks the PID directly to avoid the `pgrep -f` self-match gotcha.
+  - Chapter-2 tests load a save at the chapter-2 start via `--save-slot` instead of replaying all of chapter 1 (the ch2-handbag and ch2-vending-machine fixtures); the save is generated on demand by `scripts/make-ch2-save.sh` and never committed (a Drascula save embeds a graphics thumbnail). Chapter-1 fixtures still replay from the start.
   - _Requirements: 9.1, 9.2_
 
 - [ ] 20. Low-level commands and parity lines

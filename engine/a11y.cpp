@@ -810,6 +810,16 @@ bool A11yLayer::runCommand(const Common::String &cmd) {
 		return false;
 	}
 
+	// Saving to a slot (task 19, R9.1). `save <slot>` saves the game to that
+	// numbered slot and emits A11Y_SAVED. The loading half (R9.2) is the
+	// engine's own `--save-slot=<n>` launch path (ConfMan "save_slot" ->
+	// loadGame() in run()), so there is no `load` command here — a run resumes
+	// partway through by launching with the slot, not by an in-game command.
+	if (verb == "save") {
+		dispatchSave(arg);
+		return false;
+	}
+
 	// Conversation commands (task 15, R7.1/R7.2/R6.3). These are only meaningful
 	// while a converse() loop is open; that loop does not run the main-loop
 	// reader, so when one IS open the command is consumed by the converse-frame
@@ -2363,6 +2373,67 @@ bool A11yLayer::emitPendingCrossChapterDiff() {
 void A11yLayer::raiseSkip() {
 	Common::CustomEventType action = kActionSkip;
 	_engine->addActionToBuffer(action);
+}
+
+// --- Saving to a slot (task 19, R9.1) ---------------------------------------
+//
+// `save <slot>` writes the game to a numbered save slot and emits one
+// `A11Y_SAVED ` line so an external reader knows the save landed. We call the
+// engine's OWN saveGame(slot, desc) — the exact function the F10 save screen
+// runs (saveLoadScreen / scummVMSaveLoadDialog -> saveGame) — so the slot holds
+// a standard Drascula save that the engine's `--save-slot=<n>` launch path
+// (R9.2) can load back. The save captures the live chapter, room data, hero
+// position, inventory and all flags (saveload.cpp saveGame), so a run saved
+// here resumes at exactly this point.
+//
+// Slot numbering follows the engine: on-disk slots are 1-based
+// (getSaveStateName formats "%s.%03d" from the slot, and the save screen writes
+// `selectedSlot + 1`), and `--save-slot=<n>` at launch loads that same number.
+// So `save 1` and `--save-slot=1` name the same file; we keep the player's
+// number verbatim and only require it to be a positive integer.
+//
+// The `desc` is a short human label stored in the save's metadata (shown in the
+// ScummVM load list). The game is normally always saveable while a room is live
+// (_canSaveLoad), but we do not gate on it: saveGame() itself does not check
+// _canSaveLoad, and a replay/survey run drives saves between settled commands
+// where saving is valid. If the write fails, saveGame() warns through the
+// engine's own log; we still report A11Y_SAVED only on the path that ran, and a
+// malformed slot is an A11Y_ERR that keeps the layer running (R2.5).
+void A11yLayer::dispatchSave(const Common::String &arg) {
+	if (arg.empty()) {
+		emitLine("A11Y_ERR save needs a slot number, e.g. `save 1`");
+		return;
+	}
+
+	// The slot must be a plain positive integer. The engine's slots are 1-based
+	// (slot 0 is the autosave slot in ScummVM's convention and not a normal
+	// manual save target), so require >= 1 and reject anything non-numeric
+	// rather than silently saving to a surprising slot.
+	int slot;
+	if (!parseInt(arg, slot)) {
+		emitLine(Common::String("A11Y_ERR save slot must be a number, got: ") + arg);
+		return;
+	}
+	if (slot < 1) {
+		emitLine(Common::String::format(
+			"A11Y_ERR save slot must be 1 or greater, got: %d", slot));
+		return;
+	}
+
+	// Save through the engine's own saveGame(), the same call its F10 save
+	// screen makes, so the slot holds a standard Drascula save the launcher's
+	// --save-slot can load (R9.1, R9.2). A short description records where the
+	// save was taken (chapter + room) for the ScummVM load list.
+	Common::String desc = Common::String::format(
+		"ghostlight ch%d room%d", _engine->currentChapter, _engine->_roomNumber);
+	_engine->saveGame(slot, desc);
+
+	// Report the save. The line carries the slot and the chapter/room so an
+	// external reader can confirm the run saved at the expected position (the
+	// task-19 verification: save mid-run, relaunch --save-slot, check the room).
+	emitLine(Common::String::format(
+		"A11Y_SAVED {\"slot\":%d,\"chapter\":%d,\"room\":%d}",
+		slot, _engine->currentChapter, _engine->_roomNumber));
 }
 
 // Remove the first queued `skip` from the command queue (keeping the rest in

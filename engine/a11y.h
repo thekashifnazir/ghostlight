@@ -488,6 +488,20 @@ private:
 	// poll()-path `skip` command.
 	void raiseSkip();
 
+	// --- Saving to a slot (task 19, R9.1) -----------------------------------
+
+	// Handle the `save <slot>` command: save the game to the numbered slot
+	// through the engine's own saveGame() (the same call the F10 save screen
+	// makes) and emit one `A11Y_SAVED ` line carrying the slot, chapter and
+	// room (R9.1). The slot is a plain 1-based integer, matching the engine's
+	// on-disk slot numbering and the `--save-slot=<n>` launch option that loads
+	// it back (R9.2) — so `save 1` and `--save-slot=1` name the same file. A
+	// missing, non-numeric or < 1 slot is an A11Y_ERR that keeps the layer
+	// running (R2.5). There is no `load` command: a run resumes partway through
+	// by launching with --save-slot, which is the engine's own launcher path,
+	// not an in-game command.
+	void dispatchSave(const Common::String &arg);
+
 	// Scan the command queue from _queueHead for the first `skip` line, and if
 	// one is present remove just that entry (keeping the order of the rest) and
 	// return true. Used by onUpdateEvents() so a `skip` queued while a cutscene
