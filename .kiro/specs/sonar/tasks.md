@@ -22,12 +22,12 @@ All new modules live under `src/sonar/`; tests sit flat in `test/` with the repo
   - Create `test/sonar-audio.test.ts` driving a mocked Web Audio node graph (jsdom has no `OfflineAudioContext`): assert each ping's stereo panner is set to its `ping.pan` (so it is placed in the ear the pan points to), that a kind gets the expected waveform/note count (object one sine, exit two triangles, person a sawtooth plus a vibrato LFO), that `play` schedules every ping and a muted layer schedules none, and that `stop()` stops and disconnects every scheduled node so a scan can be cancelled mid-flight.
   - _Requirements: 1.3, 1.7, 5.1, 5.4_
 
-- [ ] 5. Build the `Sonar` controller
+- [x] 5. Build the `Sonar` controller
   - Create `src/sonar/sonar.ts` with `Sonar` taking `{ live, getContext }`: `setRoom(state, list)` stores state and resets the step cursor; `scan()` builds pings, voices them (unless muted or no context) and schedules the summary line after the last onset ("N things, left to right: A people, B objects, C exits", empty room → one "nothing here" line, no pings); `next()`/`prev()` move the cursor with wrap, voice one ping and announce `text + ", N of M"` (empty room → one "nothing to step through" line); `toggleMute()` flips mute, forwards it to the audio layer and announces the new state; `stop()` stops all sonar sound and suppresses a pending summary.
   - Construct `SonarAudio` lazily only when a context first exists; write all text through the player's `LiveRegion.announce` so the newest line replaces the previous one.
   - _Requirements: 2.1, 2.2, 2.3, 2.4, 2.5, 2.6, 3.1, 3.2, 3.3, 3.4, 3.5, 3.6, 4.2, 4.3, 4.4, 5.2, 5.3, 5.5, 5.6_
 
-- [ ] 6. Test the `Sonar` controller
+- [x] 6. Test the `Sonar` controller
   - Create `test/sonar-controller.test.ts` driving `Sonar` with a fake `LiveRegion` and a fake or absent context: scan summary has the right total and per-kind counts; empty room gives the "nothing here" line and no pings; `next`/`prev` give the right `text + "N of M"` and wrap at both ends and reset after `setRoom`; `toggleMute` announces off/on and, while muted, scan/step still announce text and schedule no audio; `stop` suppresses a pending summary; with no context everything still announces as text.
   - _Requirements: 2.2, 2.3, 2.5, 3.1, 3.2, 3.3, 3.5, 3.6, 4.2, 4.3, 5.2, 5.3, 5.4, 5.5, 5.6_
 
