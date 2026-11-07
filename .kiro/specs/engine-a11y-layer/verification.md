@@ -187,12 +187,27 @@ the golden transcript was recorded against), so the investigation must separate
 "the save is stale" from "open 183 genuinely fails to grant the handbag". Filed
 as follow-up task **26**.
 
-**Gap 2 — property tests not registered as a PBT task.**
+**Gap 2 — property tests not registered as a PBT task. [won't-fix / not
+supported — resolved in task 27]**
 Task 22's fast-check property tests run and pass, but task 22 is a normal task
 in `tasks.meta.json`, so `pbtResults` is `{}` and `update_pbt_status` never
 applies to them. The PBT status tooling therefore has no record of the property
 run. Tooling/registration loose end, no behavioural impact. Filed as follow-up
 task **27**.
+
+_Resolution (task 27): not supported — closed as won't-fix._ The `pbtResults`
+map is written only by the `update_pbt_status` tool, which validates that its
+target task is **already** a registered PBT task; invoking it for task 22
+returns `Task ... is not a PBT task` and writes nothing. PBT registration
+happens only at task-execution time through the spec-task-execution flow — there
+is no declarative marker in `tasks.md` or `tasks.meta.json` that the tooling
+reads to register a PBT task after the fact, and no other spec uses one (every
+fast-check task across the seven specs is a normal task with `pbtResults: {}`).
+Hand-writing a `pbtResults` entry would fabricate a mechanism the tooling does
+not read, so it was deliberately not done. The property run is real and tracked
+where it lives: the fixture-backed suite above (now **8/8** in `property.test.ts`
+after task 30 added two hero-field properties), the process log, and
+`docs/kiro-features.md`. No behavioural impact; no code or test change required.
 
 No other gaps found beyond the "partial" verdicts above, which are coverage
 observations (criteria proven only against the fixture harness), not defects.
