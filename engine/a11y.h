@@ -75,6 +75,48 @@ public:
 	// when it is drawn, not once per frame.
 	void onText(const char *message);
 
+	// Called from the DrasculaEngine::converse() loop once per frame, after the
+	// four option lines have been laid out and before the engine tests the
+	// cursor against them, so the layer can both describe the open conversation
+	// and drive it (R7.1, R7.2, R6.3 / gotcha 4). A conversation runs its own
+	// modal loop inside converse() — the main loop and poll() do not run while
+	// it is open — so this is the ONLY place `choices` and `choose <n>` can be
+	// serviced during a conversation.
+	//
+	// Arguments are the engine's own conversation data for this frame:
+	//   * phrase1..phrase4 — the four option strings exactly as the engine
+	//     loaded them from op_<n>.cal (already cleaned of the 0xA7 markers), so
+	//     the choices are captured from the game's own data, never fabricated.
+	//   * game1..game3 — the per-option selection status (kDialogOption*): an
+	//     option the player has already picked in this conversation is
+	//     kDialogOptionClicked, so the layer can report it as `used`. Option 4
+	//     (goodbye) has no status and always ends the conversation.
+	//   * bottom1..bottom4 — the screen-Y lower edge of each option's text band
+	//     this frame. The engine selects option N when _mouseY falls between the
+	//     previous option's bottom and option N's bottom, so to apply a
+	//     `choose <n>` the layer sets _mouseY into option n's band and presses
+	//     the left button — the SAME state a real click on that line produces
+	//     (R7.1). The bounds change as options are struck through, so they are
+	//     passed fresh every frame rather than cached.
+	//
+	// On the first frame of a conversation (and again after each choice runs
+	// and control returns to the loop) the layer emits one `A11Y_CHOICES` line
+	// (R6.3); on the frames in between it only watches the command file for a
+	// `choose`/`choices` command and applies it.
+	void onConverseFrame(const char *phrase1, const char *phrase2,
+	                     const char *phrase3, const char *phrase4,
+	                     int game1, int game2, int game3,
+	                     int bottom1, int bottom2, int bottom3, int bottom4);
+
+	// Called from converse() just before its loop begins and just after it
+	// ends, so the layer knows a conversation is open. Between onConverseBegin()
+	// and onConverseEnd(), a `choices`/`choose` typed to the main-loop command
+	// reader is handled by the converse hook instead; outside a conversation
+	// both commands are an A11Y_ERR (R2.5). onConverseEnd() also clears the
+	// per-conversation state so a later conversation starts clean.
+	void onConverseBegin();
+	void onConverseEnd();
+
 	// Called on every room entry; emits one `A11Y { ... }` room-state line.
 	void onRoomEntry();
 
@@ -306,6 +348,28 @@ private:
 	// handler yet emits A11Y_ERR and the layer keeps running (R2.5).
 	void runCommand(const Common::String &cmd);
 
+	// --- Conversation helpers (task 15) -------------------------------------
+
+	// Emit one `A11Y_CHOICES` line from the current conversation's four option
+	// strings and selection statuses (R6.3). Shape (design.md):
+	//   A11Y_CHOICES {"choices":[{"n":1,"text":"...","used":false},
+	//                            ...,{"n":4,"text":"...","ends":true}]}
+	// `used` is true for an option already picked this conversation
+	// (kDialogOptionClicked); option 4 carries `ends:true` because choice 4
+	// always ends the conversation (R7.2). The text is the engine's own option
+	// string, emitted verbatim.
+	void emitChoices(const char *p1, const char *p2, const char *p3, const char *p4,
+	                 int game1, int game2, int game3);
+
+	// Apply `choose <n>` inside a conversation (R7.1): set _mouseY into option
+	// n's text band (from the most recent frame's bottoms) and press the left
+	// button, exactly as a real click on that line does. The engine's own
+	// converse() selection test then fires for option n this frame — running
+	// talk()+response() for options 1-3, or breakOut for option 4 (R7.2). `n` is
+	// 1..4; an out-of-range n emits A11Y_ERR and does nothing (R2.5). The press
+	// is released on the next frame by the converse hook (R8.1).
+	void applyChoose(int n);
+
 	// Advance the synthetic-click state machine by one frame. Called at the top
 	// of poll(), before any command is dequeued, so a click in flight finishes
 	// (press this frame, release the next) before the next command runs. See
@@ -329,6 +393,40 @@ private:
 	// appears exactly once when it is drawn rather than once per frame (R6.2).
 	// Empty means nothing has been emitted yet.
 	Common::String _lastText;
+
+	// --- Conversation state (task 15, R7.1/R7.2/R6.3) -----------------------
+	//
+	// A conversation runs its own modal loop in converse() (gotcha 4), so these
+	// fields let the converse-frame hook describe it and apply `choose`/`choices`
+	// without the main loop. onConverseBegin() sets _converseActive; the frame
+	// hook emits A11Y_CHOICES and applies queued commands; onConverseEnd() clears
+	// everything.
+
+	// True while a converse() loop is running. The `choices`/`choose` commands
+	// are only meaningful then; the main-loop reader rejects them with A11Y_ERR
+	// when this is false (R2.5).
+	bool _converseActive;
+
+	// True when the next onConverseFrame() should (re-)emit A11Y_CHOICES: set at
+	// onConverseBegin() so the opening choices are listed, and set again after a
+	// non-ending choice runs so the updated list (an option now struck through,
+	// R6.3 "after each choice") is listed when control returns to the loop.
+	bool _converseNeedChoices;
+
+	// The option band bottoms (screen-Y lower edges) from the most recent
+	// onConverseFrame(). applyChoose() sets _mouseY into the chosen option's
+	// band using these so the engine's own selection test fires for that option
+	// (R7.1). Refreshed every frame because striking an option through changes
+	// the layout.
+	int _choiceBottom[4];
+
+	// Whether a synthetic conversation click is pressed and awaiting release.
+	// A real choice click is a press then a release on a later frame (R8.1), so
+	// applyChoose() presses on one converse frame and the next frame's hook
+	// clears the button before considering the next command. kDialogOption-style
+	// re-press within one frame would be dropped (gotcha 2), and a held button
+	// would skip the reply lines (gotcha 3).
+	bool _choicePressed;
 
 	// Commands waiting to run. The command file is read every frame and its
 	// lines are appended here; poll() runs exactly one per frame, dequeuing the

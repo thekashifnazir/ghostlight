@@ -80,7 +80,10 @@ static bool parseInt(const Common::String &s, int &out);
 
 A11yLayer::A11yLayer(DrasculaEngine *engine)
 	: _engine(engine), _lastChapter(-1), _lastRoom(-1), _queueHead(0),
+	  _converseActive(false), _converseNeedChoices(false), _choicePressed(false),
 	  _clickState(kClickIdle) {
+	for (int i = 0; i < 4; i++)
+		_choiceBottom[i] = 0;
 	// Register as the engine's current a11y layer so the centerText() hook in
 	// graphics.cpp can reach us (the hook has only the DrasculaEngine `this`,
 	// not this stack-local layer). _lastText default-constructs empty, so the
@@ -378,6 +381,21 @@ void A11yLayer::runCommand(const Common::String &cmd) {
 	// text is ignored.
 	if (verb == "inventory" || verb == "inv") {
 		dispatchInventory();
+		return;
+	}
+
+	// Conversation commands (task 15, R7.1/R7.2/R6.3). These are only meaningful
+	// while a converse() loop is open; that loop does not run the main-loop
+	// reader, so when one IS open the command is consumed by the converse-frame
+	// hook (runConverseCommand, below), never here. Reaching this point means no
+	// conversation is active, so `choices`/`choose` here is an A11Y_ERR that
+	// keeps the layer running (R2.5).
+	if (verb == "choices") {
+		emitLine("A11Y_ERR no conversation is open");
+		return;
+	}
+	if (verb == "choose") {
+		emitLine("A11Y_ERR no conversation is open");
 		return;
 	}
 
@@ -1294,6 +1312,251 @@ void A11yLayer::walkPoint(int x, int y) {
 	// from a previous command.
 	e->_walkToObject = false;
 	e->walkToPoint(Common::Point(cx, cy));
+}
+
+// --- Conversations (task 15, R7.1 / R7.2 / R6.3 / gotcha 4) -----------------
+//
+// A Drascula conversation is a modal loop inside DrasculaEngine::converse()
+// (converse.cpp). converse() loads op_<n>.cal — four option phrases plus the
+// goodbye line — and loops: each frame it lays the four lines out with
+// print_abc_opc() (which returns their heights, accumulated into the band
+// bottoms), then selects the option whose band the cursor is over. A left click
+// on options 1-3 runs talk()+response() (the reply plays through A11Y_TEXT from
+// task 14) and loops again; a click on option 4 sets breakOut and ends the
+// conversation. Because this loop runs its OWN frame pump (updateRoom /
+// updateEvents / updateScreen) the engine main loop — and A11yLayer::poll() —
+// does not run while it is open (gotcha 4). So the only way to describe the
+// conversation and apply `choose`/`choices` is a hook inside converse()'s loop.
+//
+// The hook (onConverseFrame) is placed after the four option lines are laid out
+// (so the band bottoms are known) and before the engine tests the cursor
+// against them. Each frame the layer:
+//   1. refreshes the band bottoms (the layout shifts as options are struck out);
+//   2. (re-)emits A11Y_CHOICES on the opening frame and after each choice runs
+//      (R6.3);
+//   3. reads the command file and, if a `choose <n>`/`choices` is queued, acts
+//      on it — `choose` sets _mouseY into option n's band and presses the left
+//      button so the engine's own selection fires THIS frame (R7.1), exactly as
+//      a real click would; option 4 ends the conversation (R7.2).
+//
+// The press/release split (R8.1, gotchas 2, 3) is kept: applyChoose presses on
+// one converse frame, and the next frame's hook clears the button before
+// looking at the next command, so the button is never pressed-and-released in
+// one frame (dropped) nor held across the reply (which would skip lines).
+
+// Called by converse() just before its while-loop. Marks a conversation open
+// and arms the first A11Y_CHOICES emission.
+void A11yLayer::onConverseBegin() {
+	_converseActive = true;
+	_converseNeedChoices = true;
+	_choicePressed = false;
+}
+
+// Called by converse() just after its while-loop ends. Clears all conversation
+// state so a later conversation starts clean and the main-loop reader treats
+// `choices`/`choose` as "no conversation open" again (R2.5).
+void A11yLayer::onConverseEnd() {
+	_converseActive = false;
+	_converseNeedChoices = false;
+	_choicePressed = false;
+	for (int i = 0; i < 4; i++)
+		_choiceBottom[i] = 0;
+	// A choice click may have left the button pressed; make sure it is released
+	// so the main loop does not read a stale press on its next frame.
+	_engine->_leftMouseButton = 0;
+}
+
+// Emit one A11Y_CHOICES line from the engine's own option strings (R6.3). Shape:
+//   A11Y_CHOICES {"choices":[{"n":1,"text":"...","used":false}, ...,
+//                            {"n":4,"text":"...","ends":true}]}
+// An option already picked this conversation has game == kDialogOptionClicked,
+// reported as "used":true. Option 4 is the goodbye line and always ends the
+// conversation, so it carries "ends":true (R7.2). Text is the engine's own,
+// emitted verbatim (never fabricated).
+void A11yLayer::emitChoices(const char *p1, const char *p2, const char *p3, const char *p4,
+                            int game1, int game2, int game3) {
+	const char *phrases[4] = { p1, p2, p3, p4 };
+	int games[4] = { game1, game2, game3, kDialogOptionUnselected };
+
+	Common::String json = "A11Y_CHOICES {\"choices\":[";
+	for (int i = 0; i < 4; i++) {
+		if (i > 0)
+			json += ",";
+		const char *t = phrases[i] ? phrases[i] : "";
+		json += Common::String::format(
+			"{\"n\":%d,\"text\":\"%s\",\"used\":%s",
+			i + 1,
+			jsonEscape(t).c_str(),
+			games[i] == kDialogOptionClicked ? "true" : "false");
+		// Option 4 always ends the conversation (R7.2).
+		if (i == 3)
+			json += ",\"ends\":true";
+		json += "}";
+	}
+	json += "]}";
+	emitLine(json);
+}
+
+// Apply `choose <n>` (n in 1..4) inside a conversation by reproducing a real
+// click on that option line (R7.1): warp the cursor to the vertical middle of
+// option n's text band and press the left button, so the engine's own cursor
+// test in converse() selects option n this frame. The engine then runs
+// talk()+response() (options 1-3) or sets breakOut (option 4, R7.2). The band
+// bottoms come from the most recent onConverseFrame(); the midpoint of band n
+// is between the previous option's bottom and option n's bottom. An n outside
+// 1..4, or a band that is not laid out (bottom 0), is an A11Y_ERR with no
+// action (R2.5).
+void A11yLayer::applyChoose(int n) {
+	DrasculaEngine *e = _engine;
+
+	if (n < 1 || n > 4) {
+		emitLine(Common::String::format(
+			"A11Y_ERR choose takes an option 1-4, got %d", n));
+		return;
+	}
+
+	// The engine selects option k when _mouseY is strictly between the previous
+	// option's bottom and option k's bottom (converse.cpp). Band 1's lower edge
+	// is 0. Pick a Y safely inside the band: the midpoint of (prevBottom,
+	// thisBottom). _choiceBottom is 1-indexed by option in [0..3].
+	int prevBottom = (n == 1) ? 0 : _choiceBottom[n - 2];
+	int thisBottom = _choiceBottom[n - 1];
+
+	// A degenerate band (thisBottom <= prevBottom + 1) means the layout has not
+	// produced a selectable strip for this option (e.g. an empty goodbye line in
+	// a malformed conversation). Refuse rather than press into a dead zone.
+	if (thisBottom <= prevBottom + 1) {
+		emitLine(Common::String::format(
+			"A11Y_ERR option %d is not selectable in this conversation", n));
+		return;
+	}
+
+	int midY = (prevBottom + thisBottom) / 2;
+
+	// Warp the cursor to the band and press the left button, exactly as a real
+	// click on that line does. The X only has to be on screen; the engine
+	// selects on _mouseY alone. We set the engine's own tracked position (what
+	// converse() reads) and move the backend cursor so a native real-window run
+	// shows the cursor over the option too.
+	e->_mouseX = 160;
+	e->_mouseY = midY;
+	if (g_system)
+		g_system->warpMouse(160, midY);
+
+	e->_leftMouseButton = 1;
+	_choicePressed = true;
+}
+
+// Called from the converse() loop each frame (gotcha 4). See the block comment
+// above. Order within the frame:
+//   1. Release a press from the previous frame (R8.1): the engine already acted
+//      on it (ran talk()+response() or breakOut), so clear the button now so it
+//      is a clean one-frame press, never held across the reply (gotcha 3). A
+//      non-ending choice (options 1-3) means the conversation re-opens, so arm
+//      a fresh A11Y_CHOICES for this frame (R6.3 "after each choice").
+//   2. Cache this frame's band bottoms (the layout shifts as options are used).
+//   3. Emit A11Y_CHOICES if armed (opening frame or just after a choice).
+//   4. Read the command file and act on the first queued conversation command:
+//      `choices` re-emits; `choose <n>` applies and returns (the engine acts on
+//      the press this same frame). Non-conversation commands are left in the
+//      queue for the main loop to run once the conversation ends.
+void A11yLayer::onConverseFrame(const char *phrase1, const char *phrase2,
+                                const char *phrase3, const char *phrase4,
+                                int game1, int game2, int game3,
+                                int bottom1, int bottom2, int bottom3, int bottom4) {
+	DrasculaEngine *e = _engine;
+
+	// (1) Release a press issued on the previous converse frame. The engine has
+	// already selected the option and run its talk()+response() (options 1-3) or
+	// set breakOut (option 4) before control returned here, so dropping the
+	// button now gives a clean press-then-release across two frames (R8.1) and
+	// never a button held through the reply (gotcha 3).
+	if (_choicePressed) {
+		e->_leftMouseButton = 0;
+		_choicePressed = false;
+		// A non-ending choice re-opens the option list, so list it again with
+		// the picked option now struck through (R6.3 "after each choice"). If
+		// the choice ended the conversation, onConverseEnd() runs instead and
+		// this flag is harmless.
+		_converseNeedChoices = true;
+	}
+
+	// (2) Cache the current band bottoms so applyChoose() can land _mouseY in the
+	// right strip. Refreshed every frame because used options are struck out and
+	// the layout shifts.
+	_choiceBottom[0] = bottom1;
+	_choiceBottom[1] = bottom2;
+	_choiceBottom[2] = bottom3;
+	_choiceBottom[3] = bottom4;
+
+	// (3) Emit the choices when armed: on the opening frame and after each
+	// non-ending choice (R6.3).
+	if (_converseNeedChoices) {
+		emitChoices(phrase1, phrase2, phrase3, phrase4, game1, game2, game3);
+		_converseNeedChoices = false;
+	}
+
+	// (4) Service the command file. Append any new lines, then look at the next
+	// queued command.
+	readCommandFile();
+
+	while (_queueHead < _commandQueue.size()) {
+		const Common::String &cmd = _commandQueue[_queueHead];
+
+		// Split off the first word (the verb).
+		uint sp = 0;
+		while (sp < cmd.size() && cmd[sp] != ' ')
+			sp++;
+		Common::String verb = (sp < cmd.size()) ? Common::String(cmd.c_str(), sp) : cmd;
+		Common::String arg;
+		if (sp < cmd.size())
+			arg = Common::String(cmd.c_str() + sp + 1);
+		arg.trim();
+
+		if (verb == "choices") {
+			// Re-list the current options on demand (R7.1). Consume the command
+			// and keep looking (a `choices` does not act on the engine, so a
+			// following `choose` on the same frame is fine).
+			emitLine(Common::String("A11Y_CMD ") + cmd);
+			emitChoices(phrase1, phrase2, phrase3, phrase4, game1, game2, game3);
+			_queueHead++;
+			continue;
+		}
+
+		if (verb == "choose") {
+			emitLine(Common::String("A11Y_CMD ") + cmd);
+			int n;
+			if (!parseInt(arg, n)) {
+				emitLine(Common::String("A11Y_ERR choose needs an option number 1-4, got: ") + arg);
+				_queueHead++;
+				continue;
+			}
+			_queueHead++;
+			// Apply the choice: this presses the button so the engine selects
+			// option n THIS frame, below in converse(). Return so the engine's
+			// own selection/reply runs before we look at the next command.
+			applyChoose(n);
+			// Reclaim the queue if it has now drained.
+			if (_queueHead >= _commandQueue.size()) {
+				_commandQueue.clear();
+				_queueHead = 0;
+			}
+			return;
+		}
+
+		// Any other command is not a conversation command. Leave it in the queue
+		// for the main-loop reader to run once the conversation ends — do not
+		// consume it here. Stop scanning this frame.
+		break;
+	}
+
+	// Reclaim a fully-drained queue so a long session does not grow it. Only
+	// when nothing is pending — a non-conversation command left at the head must
+	// survive for the main loop to run after the conversation ends.
+	if (_queueHead >= _commandQueue.size()) {
+		_commandQueue.clear();
+		_queueHead = 0;
+	}
 }
 
 // --- Synthetic click model (R8 / R3.3 / gotchas 2, 3) -----------------------
