@@ -20,7 +20,7 @@ These tasks build the server incrementally, replay-first so everything is runnab
   - Verify: a scratch script (or the first unit test) loads `tavern`, starts, and reads back the room — remove the scratch before commit.
   - _Requirements: 7.1, 7.2, 7.3, 7.4, 7.5, 5.2, 5.3, 5.4_
 
-- [ ] 4. Build the session (transport holder + current room tracking)
+- [x] 4. Build the session (transport holder + current room tracking)
   - Add `mcp/src/session.ts`: hold `Transport | null` and `currentRoom: RoomState | null`; `start` stops any existing session first, boots, stores the first room; refresh `currentRoom` from any room-change diff and from `state`; expose `isTargetInRoom(num)`, `heldItemIds()`, `send(cmd)`, `stop()`.
   - Verify: unit test that a room-change diff (the `walk 105` chapter crossing from `tavern.json`) updates `currentRoom` to room 14 with the new objects.
   - _Requirements: 4.1, 4.2, 8.1, 8.4_

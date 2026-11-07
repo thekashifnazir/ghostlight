@@ -1,0 +1,120 @@
+// The session (Requirements 4, 8).
+//
+// Holds the single active Transport and the latest RoomState, and is the only
+// place the tool layer gets either. It keeps `currentRoom` in step with the
+// game so the tool layer can validate a target against the room the player is
+// actually in (Req 8), and answer `state` without a round-trip to the engine.
+//
+// currentRoom is refreshed from three sources, matching the engine contract:
+//  - start(): the first room-state the transport returns (Req 8.1);
+//  - any room-change diff: a diff that carries `room`/`objects` is the engine
+//    reporting a new room, and (per the engine design and tavern.json) it
+//    includes the new room's full object list, so we rebuild from it without an
+//    extra `state` call;
+//  - setRoom(): the `state` tool writes the current room back here.
+
+import type {
+  CommandResult,
+  Command,
+  RoomState,
+  Transport,
+} from "./transport.js";
+
+export class Session {
+  private transport: Transport | null = null;
+  private currentRoom: RoomState | null = null;
+
+  /**
+   * Start a fresh session on the given transport. If a session is already
+   * running, stop it first so a second start never orphans the previous
+   * transport (Req 4.2). Returns and records the first room state (Req 4.1, 8.1).
+   */
+  async start(transport: Transport): Promise<RoomState> {
+    if (this.transport) {
+      await this.stop();
+    }
+    this.transport = transport;
+    const room = await transport.start();
+    this.currentRoom = room;
+    return room;
+  }
+
+  /** True once a transport has been started (and not stopped). */
+  get isStarted(): boolean {
+    return this.transport !== null;
+  }
+
+  /** The current room, or null before start. Read by the `state` tool. */
+  get room(): RoomState | null {
+    return this.currentRoom;
+  }
+
+  /**
+   * Send a command through the active transport and keep currentRoom in step:
+   * a room-change diff (carrying the new room's `room` and `objects`) rebuilds
+   * currentRoom from the diff. Throws if no session is running — the tool layer
+   * turns that into the "call start first" error (Req 4.3).
+   */
+  async send(cmd: Command): Promise<CommandResult> {
+    const transport = this.requireTransport();
+    const result = await transport.send(cmd);
+    this.applyRoomChange(result);
+    return result;
+  }
+
+  /**
+   * Rebuild currentRoom when a diff reports a room change. The engine includes
+   * the new room's full object list in that diff (engine design; tavern.json's
+   * walk-105 crossing carries room [62,14] + 12 objects), so we can refresh
+   * chapter/room/objects without a separate room-state line. Fields the diff
+   * does not restate (hero, inventory, flags) are carried from the prior room;
+   * a following `state`/room-state line, when present, supersedes them.
+   */
+  private applyRoomChange(result: CommandResult): void {
+    // Prefer an explicit room-state event if the command produced one.
+    const roomEvent = result.events.find((e) => e.type === "room");
+    if (roomEvent && roomEvent.type === "room") {
+      this.currentRoom = roomEvent.state;
+      return;
+    }
+    const diff = result.diff;
+    if (!diff || diff.room === undefined || !this.currentRoom) return;
+    const [, toRoom] = diff.room;
+    this.currentRoom = {
+      ...this.currentRoom,
+      room: toRoom,
+      chapter: diff.chapter ? diff.chapter[1] : this.currentRoom.chapter,
+      objects: diff.objects ?? this.currentRoom.objects,
+    };
+  }
+
+  /** Record the room the `state` tool observed, keeping validation current. */
+  setRoom(room: RoomState): void {
+    this.currentRoom = room;
+  }
+
+  /** Is `num` a hotspot present in the current room? Used by target validation. */
+  isTargetInRoom(num: number): boolean {
+    return (this.currentRoom?.objects ?? []).some((o) => o.num === num);
+  }
+
+  /** The ids of the items currently held, for `use`-target validation. */
+  heldItemIds(): number[] {
+    return this.currentRoom?.inventory ?? [];
+  }
+
+  /** Stop the active transport and clear the session. Safe with none (Req 4.4). */
+  async stop(): Promise<void> {
+    const transport = this.transport;
+    this.transport = null;
+    this.currentRoom = null;
+    if (transport) await transport.stop();
+  }
+
+  private requireTransport(): Transport {
+    if (!this.transport) {
+      throw new Error("no game session; call the start tool first.");
+    }
+    return this.transport;
+  }
+}
