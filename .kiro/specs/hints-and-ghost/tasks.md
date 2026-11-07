@@ -43,7 +43,7 @@ New code lives under `src/hints/` (including the committed audio cache at `src/h
   - Unit-test that disabled `play` is a no-op, a key with no glob entry is silent (no throw), and `stop` is safe when nothing is playing.
   - _Requirements: 6.1, 6.2, 6.4, 6.5, 8.4_
 
-- [-] 9. Voice generation script with dry-run
+- [x] 9. Voice generation script with dry-run
   - Create `scripts/gen-voice.ts`: load the pack via the pack tools, collect every milestone's `nudge`/`clue`/`answer`.
   - `--dry-run` mode: print the number of hint lines and their total character count (with a per-chapter or per-tier breakdown for cost estimation), make no ElevenLabs call and write nothing, then exit. This is the mode to run first.
   - Real mode (no `--dry-run`): compute each line's `cacheKey(text, "nbk2esDn4RRk4cVDdoiE", "eleven_v4")`, skip lines already present in `src/hints/ghost/`, and generate the rest through the ElevenLabs power (voice Alice, model `eleven_v4`), writing `<key>.mp3`.
