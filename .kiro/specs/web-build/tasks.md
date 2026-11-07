@@ -54,7 +54,7 @@ Scope boundaries for every task below:
   - Verify: with `?live` the live Playwright check (task 6) boots the real engine and reaches room 62; without `?live` the player's existing vitest and Playwright (replay) suites still pass unchanged.
   - _Requirements: 7.1, 7.2, 7.3, 7.4_
 
-- [ ] 8. Deploy a workers.dev preview, upload Packet.001 to R2, and time the first load (do not start until Kash says go)
+- [x] 8. Deploy a workers.dev preview, upload Packet.001 to R2, and time the first load (do not start until Kash says go)
   - **Precondition: do not start this task until Kash explicitly says go.**
   - Deploy the Worker to a Cloudflare `workers.dev` preview and upload `Packet.001` to R2 from the `vendor/scummvm-web` build output; commit no game data and no key, and reference Cloudflare credentials by name only.
   - Open the preview URL, boot the live build, and measure the first load over a real connection: at least total bytes fetched and time to the first room state.
