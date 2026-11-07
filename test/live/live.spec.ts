@@ -18,6 +18,16 @@ import { expect, test } from "@playwright/test";
 // engine reached the tavern. A11Y room-state console lines (when the backend
 // forwards them) are captured as a secondary signal.
 //
+// It then drives one COMMAND and asserts the engine's reply reaches the live
+// region — the regression guard for the "LiveAdapter.send() has no booted
+// Module" bug. ScummVM's Emscripten build exposes FS as a global, not as
+// Module.FS, so send() must resolve FS from globalThis; if it cannot, the
+// command file is never written and nothing round-trips. The A11Y lines travel
+// through Module.printErr (consumed by the page's reader) and do NOT reliably
+// reach the browser JS console, so the round-trip is asserted on the OBSERVABLE
+// live-region text (the engine's spoken reply), exactly what a screen reader
+// hears — not on console lines.
+//
 // When the wasm build or game data is absent locally, the file SKIPS with a
 // clear message naming scripts/build-web.sh and scripts/fetch.sh (R6.3, R6.5).
 
@@ -41,20 +51,33 @@ test.describe("live wasm build", () => {
   // Skip the whole file when there is no local build, with a clear message.
   test.skip(!existsSync(WASM) || !existsSync(PACKET), SKIP_MESSAGE);
 
-  test("boots the real engine and reaches room 62", async ({ page }) => {
+  test("boots the real engine, reaches room 62, and a command round-trips", async ({
+    page,
+  }) => {
     // Secondary signal: capture any A11Y room-state console line the backend
-    // forwards (the engine's own room 62 state), for extra confidence.
+    // forwards (the engine's own room 62 state), for extra confidence. Also
+    // watch for the specific send() error the FS bug threw, so a regression
+    // fails loudly with a clear reason rather than only timing out.
     const roomNumbers: number[] = [];
+    let sawSendError = false;
     page.on("console", (msg) => {
-      const m = msg.text().match(/A11Y\s+(\{.*"room"\s*:\s*\d+.*\})/);
-      if (!m) return;
-      try {
-        const state = JSON.parse(m[1]) as { room?: number };
-        if (typeof state.room === "number") roomNumbers.push(state.room);
-      } catch {
-        /* not a room-state JSON line */
+      const text = msg.text();
+      const m = text.match(/A11Y\s+(\{.*"room"\s*:\s*\d+.*\})/);
+      if (m) {
+        try {
+          const state = JSON.parse(m[1]) as { room?: number };
+          if (typeof state.room === "number") roomNumbers.push(state.room);
+        } catch {
+          /* not a room-state JSON line */
+        }
       }
+      if (/has no (booted Module|MEMFS)/.test(text)) sawSendError = true;
     });
+    page.on("pageerror", (err) => {
+      if (/has no (booted Module|MEMFS)/.test(err.message)) sawSendError = true;
+    });
+
+    const live = page.locator("#live-region");
 
     // Load the page in live mode. ?live selects the LiveAdapter (task 7 wiring).
     await page.goto("/index.html?live");
@@ -71,14 +94,39 @@ test.describe("live wasm build", () => {
     // room-62 short is unique to the tavern, so this proves the real engine
     // booted, picked the Drascula target, and entered room 62 — read end to end
     // through the player's own event routing, as a screen reader would hear it.
-    await expect(page.locator("#live-region")).toContainText(ROOM_62_SHORT, {
-      timeout: 90_000,
-    });
+    await expect(live).toContainText(ROOM_62_SHORT, { timeout: 90_000 });
 
     // Secondary: if the backend forwarded A11Y room lines to the console, the
     // only room entered so far is 62 (the intro is skipped by the engine patch).
     if (roomNumbers.length > 0) {
       expect(roomNumbers).toContain(62);
     }
+
+    // Now drive a COMMAND and prove the WRITE path works end to end. This is the
+    // regression guard for the "LiveAdapter.send() has no booted Module" bug:
+    // ScummVM's build does not populate Module.FS, so send() must resolve FS
+    // from globalThis.FS; if it cannot, it throws, the command file is never
+    // written, and the engine says nothing back.
+    //
+    // In list mode ArrowRight moves the focus through the tavern's hotspots and
+    // Enter interacts with the focused one. The bartender is an NPC, so Enter on
+    // it sends `talk`, which the engine answers with spoken dialogue. The room
+    // readout lists "… bartender, drunk, pianist …"; the bartender is the 5th
+    // hotspot, so step to it (focus starts on the 1st) and talk.
+    for (let i = 0; i < 4; i++) await page.keyboard.press("ArrowRight");
+    await expect(live).toContainText("bartender"); // focus landed on the NPC
+    await page.keyboard.press("Enter");
+
+    // The engine's reply reaches the live region as text (what a screen reader
+    // hears). The round-trip succeeded iff the live region stops showing the
+    // room-62 announcement and shows the engine's spoken reply instead — which
+    // only happens if the command file was actually written and drained.
+    await expect(live).not.toContainText(ROOM_62_SHORT, { timeout: 90_000 });
+    await expect(live).not.toHaveText(/^\s*$/);
+
+    // And the send() FS error must never have fired.
+    expect(sawSendError, "LiveAdapter.send() threw the FS/booted-Module error").toBe(
+      false,
+    );
   });
 });

@@ -29,7 +29,12 @@ export interface ScummvmBootModule {
   printErr?: (line: string) => void;
   /** Resolve wasm/data URLs to where the Worker (or dev server) serves them. */
   locateFile?: (path: string, prefix: string) => string;
-  /** Emscripten MEMFS, available once the Module is up. */
+  /**
+   * Emscripten MEMFS. ScummVM's build does NOT set this on the Module — it
+   * exposes `FS` as a plain global instead — so expect it to stay `undefined`
+   * here. The live adapter reads FS from `globalThis.FS` (see live-adapter.ts
+   * resolveFS); this member only exists for a test that injects its own FS.
+   */
   FS?: unknown;
   [key: string]: unknown;
 }

@@ -21,22 +21,42 @@ import {
 import { parseA11yLine } from "./a11y-lines.js";
 import { bootEngine, type ScummvmBootModule } from "./boot.js";
 
+/** Emscripten MEMFS; the page writes the command file through it. */
+export interface ScummvmFS {
+  writeFile(path: string, data: string): void;
+  readFile?(path: string, opts: { encoding: "utf8" }): string;
+}
+
 /**
  * The subset of the Emscripten Module the live adapter needs at send time: its
  * MEMFS, through which the page writes the command file. boot.ts produces the
- * real object (the ScummVM wasm build populates `window.Module.FS` once the
- * wasm has instantiated, i.e. by the time the first room state arrives).
+ * real object.
+ *
+ * NOTE: ScummVM's Emscripten build does NOT hang FS off `Module`. The generated
+ * `scummvm.js` exposes `FS` as a plain global (spike 03 drives it with a bare
+ * `FS.writeFile('/tmp/a11y-cmd.txt', ...)`), so `Module.FS` is `undefined`.
+ * `FS` here is therefore optional; `resolveFS()` reads it from the Module when
+ * present and otherwise falls back to `globalThis.FS`.
  */
 export interface ScummvmModule extends ScummvmBootModule {
-  /** Emscripten MEMFS; the page writes the command file through it. */
-  FS: {
-    writeFile(path: string, data: string): void;
-    readFile?(path: string, opts: { encoding: "utf8" }): string;
-  };
+  /** Emscripten MEMFS, if this build hangs it off the Module (ScummVM does not). */
+  FS?: ScummvmFS;
 }
 
 /** Where the engine reads commands from (launch with --savepath=/tmp). */
 const COMMAND_FILE = "/tmp/a11y-cmd.txt";
+
+/**
+ * Resolve the Emscripten MEMFS. ScummVM's build exposes `FS` as a global rather
+ * than as `Module.FS`, so prefer the Module's own FS (for a build or test that
+ * sets one) and fall back to `globalThis.FS`. Returns `undefined` when neither
+ * is available (no boot yet), which `send()` turns into a loud error.
+ */
+function resolveFS(module: ScummvmModule | undefined): ScummvmFS | undefined {
+  if (module?.FS) return module.FS;
+  const g = globalThis as unknown as { FS?: ScummvmFS };
+  return g.FS;
+}
 
 export class LiveAdapter implements EngineAdapter {
   private readonly listeners = new Set<(e: EngineEvent) => void>();
@@ -69,9 +89,10 @@ export class LiveAdapter implements EngineAdapter {
    * the Module, before `scummvm.js` loads, so no early A11Y line is missed.
    */
   installReader(module: ScummvmBootModule): void {
-    // The booted Module gains FS once the wasm instantiates; keep a reference
-    // for send(). The cast is sound: ScummvmModule only adds the FS member the
-    // real Module has by the time send() is called.
+    // Keep a reference for send(). The cast is sound: ScummvmModule only adds an
+    // optional FS member. ScummVM's build does not populate Module.FS, so
+    // send() reads FS from the global via resolveFS(); the Module reference is
+    // still useful (and a test may inject a Module that does carry FS).
     this.module = module as ScummvmModule;
     const previous = module.printErr;
     module.printErr = (line: string) => {
@@ -108,12 +129,15 @@ export class LiveAdapter implements EngineAdapter {
    * so a command sent before a successful boot fails loudly.
    */
   send(cmd: Command): void {
-    if (!this.module || !this.module.FS) {
+    const fs = resolveFS(this.module);
+    if (!fs) {
       throw new Error(
-        "LiveAdapter.send() has no booted Module; call start() first (or pass " +
-          "a Module). Use ReplayAdapter (?replay=) for the recorded path.",
+        "LiveAdapter.send() has no MEMFS; call start() first (or pass a " +
+          "Module). ScummVM exposes FS as a global, not Module.FS, so this " +
+          "means the wasm has not booted. Use ReplayAdapter (?replay=) for " +
+          "the recorded path.",
       );
     }
-    this.module.FS.writeFile(COMMAND_FILE, serializeCommand(cmd) + "\n");
+    fs.writeFile(COMMAND_FILE, serializeCommand(cmd) + "\n");
   }
 }
