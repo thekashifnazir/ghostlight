@@ -45,6 +45,18 @@ export interface ControllerDeps {
   verbMenu: VerbMenu;
   inventory: Inventory;
   live: LiveRegion;
+  /**
+   * Open an examine window for the focused hotspot before sending `look`
+   * (optional; wired by main.ts). The engine answers an examine by drawing
+   * hover/examine text that reaches us as A11Y_TEXT events — the generic
+   * "can't see anything in particular" line and short hover-name labels — so
+   * the narration layer needs to know an examine is in flight to suppress
+   * those from the text path, exactly as suppressGenericLook does on the diff
+   * path. The window is closed by the look diff. When absent (tests of the
+   * controller alone), examine still works; only the text-path suppression is
+   * not armed.
+   */
+  beginExamine?: (num: number) => void;
   /** The highlight follows the focused hotspot; show/hide by rect. */
   showHighlight: (hotspot: Hotspot | undefined) => void;
   /** Read the whole room (name, description, things, exits). */
@@ -245,6 +257,9 @@ export class Controller {
       objectText ??
       (h.kind === "exit" ? this.d.pack.exitLabel(room, h.num) : undefined);
     if (authored) this.d.live.announce(authored);
+    // Arm the text-path examine suppression before the look, so the engine's
+    // hover/examine A11Y_TEXT lines that arrive for this look are filtered.
+    this.d.beginExamine?.(h.num);
     this.d.adapter.send({ verb: "look", target: h.num });
   }
 
@@ -273,6 +288,65 @@ const GENERIC_LOOK_PHRASE = "anything in particular";
 /** True if `text` is the engine's generic no-info look reply. */
 export function isGenericLookLine(text: string): boolean {
   return text.toLowerCase().includes(GENERIC_LOOK_PHRASE);
+}
+
+/**
+ * Normalise a drawn line for hover-label comparison: trim, drop a trailing
+ * full stop the engine sometimes draws, and lower-case. Hover names are drawn
+ * as the engine's own hotspot name (ALL CAPS like "BARTENDER", or lower-case
+ * like the hero's "hacker"), so a case-insensitive exact match against the
+ * room's known names identifies a hover echo without touching real sentences.
+ */
+function normalizeLabel(text: string): string {
+  return text.trim().replace(/\.+$/, "").toLowerCase();
+}
+
+/**
+ * Decide whether one A11Y_TEXT line drawn during an examine should be dropped.
+ *
+ * The engine answers an examine by drawing hover/examine text that reaches the
+ * player as A11Y_TEXT events, not through the diff's `said`, so the diff-path
+ * suppressGenericLook never sees them. Two kinds are noise during an examine
+ * and are dropped here:
+ *  - the engine's generic "I can't see anything in particular" reply, and
+ *  - a bare hover-name label — the engine's own name for a hotspot under the
+ *    cursor (e.g. "BARTENDER", or the hero's "hacker"), which is an exact,
+ *    case-insensitive match for one of the room's known hotspot names.
+ *
+ * `roomLabels` is the set of known hotspot names for the current room
+ * (normalised): the pack's spoken names and the engine's raw names. A hover
+ * name that is NOT a current room hotspot — the hero's own drawn name, which
+ * the engine keeps in its character-name table (_textmisc: "hacker", "yoda",
+ * "igor") and draws under the cursor — would slip past a room-only match, so a
+ * bare single-word token is also treated as a hover echo during an examine.
+ * Anything the engine adds beyond a hover name or the stock line — a real
+ * sentence like "HE WINKS AT YOU." — is multi-word and is kept.
+ */
+export function isExamineNoiseLine(
+  text: string,
+  roomLabels: ReadonlySet<string>,
+): boolean {
+  if (isGenericLookLine(text)) return true;
+  const label = normalizeLabel(text);
+  if (roomLabels.has(label)) return true;
+  // A bare one-word name-like token (letters only, no spaces) drawn during an
+  // examine is a hover name, not a reply the engine composed for the look. This
+  // catches the hero's own hover name ("hacker"), which is not a room hotspot.
+  return isBareHoverName(label);
+}
+
+/**
+ * True if a normalised line is a bare hover-name token: a single word of only
+ * letters (plus an optional internal hyphen, as some engine names carry one).
+ * Multi-word engine replies — the only look text worth keeping — never match.
+ */
+function isBareHoverName(label: string): boolean {
+  return /^[a-z]+(?:-[a-z]+)*$/.test(label);
+}
+
+/** Normalise a hotspot name for the room-label set used by isExamineNoiseLine. */
+export function labelKey(name: string): string {
+  return normalizeLabel(name);
 }
 
 /**

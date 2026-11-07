@@ -26,7 +26,8 @@ import type { Pack as HintPack } from "../packs/tools/src/types.js";
 // writes it and no copy of it lives under src/. Vite resolves this to the real
 // packs/drascula-en.json at dev and build time.
 import packJson from "../packs/drascula-en.json";
-import { Controller, suppressGenericLook } from "./ui/controller.js";
+import { Controller } from "./ui/controller.js";
+import { Narrator } from "./ui/narrator.js";
 import { Highlight } from "./ui/highlight.js";
 import { Inventory } from "./ui/inventory.js";
 import { ListMode } from "./ui/list-mode.js";
@@ -126,6 +127,26 @@ export async function boot(): Promise<void> {
     inventory: [],
   };
   let currentList: Hotspot[] = [];
+
+  // The narrator owns the cross-cutting narration rules the live-engine survey
+  // turned up: dropping the generic look reply and hover-name echoes from the
+  // A11Y_TEXT path during an examine, not saying "Nothing happened." after a
+  // look, and de-duplicating a line the engine reports both as an A11Y_TEXT
+  // event and in the following diff's `said`. See ui/narrator.ts.
+  const narrator = new Narrator(live);
+
+  // Announce a composed line through the narrator, so its text-vs-said de-dup
+  // memory stays in step.
+  const say = (text: string): void => narrator.announce(text);
+
+  // Refresh the narrator's room hover-name labels from the current list and the
+  // engine's raw object names, so an examine's hover echo is recognised.
+  const rebuildRoomLabels = (): void => {
+    narrator.setRoomLabels(
+      currentList,
+      state.objects.map((o) => o.name),
+    );
+  };
 
   // Hint core (hints-and-ghost spec). The tracker and engine read the pack's
   // milestones; the pack JSON is the pack-tools shape the hint core expects.
@@ -248,6 +269,9 @@ export async function boot(): Promise<void> {
     verbMenu,
     inventory,
     live,
+    // Open the examine window so the engine's hover/examine A11Y_TEXT lines for
+    // this look are filtered from the text path until the look diff arrives.
+    beginExamine: () => narrator.beginExamine(),
     showHighlight,
     readRoom,
     readHelp: () => live.announce(HELP_TEXT),
@@ -269,26 +293,29 @@ export async function boot(): Promise<void> {
         applyDiff(e.diff);
         break;
       case "text":
-        live.announce(e.line);
+        announceText(e.line);
         break;
       case "choices":
-        live.announce(
-          e.choices.map((c) => `${c.n}. ${c.text}`).join(" "),
-        );
+        say(e.choices.map((c) => `${c.n}. ${c.text}`).join(" "));
         break;
       case "inv":
         inventory.setItems(e.items.map((i) => i.id));
         break;
       case "error":
-        live.announce(e.message);
+        say(e.message);
         break;
       case "saved":
-        live.announce(`Saved in slot ${e.slot}.`);
+        say(`Saved in slot ${e.slot}.`);
         break;
       case "cmd":
         // Command echo; nothing to announce (the diff carries the result).
         break;
     }
+  }
+
+  /** Route one A11Y_TEXT line through the narrator's examine filter. */
+  function announceText(line: string): void {
+    narrator.text(line);
   }
 
   function applyRoom(s: RoomState): void {
@@ -298,6 +325,7 @@ export async function boot(): Promise<void> {
     state.objects = s.objects;
     state.inventory = s.inventory;
     currentList = buildHotspotList(s, pack);
+    rebuildRoomLabels();
     list.rebuild(currentList);
     inventory.setItems(s.inventory);
     readRoom();
@@ -355,6 +383,7 @@ export async function boot(): Promise<void> {
           },
           pack,
         );
+        rebuildRoomLabels();
         list.rebuild(currentList);
         // Refresh sonar with the rebuilt room and the (possibly new) hero.
         sonar.setRoom(
@@ -390,6 +419,7 @@ export async function boot(): Promise<void> {
         flags: [],
       };
       currentList = buildHotspotList(sameRoomState, pack);
+      rebuildRoomLabels();
       list.update(currentList);
       // Keep sonar in step with the updated visible things (sonar R2.6, R3.6).
       sonar.setRoom(sameRoomState, currentList);
@@ -398,7 +428,7 @@ export async function boot(): Promise<void> {
     // Announce the engine's own reply first, then the inventory changes, so
     // the "Received X" / "no longer carried" confirmation is the last line the
     // player hears (the live region keeps only the newest line).
-    announceSaid(diff);
+    const isLookDiff = announceSaid(diff);
 
     for (const added of diff.invAdded ?? []) {
       if (!state.inventory.includes(added.id)) state.inventory.push(added.id);
@@ -411,9 +441,12 @@ export async function boot(): Promise<void> {
       inventory.announceRemoved(removed);
     }
 
-    if (diff.changed === false && !diff.said?.length) {
-      live.announce("Nothing happened.");
-    }
+    // "Nothing happened." is the right feedback for an action that did nothing,
+    // but never for a look: examine already announced the pack description (or
+    // the engine's own look text), and a look that changes no state is the
+    // normal case, not a failure to report. The narrator suppresses it for look
+    // diffs.
+    narrator.maybeNothingHappened(diff, isLookDiff);
 
     // Re-announce the room once if this same-room diff changed which variant
     // resolves for the short or long description, so a passage opening (or any
@@ -433,14 +466,14 @@ export async function boot(): Promise<void> {
     }
   }
 
-  function announceSaid(diff: Diff): void {
-    // For a look diff, drop the engine's generic "can't see anything in
-    // particular" reply: examine already announced the pack's authored
-    // description, and the stock line adds nothing. suppressGenericLook is
-    // scoped to look commands, so every other verb's text is announced as-is.
-    for (const line of suppressGenericLook(diff)) {
-      live.announce(line.text);
-    }
+  /**
+   * Announce a diff's spoken text through the narrator: it closes the examine
+   * window on a look diff, drops the generic look reply (suppressGenericLook),
+   * and de-duplicates a `said` line already announced as an A11Y_TEXT event.
+   * Returns whether this was a look diff, for the "Nothing happened." guard.
+   */
+  function announceSaid(diff: Diff): boolean {
+    return narrator.said(diff);
   }
 
   // Keyboard: stop keys reaching the engine's own input (gotcha 7).
