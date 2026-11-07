@@ -101,8 +101,18 @@ export function parseLine(line: string): A11yLine | null {
         return { kind: "err", text: rest };
       case "A11Y_TEXT ":
         return { kind: "text", text: rest };
-      case "A11Y_SAVED ":
-        return { kind: "saved", slot: rest.trim() };
+      case "A11Y_SAVED ": {
+        // The engine emits `A11Y_SAVED {"slot":N,"chapter":..,"room":..}`
+        // (engine/a11y.cpp dispatchSave). Pull the slot out of the JSON; fall
+        // back to the raw text for any older bare-number form so the parser
+        // stays tolerant of both shapes.
+        const trimmed = rest.trim();
+        if (trimmed.startsWith("{")) {
+          const obj = parseJson(prefix, trimmed) as { slot?: number | string };
+          return { kind: "saved", slot: String(obj.slot ?? trimmed) };
+        }
+        return { kind: "saved", slot: trimmed };
+      }
       case "A11Y_HOVER ":
         return { kind: "hover", text: rest };
       case "A11Y_SAY ":

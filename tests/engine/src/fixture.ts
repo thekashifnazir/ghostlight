@@ -60,6 +60,49 @@ export const FIXTURE_NAMES = [
 export type FixtureName = (typeof FIXTURE_NAMES)[number];
 
 /**
+ * How a fixture reaches its starting state when run against the native engine.
+ *
+ * The chapter-1 fixtures (tavern, leave-tavern) begin at the first playable
+ * room, so a native run launches fresh and replays from the start. The
+ * chapter-2 fixtures begin partway through: rather than replay all of chapter 1
+ * (the drunkard conversation, the bartender talk, and the long animation_2_1
+ * crossing cutscene — minutes of paced skips), the native run LOADS a saved
+ * game taken at the chapter-2 start and begins there in about two seconds
+ * (engine-a11y-layer R9.2, --save-slot). The save is produced on demand by
+ * scripts/make-ch2-save.sh (it is never committed — a Drascula save embeds a
+ * graphics thumbnail, i.e. game data). `saveSlot` is the slot that script
+ * writes and the slot the native harness loads with --save-slot.
+ */
+export interface FixtureStartMode {
+  /** The chapter this fixture's recorded transcript begins in. */
+  startChapter: number;
+  /**
+   * When set, a native run LOADS this save slot (--save-slot) to reach the
+   * fixture's starting room, instead of replaying from the first room. Produced
+   * by scripts/make-ch2-save.sh; absent for chapter-1 fixtures, which start
+   * fresh.
+   */
+  saveSlot?: number;
+}
+
+/**
+ * Per-fixture start modes. The chapter-2 fixtures share one chapter-2-start save
+ * (slot 9): both begin in chapter 2 room 14, so one saved crossing serves both,
+ * and each fixture's own command script then drives its puzzle from there.
+ */
+export const FIXTURE_START: Record<FixtureName, FixtureStartMode> = {
+  tavern: { startChapter: 1 },
+  "leave-tavern": { startChapter: 1 },
+  "ch2-handbag": { startChapter: 2, saveSlot: 9 },
+  "ch2-vending-machine": { startChapter: 2, saveSlot: 9 },
+};
+
+/** True when a fixture reaches its start by loading a save (chapter 2). */
+export function loadsSave(name: FixtureName): boolean {
+  return FIXTURE_START[name].saveSlot !== undefined;
+}
+
+/**
  * An EngineHarness that replays a loaded fixture. send(cmd) returns the lines
  * for the next step and asserts the command matches, so a test driving the
  * harness with the fixture's own command order gets the recorded output.
@@ -107,4 +150,58 @@ export class FixtureHarness implements EngineHarness {
   async stop(): Promise<void> {
     /* nothing to release */
   }
+}
+
+// --- Harness selection -------------------------------------------------------
+//
+// By default the tests run against the fixture harness (the recorded spike-04
+// transcripts), which is deterministic and needs no engine build. Setting
+// GHOSTLIGHT_NATIVE=1 switches to the real native engine in a real window
+// (gotcha 12), using scripts/build-engine.sh's binary and the vendor/ data.
+//
+// Crucially, a chapter-2 fixture under the native harness LOADS its chapter-2
+// save (FIXTURE_START[name].saveSlot, via --save-slot) rather than replaying
+// chapter 1 — the whole point of task 19's chapter-2 change. The save must have
+// been produced first by scripts/make-ch2-save.sh (writing that slot into the
+// native savepath); it is never committed. Chapter-1 fixtures launch fresh.
+
+import { NativeHarness } from "./native.js";
+import { resolve as resolvePath } from "node:path";
+
+/** Resolve the native engine paths from the repo layout (vendor/ + build). */
+function nativePaths(): {
+  binary: string;
+  gamePath: string;
+  extraPath: string;
+  savePath: string;
+} {
+  const root = resolvePath(HERE, "..", "..", "..");
+  return {
+    binary: resolvePath(root, "vendor", "scummvm", "scummvm"),
+    gamePath: resolvePath(root, "vendor", "game", "drascula"),
+    extraPath: resolvePath(root, "vendor", "scummvm", "dists", "engine-data"),
+    // The native savepath holds the chapter-2 save made by make-ch2-save.sh.
+    savePath: process.env.GHOSTLIGHT_SAVEPATH ?? "/tmp/ghostlight-engine",
+  };
+}
+
+/** True when the suite is configured to drive the real native engine. */
+export function useNative(): boolean {
+  return process.env.GHOSTLIGHT_NATIVE === "1";
+}
+
+/**
+ * Build the harness for a fixture. Fixture-backed by default; native (real
+ * window) when GHOSTLIGHT_NATIVE=1, with chapter-2 fixtures loading their save
+ * slot via --save-slot instead of replaying chapter 1 (R9.2).
+ */
+export function makeHarness(name: FixtureName): EngineHarness {
+  if (!useNative()) return FixtureHarness.load(name);
+  const paths = nativePaths();
+  const slot = FIXTURE_START[name].saveSlot;
+  return new NativeHarness({
+    ...paths,
+    saveSlot: slot,
+    label: `native:${name}${slot !== undefined ? `:slot${slot}` : ""}`,
+  });
 }

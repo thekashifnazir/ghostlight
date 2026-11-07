@@ -8,19 +8,28 @@
 // become the golden transcript.
 
 import { describe, expect, it } from "vitest";
-import { FIXTURE_NAMES, FixtureHarness, loadFixture } from "./src/fixture.js";
+import { FIXTURE_NAMES, loadFixture, makeHarness } from "./src/fixture.js";
 import type { FixtureName } from "./src/fixture.js";
 import { diffOf, erredOf, roomStateOf } from "./src/harness.js";
 import type { A11yLine, Diff } from "./src/lines.js";
 
-/** Drive a fixture end to end; return every line, grouped by command. */
+/**
+ * Drive a fixture end to end; return every line, grouped by command.
+ *
+ * The harness is chosen by makeHarness: fixture-backed by default, or the real
+ * native engine when GHOSTLIGHT_NATIVE=1 — in which case a chapter-2 fixture
+ * LOADS its chapter-2 save (--save-slot) rather than replaying chapter 1. The
+ * command order comes from the fixture's own recorded steps either way, so the
+ * assertions below are identical across harnesses.
+ */
 async function replay(
   name: FixtureName,
 ): Promise<{ cmd: string; lines: A11yLine[] }[]> {
-  const harness = FixtureHarness.load(name);
+  const commands = loadFixture(name).steps.map((s) => s.cmd);
+  const harness = makeHarness(name);
   await harness.start();
   const out: { cmd: string; lines: A11yLine[] }[] = [];
-  for (const cmd of harness.commands()) {
+  for (const cmd of commands) {
     out.push({ cmd, lines: await harness.send(cmd) });
   }
   await harness.stop();
