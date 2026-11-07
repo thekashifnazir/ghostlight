@@ -153,6 +153,7 @@ A11yLayer::A11yLayer(DrasculaEngine *engine)
 	: _engine(engine), _lastChapter(-1), _lastRoom(-1), _capturingSaid(false),
 	  _converseActive(false), _converseNeedChoices(false), _choicePressed(false),
 	  _choiceDiffPending(false), _choiceErrCount(0),
+	  _mainCmdDiffPending(false), _mainCmdOpenedConverse(false), _mainCmdErrCount(0),
 	  _queueHead(0), _lastSkipPollMs(0), _clickState(kClickIdle) {
 	for (int i = 0; i < 4; i++)
 		_choiceBottom[i] = 0;
@@ -652,6 +653,24 @@ void A11yLayer::emitDiff(const Common::String &cmd, const Snapshot &before,
 	// clean.
 	_capturingSaid = false;
 	_said.clear();
+}
+
+// Emit the pending main-loop command's A11Y_DIFF (task 29, R4.1/R7.1). Called
+// from the opening onConverseFrame when a `talk` opened a conversation, so the
+// talk's diff is emitted at choices-open rather than after the conversation
+// ends. Delegates to emitDiff() with the before-snapshot, cmd and errCount
+// poll() stored before runCommand(), so the one-diff-XOR-one-err invariant and
+// all the field rules are unchanged — only the TIMING differs. The after-state
+// emitDiff() reads is the engine's current state on this opening frame: the
+// talk's world-state changes (the flags the open set, any greeting line already
+// captured in _said) are settled, so the diff is complete. Clears
+// _mainCmdDiffPending so the diff fires exactly once (poll() then skips its own
+// emit for this command).
+void A11yLayer::emitPendingMainCmdDiff() {
+	if (!_mainCmdDiffPending)
+		return;
+	emitDiff(_mainCmd, _mainCmdSnapshot, _mainCmdErrCount);
+	_mainCmdDiffPending = false;
 }
 
 // The command file lives at <savepath>/a11y-cmd.txt (design.md, R2). savepath
@@ -1827,6 +1846,15 @@ void A11yLayer::onConverseBegin() {
 	_converseActive = true;
 	_converseNeedChoices = true;
 	_choicePressed = false;
+
+	// Task 29 (R4.1/R7.1): converse() is running nested inside the current
+	// main-loop command's dispatch (the `talk <npc>` that opened it), so this
+	// conversation was opened BY that command. Record it, so the opening
+	// onConverseFrame flushes the talk's A11Y_DIFF at choices-open instead of
+	// poll() emitting it after the whole conversation ends. The flag is only
+	// meaningful while a main command's diff is still pending (set in poll()).
+	if (_mainCmdDiffPending)
+		_mainCmdOpenedConverse = true;
 }
 
 // Called by converse() just after its while-loop ends. Clears all conversation
@@ -1981,6 +2009,21 @@ void A11yLayer::onConverseFrame(const char *phrase1, const char *phrase2,
 	if (_converseNeedChoices) {
 		emitChoices(phrase1, phrase2, phrase3, phrase4, game1, game2, game3);
 		_converseNeedChoices = false;
+	}
+
+	// (3a) Task 29 (R4.1/R7.1/R6.3): on the OPENING frame of a conversation that
+	// the current `talk` command opened, emit that talk's A11Y_DIFF now — right
+	// after the first A11Y_CHOICES — so the player hears what the talk changed
+	// at the moment the choices appear, not after the whole conversation ends.
+	// emitPendingMainCmdDiff() uses the before-snapshot/cmd/errCount poll()
+	// stored before runCommand() and clears _mainCmdDiffPending so the diff
+	// fires exactly once; poll() then skips its own emit for this command. This
+	// runs only while _mainCmdOpenedConverse is set (the talk that opened this
+	// conversation), so a later non-ending choice re-arming _converseNeedChoices
+	// does not re-emit it (the pending flag is already clear by then).
+	if (_mainCmdOpenedConverse && _mainCmdDiffPending) {
+		emitPendingMainCmdDiff();
+		_mainCmdOpenedConverse = false;
 	}
 
 	// (3b) Task 17 (R4): a non-ending choice applied on a previous frame has now
@@ -2206,6 +2249,21 @@ bool A11yLayer::poll() {
 		uint32 errCountBefore = g_errCount;
 		beginSaidCapture();
 
+		// Task 29 (R4.1/R7.1/R6.3): a `talk` that opens a conversation runs
+		// converse()'s modal loop to completion INSIDE runCommand(), and the
+		// converse hook — not poll() — must emit this command's A11Y_DIFF at the
+		// moment the choices first appear. The converse hook cannot see poll()'s
+		// locals (it runs nested below this frame), so publish the command's
+		// before-snapshot, errCount and cmd string on the layer, and arm the
+		// pending flag. If a conversation opens, the opening onConverseFrame
+		// flushes the diff and clears _mainCmdDiffPending; otherwise the flag
+		// stays set and poll() emits the diff itself below (the normal path).
+		_mainCmd = cmd;
+		_mainCmdSnapshot = before;
+		_mainCmdErrCount = errCountBefore;
+		_mainCmdDiffPending = true;
+		_mainCmdOpenedConverse = false;
+
 		bool endedChapter = runCommand(cmd);
 
 		if (endedChapter) {
@@ -2230,10 +2288,27 @@ bool A11yLayer::poll() {
 			// or runs as a main-loop `skip` there. Non-`skip` commands are kept.
 			dropSurplusSkips();
 			stashCrossChapterDiff(cmd, before, errCountBefore);
+			// A chapter-crossing walk opens no conversation; its diff is carried
+			// by the next chapter's onStartup(), not by the converse hook, so
+			// clear the main-cmd pending flag (task 29) — it is not this path's
+			// concern and must not leak into the next command.
+			_mainCmdDiffPending = false;
+			_mainCmdOpenedConverse = false;
 			return true;
 		}
 
-		emitDiff(cmd, before, errCountBefore);
+		// Task 29: if a conversation opened during this command, the opening
+		// onConverseFrame already emitted this command's A11Y_DIFF at
+		// choices-open (and cleared _mainCmdDiffPending), so poll() must NOT
+		// emit a second diff for the same command at conversation end (R4.1).
+		// When no conversation opened the flag is still set and we emit here as
+		// usual (the normal path, unchanged). Either way the command yields
+		// exactly one diff.
+		if (_mainCmdDiffPending) {
+			emitDiff(cmd, before, errCountBefore);
+			_mainCmdDiffPending = false;
+		}
+		_mainCmdOpenedConverse = false;
 
 		// Reclaim the spent prefix once the queue has fully drained, so a long
 		// session does not grow the array without bound. Nothing is pending, so

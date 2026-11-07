@@ -654,6 +654,48 @@ private:
 	Snapshot _choiceSnapshot;
 	uint32 _choiceErrCount;
 
+	// --- Conversation-opening talk diff (task 29, R4.1 / R7.1 / R6.3) -------
+	//
+	// A `talk <npc>` that opens a conversation runs converse()'s modal loop to
+	// completion INSIDE runCommand(), so if poll() emitted the talk's A11Y_DIFF
+	// after runCommand() returned, the player would hear nothing back for the
+	// talk until the whole conversation had ended. Instead the talk's diff is
+	// emitted at the moment the choices first appear — the same opening frame
+	// onConverseFrame() emits the first A11Y_CHOICES — so the wire order is
+	// A11Y_CMD talk, then A11Y_CHOICES, then A11Y_DIFF talk, before any `choose`.
+	//
+	// poll()'s `before`/`errCountBefore`/`cmd` locals are NOT visible to the
+	// converse hook (converse() runs nested inside runCommand(), below poll()'s
+	// frame), so poll() copies them here before calling runCommand(). When a
+	// conversation OPENS during that command (onConverseBegin sets
+	// _mainCmdOpenedConverse), the opening onConverseFrame emits the main
+	// command's diff from these fields and clears _mainCmdDiffPending so it
+	// fires exactly once. Back in poll(), if the flag was cleared the converse
+	// hook already emitted the diff, so poll() SKIPS its own emitDiff for this
+	// command — the talk yields exactly one diff (at choices-open), none at
+	// conversation end. A talk that does NOT open a conversation (it erred, or
+	// the NPC has no dialogue) leaves the flag set, so poll() emits as usual.
+	//
+	// _mainCmdDiffPending is armed in poll() before every main-loop command and
+	// consumed either by the converse hook (conversation opened) or by poll()
+	// itself (no conversation). _mainCmdOpenedConverse records that a converse()
+	// opened during the current command, so the opening frame knows to flush the
+	// main command's diff rather than wait. These are distinct from the
+	// _choice* deferral above: that handles each `choose <n>`'s own diff; this
+	// handles the `talk` that opened the conversation.
+	bool _mainCmdDiffPending;
+	bool _mainCmdOpenedConverse;
+	Common::String _mainCmd;
+	Snapshot _mainCmdSnapshot;
+	uint32 _mainCmdErrCount;
+
+	// Emit the pending main-loop command's A11Y_DIFF (a `talk` that opened a
+	// conversation) from the stored before-snapshot/cmd/errCount, then clear
+	// _mainCmdDiffPending so it fires exactly once (R4.1). Called from the
+	// opening onConverseFrame once the choices are laid out. No-op if no main
+	// diff is pending.
+	void emitPendingMainCmdDiff();
+
 	// Commands waiting to run. The command file is read every frame and its
 	// lines are appended here; poll() runs exactly one per frame, dequeuing the
 	// next only after the current one has settled (control has returned to the
