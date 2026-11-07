@@ -80,9 +80,17 @@ function launchArguments(): string[] {
   // save path there would write every command to IndexedDB (R2.4).
   // --subtitles is mandatory or the game draws no text. The game lives under
   // /data/games/drascula and drascula.dat is in /data, so no --extrapath (R2.5).
+  //
+  // --music-volume=102 launches the game's music at about 40% of ScummVM's
+  // default (255). The ghost whisper and sonar pings play through the page's own
+  // Web Audio graph (not the engine mixer), boosted above unity so they sit
+  // clearly over the music. ScummVM exposes no runtime music-volume command to
+  // the a11y layer, so the music level is fixed at launch, not ducked further
+  // live per-cue (see audio.ts comments).
   return [
     "--savepath=/tmp",
     "--subtitles",
+    "--music-volume=102",
     "-p",
     "/data/games/drascula",
     "drascula",

@@ -16,6 +16,10 @@ function fakeCtx() {
     ctx: {
       decodeAudioData: vi.fn(async () => ({}) as AudioBuffer),
       createBufferSource: vi.fn(() => source),
+      createGain: vi.fn(() => ({
+        gain: { value: 0 },
+        connect: vi.fn(),
+      })),
       destination: {},
     } as unknown as AudioContext,
     source,

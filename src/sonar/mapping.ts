@@ -83,11 +83,20 @@ export const CUTOFF_NEAR = 6400;
 /** The dullest lowpass cutoff in Hz, approached at the far end of the room. */
 export const CUTOFF_FAR = 1100;
 
-/** Peak gain for the nearest thing. */
+/**
+ * Peak gain for the nearest thing. Kept at 1 (full-scale per ping); the extra
+ * loudness that lifts pings over the game music comes from SonarAudio's master
+ * boost, not from pushing a single ping's gain past unity, so a near ping never
+ * clips on its own.
+ */
 export const GAIN_NEAR = 1;
 
-/** Peak gain for the furthest thing (never silent, just quieter). */
-export const GAIN_FAR = 0.55;
+/**
+ * Peak gain for the furthest thing (never silent, just quieter). Raised from
+ * 0.55 so even the most distant, duckable ping stays clearly over the music
+ * once the master boost is applied, while still reading as "further = quieter".
+ */
+export const GAIN_FAR = 0.7;
 
 /**
  * Pan values whose magnitude is below this read as "ahead"; otherwise the sign

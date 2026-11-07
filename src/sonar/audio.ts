@@ -44,8 +44,20 @@ const VIBRATO_DEPTH = 8;
 /** Fraction of its starting pitch a person ping glides down to by its end. */
 const PERSON_GLIDE = 0.92;
 
+/**
+ * Output boost for sonar pings. The game music plays through the wasm engine's
+ * own mixer (launched at ~40% in boot.ts), not this AudioContext, so we cannot
+ * route the music through a shared gain to duck it live per ping. Instead every
+ * ping plays through this master gain, lifted above unity so the pings sit
+ * clearly over the music. Per-ping gains stay at/under 1 (mapping.ts), so the
+ * peak is bounded by this factor; 1.6 is a firm lift without harsh clipping.
+ */
+const SONAR_BOOST = 1.6;
+
 export class SonarAudio {
   private readonly ctx: AudioContext;
+  /** Master gain every ping plays through, lifting them above the music. */
+  private readonly master: GainNode;
   private muted = false;
   /** Every node started since the last play/stop, kept so stop() can end it. */
   private live: AudioScheduledSourceNode[] = [];
@@ -53,6 +65,9 @@ export class SonarAudio {
   /** @param ctx the AudioContext created at the player's start gate. */
   constructor(ctx: AudioContext) {
     this.ctx = ctx;
+    this.master = ctx.createGain();
+    this.master.gain.value = SONAR_BOOST;
+    this.master.connect(ctx.destination);
   }
 
   /** Turn sonar sound off or on; muted makes play/playOne no-ops (R5.4). */
@@ -122,7 +137,7 @@ export class SonarAudio {
     panner.pan.value = ping.pan;
     gain.connect(lowpass);
     lowpass.connect(panner);
-    panner.connect(this.ctx.destination);
+    panner.connect(this.master);
     return { input: gain, gain };
   }
 

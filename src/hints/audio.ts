@@ -22,9 +22,21 @@ const globUrls = import.meta.glob<string>("./ghost/*.mp3", {
 
 export type UrlMap = Record<string, string>;
 
+/**
+ * Output boost for the ghost whisper. The game music plays through the wasm
+ * engine's own mixer (launched at ~40% in boot.ts), not this AudioContext, so
+ * we cannot route the music through a shared gain to duck it live. Instead the
+ * whisper is lifted above unity here so it sits clearly over the music. 1.8 is
+ * a comfortable lift for a pre-normalised whisper recording without hard
+ * clipping at the destination.
+ */
+const GHOST_BOOST = 1.8;
+
 export class GhostAudio {
   private readonly ctx: AudioContext;
   private readonly urls: UrlMap;
+  /** Master gain the whisper plays through, lifting it above the music. */
+  private readonly master: GainNode;
   private enabled = true;
   private current: AudioBufferSourceNode | undefined;
 
@@ -35,6 +47,9 @@ export class GhostAudio {
   constructor(ctx: AudioContext, urls: UrlMap = globUrls) {
     this.ctx = ctx;
     this.urls = urls;
+    this.master = ctx.createGain();
+    this.master.gain.value = GHOST_BOOST;
+    this.master.connect(ctx.destination);
   }
 
   /** Whether the ghost whisper is on (default true, R6.2). */
@@ -64,7 +79,7 @@ export class GhostAudio {
       this.stop(); // never overlap two whispers.
       const source = this.ctx.createBufferSource();
       source.buffer = buffer;
-      source.connect(this.ctx.destination);
+      source.connect(this.master);
       source.onended = () => {
         if (this.current === source) this.current = undefined;
       };
