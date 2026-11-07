@@ -7,14 +7,14 @@ import type { Choice, Diff } from "../src/transport.js";
 
 // Replay regression (Req 7.3, 3.1, 3.2, 5.3): drive the real tavern fixture
 // through the MCP tool layer over the replay transport, and assert each tool
-// returns the recorded parsed diff/events. The `inv` step is omitted because
-// the shared serialiser emits `inventory` while the fixture recorded `inv`
-// (known gap — .kiro/specs/drascula-mcp/design.md "Known gap", process-log
-// entry 65). Everything else replays in the fixture's recorded order. This is
-// the contract the native engine must also meet (same JSON shape, Req 5.3).
+// returns the recorded parsed diff/events. The fixture is replayed in its full
+// recorded order — the tavern fixture now records the inventory step as
+// `inventory` (engine-a11y-layer task 28), the same spelling the shared
+// serialiser emits, so no step needs omitting. This is the contract the native
+// engine must also meet (same JSON shape, Req 5.3).
 
 function tavern(): Tools {
-  return new Tools(new Session(), () => new ReplayTransport("tavern", { omitSteps: ["inv"] }));
+  return new Tools(new Session(), () => new ReplayTransport("tavern"));
 }
 
 /** Pull the diff out of a command tool reply's shaped data. */
@@ -28,6 +28,17 @@ describe("tavern replay regression", () => {
 
     const start = await tools.start();
     expect((start.data as { room: number }).room).toBe(62);
+
+    // 0. inventory: the first recorded step. The serialiser emits `inventory`
+    //    and the fixture now records `inventory` (engine task 28), so the
+    //    inventory tool replays against the real recorded A11Y_INV step.
+    const inv = await tools.inventory();
+    expect(inv.isError).toBe(false);
+    expect(
+      (inv.data as { items: { id: number; name: string; look?: string }[] }).items,
+    ).toEqual([
+      { id: 28, name: "phone", look: "THIS IS THE MOBILE PHONE I GOT LAST CHRISTMAS" },
+    ]);
 
     // 1. look 102 (POSTER): speaks a line, nothing moves.
     const look = await tools.targetVerb("look", 102);

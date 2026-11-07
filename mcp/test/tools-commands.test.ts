@@ -6,19 +6,19 @@ import { Tools } from "../src/tools.js";
 import type { Choice } from "../src/transport.js";
 
 // Drive the real tavern fixture through the tool layer over the replay
-// transport. The `inv` step is omitted because the shared serialiser emits
-// `inventory` while the fixture recorded `inv` (known gap — see
-// .kiro/specs/drascula-mcp/design.md and process-log entry 65); everything else
-// replays in the fixture's recorded order.
+// transport in its full recorded order. The tavern fixture records the
+// inventory step as `inventory` (engine-a11y-layer task 28) — the same spelling
+// the shared serialiser emits — so the whole fixture replays with no omission.
 function tavernTools(): Tools {
-  return new Tools(new Session(), () => new ReplayTransport("tavern", { omitSteps: ["inv"] }));
+  return new Tools(new Session(), () => new ReplayTransport("tavern"));
 }
 
 describe("Tools command wiring over replay (task 8)", () => {
   it("talk 53 returns the four conversation choices", async () => {
     const tools = tavernTools();
     await tools.start();
-    // Fixture order (inv omitted): look 102, then talk 53.
+    // Fixture order: inventory, look 102, then talk 53.
+    await tools.inventory();
     await tools.targetVerb("look", 102);
     const talk = await tools.targetVerb("talk", 53);
     expect(talk.isError).toBe(false);
@@ -40,6 +40,9 @@ describe("Tools command wiring over replay (task 8)", () => {
   it("look 102 returns a diff with the spoken line and changed:false", async () => {
     const tools = tavernTools();
     await tools.start();
+    // The inventory step is the first recorded command; consume it first so
+    // look 102 matches the next recorded command.
+    await tools.inventory();
     const r = await tools.targetVerb("look", 102);
     expect(r.isError).toBe(false);
     const data = r.data as { diff?: { changed: boolean; said?: { text: string }[] } };

@@ -96,7 +96,7 @@ describe("replay fixtures: the recorded A11Y_DIFF sequence", () => {
 
     const seq = diffSequence(steps).map((d) => d.cmd);
     expect(seq).toEqual([
-      "inv",
+      "inventory",
       "look 102",
       "talk 53",
       "choose 2",

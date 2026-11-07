@@ -53,7 +53,7 @@ function fixtureToLogBlob(fixture: RawFixture): string {
   return lines.join("\n");
 }
 
-function loadFixtureBlob(name: string, omitCommands: ReadonlySet<string>): string {
+function loadFixtureBlob(name: string): string {
   const path = resolve(FIXTURE_DIR, `${name}.json`);
   let text: string;
   try {
@@ -65,26 +65,7 @@ function loadFixtureBlob(name: string, omitCommands: ReadonlySet<string>): strin
     );
   }
   const fixture = JSON.parse(text) as RawFixture;
-  if (omitCommands.size > 0) {
-    fixture.steps = fixture.steps.filter((s) => !omitCommands.has(s.cmd));
-  }
   return fixtureToLogBlob(fixture);
-}
-
-/** Options for the replay transport. */
-export interface ReplayOptions {
-  /**
-   * Recorded step commands (by their `cmd` string) to omit when building the
-   * replay log. This is a TEST-ONLY escape hatch for a recorded verb spelling
-   * the shared serialiser does not emit — specifically the `inv`/`inventory`
-   * seam: `tavern.json` recorded `inv`, but `serializeCommand({verb:"inventory"})`
-   * emits `inventory`, so the `inv` step cannot be matched through the shared
-   * contract (see .kiro/specs/drascula-mcp/design.md "Known gap" and process-log
-   * entry 65). Omitting that one step lets the rest of the fixture replay. It
-   * does NOT edit the on-disk fixture (owned by the engine spec); it filters the
-   * in-memory log. Defaults to omitting nothing.
-   */
-  omitSteps?: readonly string[];
 }
 
 export class ReplayTransport implements Transport {
@@ -92,10 +73,10 @@ export class ReplayTransport implements Transport {
   private adapter: ReplayAdapter | undefined;
 
   /** @param fixtureName fixture under tests/engine/fixtures (e.g. "tavern"). */
-  constructor(fixtureName: string, options: ReplayOptions = {}) {
+  constructor(fixtureName: string) {
     // Load (and JSON-parse) eagerly so a missing/bad fixture fails at
     // construction with a clear message (Req 1.4), not on the first tool call.
-    this.log = loadFixtureBlob(fixtureName, new Set(options.omitSteps ?? []));
+    this.log = loadFixtureBlob(fixtureName);
   }
 
   /**
