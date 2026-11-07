@@ -21,7 +21,14 @@
 #   scripts/build-engine.sh                 # native build (dev + survey)
 #   scripts/build-engine.sh --web           # Emscripten build (web player)
 #   scripts/build-engine.sh --clean         # wipe engine source changes first
+#   scripts/build-engine.sh --reconfigure   # force a fresh ./configure
 #   scripts/build-engine.sh --jobs N        # parallel make jobs (default: ncpu)
+#
+# Configure is run only when needed (pristine tree, changed engine sources, or
+# --reconfigure/--clean). On a tree already configured for the current sources
+# the script reuses config.mk and goes straight to make. This both speeds up
+# incremental builds and sidesteps a macOS flake where configure's unsigned
+# compiler-probe binaries are SIGKILLed under parallel load (see run_configure).
 #
 # After a native build, the binary is vendor/scummvm/scummvm. Run it in a real
 # window (fully headless SDL is flaky, gotcha 12) with:
@@ -51,20 +58,27 @@ SCUMMVM_DIR="$VENDOR/scummvm"
 DRASCULA_DIR="$SCUMMVM_DIR/engines/drascula"
 HOOKS_PATCH="$ENGINE_SRC/hooks.patch"
 
+# Stamp recording the engine sources configure last ran against. Lets us skip a
+# redundant (and intermittently flaky, see run_configure) re-configure when the
+# tree is already configured for exactly these sources. See step 4.
+CONFIG_STAMP="$SCUMMVM_DIR/.ghostlight-config-stamp"
+
 # --- options -----------------------------------------------------------------
 
 WEB=0
 CLEAN=0
 JOBS=""
+RECONFIGURE=0
 
 while [ $# -gt 0 ]; do
   case "$1" in
     --web)   WEB=1 ;;
     --clean) CLEAN=1 ;;
+    --reconfigure) RECONFIGURE=1 ;;
     --jobs)  shift; JOBS="${1:?--jobs needs a number}" ;;
     --jobs=*) JOBS="${1#--jobs=}" ;;
     -h|--help)
-      sed -n '2,40p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
+      sed -n '2,48p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
       exit 0 ;;
     *) echo "[build] ERROR: unknown option: $1" >&2; exit 2 ;;
   esac
@@ -86,6 +100,70 @@ fi
 log() { printf '[build] %s\n' "$*"; }
 die() { printf '[build] ERROR: %s\n' "$*" >&2; exit 1; }
 
+# A fingerprint of the engine sources configure depends on. If this matches the
+# recorded stamp and config.mk is present, the tree is already configured for
+# exactly these sources and we can skip the configure step (see run_configure).
+engine_fingerprint() {
+  # Hash our sources + the engine selection, so any change to the a11y code, the
+  # hooks, the generated module.mk, or the configure front-end re-triggers a
+  # full configure. Portable: shasum on macOS, sha256sum elsewhere.
+  local hasher
+  if command -v shasum >/dev/null 2>&1; then hasher="shasum -a 256"
+  else hasher="sha256sum"; fi
+  cat "$ENGINE_SRC/a11y.cpp" "$ENGINE_SRC/a11y.h" "$HOOKS_PATCH" \
+      "$DRASCULA_DIR/module.mk" 2>/dev/null \
+    | $hasher | awk '{print $1}'
+}
+
+# run_configure <web|native> -- run ./configure with two kinds of resilience.
+#
+# WHY: on macOS, ./configure writes tiny unsigned probe executables to a temp
+# dir and runs them to detect compiler/library features. Under load — e.g. two
+# parallel build chats, each spawning make -jN — the OS has been observed to
+# SIGKILL these freshly-written unsigned binaries before they can run (Gatekeeper
+# / code-signing enforcement racing the write), so configure fails with a probe
+# that died on signal 9. The build itself is fine; the probe was collateral. A
+# prior session was unblocked by simply not re-running configure (reusing the
+# already-good config.mk) and, when a fresh configure was needed, retrying it.
+#
+# This helper does BOTH, without masking real failures:
+#   * It retries configure ONLY when the failure looks like a killed probe
+#     (exit 137, or a config.log signature of a signal-9 probe). A genuine
+#     configure error (missing library, bad flag) does not match and fails fast.
+#   * Callers decide when configure can be skipped entirely (stamp match); this
+#     function always does a real configure when invoked.
+run_configure() {
+  local mode="$1" ; shift
+  local attempt=1 max=4 rc
+  local cfg=( ./configure "${CONFIGURE_ARGS[@]}" )
+  [ "$mode" = "web" ] && cfg=( emconfigure "${cfg[@]}" )
+
+  while :; do
+    rc=0
+    "${cfg[@]}" || rc=$?
+    [ "$rc" -eq 0 ] && return 0
+
+    # Did a compiler probe get killed by a signal (SIGKILL=9 -> exit 137), rather
+    # than configure finding a real problem? Check both the exit code and the
+    # config.log probe trail. Anything else is a real error: fail immediately.
+    local killed=0
+    [ "$rc" -ge 128 ] && killed=1
+    if [ -f config.log ] && grep -Eq 'Killed: 9|signal 9|received signal|: Killed' config.log; then
+      killed=1
+    fi
+
+    if [ "$killed" -ne 1 ]; then
+      die "configure failed (exit $rc) for a reason that is not a killed probe; not retrying. See $SCUMMVM_DIR/config.log"
+    fi
+    if [ "$attempt" -ge "$max" ]; then
+      die "configure's compiler probe was killed $attempt times in a row (the macOS unsigned-probe-under-load SIGKILL). Try again with less parallel load, or run scripts/build-engine.sh on its own."
+    fi
+    log "configure probe was killed (exit $rc); likely the macOS unsigned-probe-under-load SIGKILL. Retry $attempt/$((max-1)) after short backoff..."
+    sleep $(( attempt * 2 ))
+    attempt=$(( attempt + 1 ))
+  done
+}
+
 # --- preflight ---------------------------------------------------------------
 
 [ -d "$SCUMMVM_DIR" ]  || die "vendor/scummvm missing. Run scripts/fetch.sh first."
@@ -105,6 +183,7 @@ fi
 if [ "$CLEAN" -eq 1 ]; then
   log "cleaning previous engine source changes"
   rm -f "$DRASCULA_DIR/a11y.cpp" "$DRASCULA_DIR/a11y.h"
+  rm -f "$CONFIG_STAMP"
   git -C "$SCUMMVM_DIR" checkout -q -- engines/drascula/module.mk engines/drascula 2>/dev/null || true
   ( cd "$SCUMMVM_DIR" && make distclean >/dev/null 2>&1 || true )
 fi
@@ -158,20 +237,50 @@ fi
 #
 # Drascula engine only, to keep the build fast and the wasm small. The same
 # source tree feeds both targets; only the configure front-end differs.
+#
+# Configure is the expensive and (on macOS, under parallel load) occasionally
+# flaky step: it writes and runs unsigned compiler-probe binaries that the OS
+# can SIGKILL out from under it (see run_configure). We therefore run configure
+# only when it is actually needed:
+#   * the tree has never been configured (no config.mk), OR
+#   * the engine sources changed since the last configure (stamp mismatch), OR
+#   * the caller forced it (--reconfigure / --clean wiped the tree).
+# Otherwise we reuse the existing, known-good config.mk and go straight to make
+# — which is exactly what unblocked the prior session. A full configure still
+# happens on a pristine tree, so a fresh vendor/ + this script reproduces fully.
 
 cd "$SCUMMVM_DIR"
 
 CONFIGURE_ARGS=(--disable-all-engines --enable-engine=drascula)
 
+# A --clean wipes the config, so a reconfigure is mandatory after it.
+[ "$CLEAN" -eq 1 ] && RECONFIGURE=1
+
+want_configure=1
+if [ "$RECONFIGURE" -eq 0 ] && [ -f "$SCUMMVM_DIR/config.mk" ] \
+   && [ -f "$CONFIG_STAMP" ] && [ "$(cat "$CONFIG_STAMP")" = "$(engine_fingerprint)" ]; then
+  want_configure=0
+fi
+
 if [ "$WEB" -eq 1 ]; then
-  log "configuring Emscripten build (Drascula only)"
-  emconfigure ./configure "${CONFIGURE_ARGS[@]}"
+  if [ "$want_configure" -eq 1 ]; then
+    log "configuring Emscripten build (Drascula only)"
+    run_configure web
+    engine_fingerprint > "$CONFIG_STAMP"
+  else
+    log "tree already configured for these engine sources; skipping configure (reuse config.mk)"
+  fi
   log "building with emmake make -j$JOBS"
   emmake make -j"$JOBS"
   log "web build done. wasm + data are in $SCUMMVM_DIR (see the web player spec for packaging)."
 else
-  log "configuring native build (Drascula only)"
-  ./configure "${CONFIGURE_ARGS[@]}"
+  if [ "$want_configure" -eq 1 ]; then
+    log "configuring native build (Drascula only)"
+    run_configure native
+    engine_fingerprint > "$CONFIG_STAMP"
+  else
+    log "tree already configured for these engine sources; skipping configure (reuse config.mk)"
+  fi
   log "building with make -j$JOBS"
   make -j"$JOBS"
   log "native build done: $SCUMMVM_DIR/scummvm"

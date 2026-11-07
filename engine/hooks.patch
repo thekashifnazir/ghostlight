@@ -173,7 +173,7 @@ index 3e045cb81b..eaafd3494b 100644
  		loadPic(menuBackground, backSurface);
  	else
 diff --git a/engines/drascula/drascula.cpp b/engines/drascula/drascula.cpp
-index aeccc822cb..1319f93695 100644
+index aeccc822cb..138c726e59 100644
 --- a/engines/drascula/drascula.cpp
 +++ b/engines/drascula/drascula.cpp
 @@ -33,6 +33,7 @@
@@ -251,7 +251,7 @@ index aeccc822cb..1319f93695 100644
  		if (!_characterMoved) {
  			stepX = STEP_X;
  			stepY = STEP_Y;
-@@ -900,6 +930,17 @@ void DrasculaEngine::updateEvents() {
+@@ -900,6 +937,17 @@ void DrasculaEngine::updateEvents() {
  			break;
  		}
  	}

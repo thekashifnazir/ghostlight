@@ -129,7 +129,7 @@ These tasks implement the design. Each cites the requirements it covers. Our eng
   - Add a test that sends more `skip` commands than the crossing needs and asserts the chapter 1→2 crossing still yields exactly one coherent A11Y_DIFF (chapter [1,2], room [62,14]) and the engine remains in a valid state afterward.
   - _Requirements: 7.3, 7.4, gotcha 5_
 
-- [ ] 24. Finalise the patch
+- [x] 24. Finalise the patch
   - Regenerate `engine/hooks.patch` as a readable diff holding only the small hooks in `drascula.cpp`, `converse.cpp`, `graphics.cpp`; confirm `a11y.cpp`/`a11y.h` are the only new engine sources; confirm GPL-3.0-or-later headers; confirm no game data and no `vendor/` sources are committed.
   - Confirm a clean `scripts/fetch.sh` then `scripts/build-engine.sh` reproduces the build from `engine/` alone.
   - _Requirements: 10.1, 10.2, 10.3, 10.5_
