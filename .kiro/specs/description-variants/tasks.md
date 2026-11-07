@@ -2,7 +2,7 @@
 
 These tasks implement the design. Each cites the requirements it covers. Work spans `packs/` (schema, tools, format document, data) and `src/` (player resolver, pack reader, main wiring). Only the final task edits `src/main.ts`. This spec authors no code under `engine/`, `scripts/`, or `vendor/`, and adds no engine flags. Reuse the existing `Condition` shape in `packs/schema.json` and the pure evaluator in `src/hints/reached.ts`; do not define a second condition evaluator. Follow the process-log rule: log and commit (with explicit paths) after each task.
 
-- [ ] 1. Add the describable union to the schema
+- [x] 1. Add the describable union to the schema
   - In `packs/schema.json`, add a `descriptionVariant` `$def` (required `when` referencing `#/$defs/condition` and `text` referencing `#/$defs/text`, optional `note`, `additionalProperties: false` with the `^x-` allowance) and a `describable` `$def` as a `oneOf` of a plain `#/$defs/text` and an object with required `default` (text) and `variants` (array, `minItems: 1`, items `descriptionVariant`).
   - Add a `shortDescribable` variant of the def that applies `maxLength: 300` to both the plain-string branch and the object form's `default` and variant `text`, so the current `short` cap is preserved.
   - Point `$defs.room.properties.short` at `shortDescribable`, `$defs.room.properties.long` at `describable`, and `$defs.object.properties.description` at `describable`.
