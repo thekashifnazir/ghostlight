@@ -47,7 +47,7 @@ These tasks build the server incrementally, replay-first so everything is runnab
   - Verify: unit test over replay that `talk 53` returns the four choices and `look 999` comes back error-flagged.
   - _Requirements: 2.7, 3.1, 3.2, 3.3, 3.4, 3.5, 3.6, 3.8_
 
-- [ ] 9. Server entrypoint over stdio
+- [x] 9. Server entrypoint over stdio
   - Add `mcp/src/server.ts`: read config, construct the chosen transport and the session, register all tools, connect `StdioServerTransport`. All logging goes to stderr; stdout carries only protocol. A failed transport init exits with the named error.
   - Verify: launch the server with the MCP SDK's inspector or a scripted client over stdio; confirm tools are listed and `start`→`state` works on replay. Confirm nothing but protocol reaches stdout.
   - _Requirements: 1.1, 1.2, 1.4, 1.5, 1.6_
