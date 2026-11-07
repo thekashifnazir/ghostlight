@@ -1051,3 +1051,10 @@ Files changed: `src/sonar/mapping.ts`, `.kiro/specs/sonar/tasks.md` (task 1 `[x]
 Time: about 15 minutes.
 What went wrong or surprised you: nothing. `tsc`-level diagnostics clean on first write.
 What was learned: `Math.tanh` gives the monotonic-and-bounded pan for free — no clamp needed — so the "pan within -1..1" and "pan non-decreasing in x" property invariants both fall out of one line, which is exactly what makes the pure module easy to pin.
+## 81 · sonar · Task 2: property tests for the mapping
+What was asked: sonar task 2 — `test/sonar-mapping.prop.test.ts` with fast-check over random rooms, asserting the mapping invariants on `buildPings`: ordered by centre x (ties by centre y), pan within -1..1, pan non-decreasing in x, exactly the visible numbers and no invisible one, pan sign matching the hero side, higher things higher in pitch, nearer things brighter, and the text carrying name/kind/direction/band.
+What Kiro did: wrote the property suite (8 properties). The generator builds a `RoomState` of distinct-numbered objects (each independently visible/invisible, random rect in-room, random hero) and derives a `Hotspot[]` mirroring EVERY object — visible or not — so the "no invisible ping" property proves the mapping drops invisible things itself rather than relying on a pre-filtered list. Kinds are assigned deterministically from num/door so person/object/exit all appear. All 8 pass (fast-check default ~100 runs each); `tsc`-level diagnostics clean.
+Files changed: `test/sonar-mapping.prop.test.ts`, `.kiro/specs/sonar/tasks.md` (task 2 `[x]`).
+Time: about 12 minutes.
+What went wrong or surprised you: nothing. The pan-monotonic property is trivial to assert because the pings come out already in centre-x order, so "pan[i] >= pan[i-1]" across the array is the whole check — no need to re-sort.
+What was learned: feeding the generator's invisible objects through into the hotspot list (not filtering them first) is what makes the visibility invariant meaningful — if the test only ever passed visible hotspots in, it would prove nothing about `buildPings`'s own `visible` re-check.

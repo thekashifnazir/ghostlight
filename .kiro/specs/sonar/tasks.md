@@ -8,7 +8,7 @@ All new modules live under `src/sonar/`; tests sit flat in `test/` with the repo
   - Keep the module pure: adapter and hotspot types in, `Ping[]` out, no Web Audio, DOM, timers or engine access.
   - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 4.1_
 
-- [ ] 2. Property-test the mapping with fast-check
+- [x] 2. Property-test the mapping with fast-check
   - Create `test/sonar-mapping.prop.test.ts` generating random rooms (random visible and invisible objects, random rects within 320x200, random hero position).
   - Assert the invariants on `buildPings` output: pings are always ordered by centre x (ties by centre y); every pan is within -1..1; pan is non-decreasing as centre x increases; the set of ping numbers equals the set of visible object numbers and contains no invisible one; pan sign matches the hero side; higher things have higher `freq`; nearer things have higher `cutoff`; `text` contains the name, kind word, direction word and band word.
   - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 4.1_
