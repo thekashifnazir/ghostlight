@@ -1142,3 +1142,17 @@ Files changed: `docs/kiro-process.md` (this entry). Read-only workflow artifacts
 Time taken: about 5 minutes for this logging pass (the audit and test run happened in earlier workflow steps).
 What went wrong or surprised you: no reviewer disagreements and no failing tests. The only wrinkle was that both reviewers' own summary counts were lower than their row-by-row verdicts implied, so the merge had to re-derive the count from the per-criterion rows (35 met) rather than trust the prose totals.
 What was learned: trust the per-criterion verdicts over a reviewer's hand-written summary total — re-tallying the rows caught a count that both source reviews got slightly wrong.
+
+## 89 · features · 2026-11-07 · Three Kiro features marked in use: pre-tool-use hook, manual steering, workflows/memory/autopilot
+
+What was asked: add three Kiro features and update the `kiro-features.md` rows with evidence. (1) A PreToolUse hook that blocks any write carrying an API key pattern (the ElevenLabs secret-key prefix, the ElevenLabs header name, the Cloudflare API-token env assignment) and any write under `vendor/`. (2) A manual steering file `.kiro/steering/engine-gotchas.md` carrying the 13 engine gotchas, included only with `#engine-gotchas`. (3) Mark Workflows (the `spec-check` recipe, run on sonar), Memory and Autopilot as in use with evidence. No edits to `src/`, `engine/` or `mcp/`. Commit with explicit paths.
+
+What Kiro did: created `.kiro/hooks/block-secret-and-vendor-writes.json` via the hook tool — PreToolUse on `fs_write|str_replace|fs_append`, a small Node check that reads the tool input from stdin, derives the target path and the write body, exits 2 (block) when the path is under `vendor/` or when the body/path matches one of the three key patterns, and exits 0 otherwise. Created `.kiro/steering/engine-gotchas.md` with `inclusion: manual` front matter and the 13 gotchas copied verbatim from `.kiro/specs/engine-a11y-layer/requirements.md` (the canonical spike-02/04 checklist), each with the one-line "how the patch handles it" note. Updated five rows in `docs/kiro-features.md` to `in use` with concrete evidence paths: Steering: manual, Hooks: pre-tool-use, Workflows, Memory, Autopilot.
+
+Files changed: `.kiro/hooks/block-secret-and-vendor-writes.json` (new), `.kiro/steering/engine-gotchas.md` (new), `docs/kiro-features.md`, `docs/kiro-process.md`.
+
+Time taken: about 20 minutes.
+
+What went wrong or surprised you: the new hook fired on its own documentation — the first attempt to write the pre-tool-use row into `kiro-features.md` contained the literal ElevenLabs header string, and the hook's case-insensitive pattern blocked the `str_replace` with exit 2. That is a true positive (the guardrail works), so the fix was to describe the three patterns in prose rather than paste the trigger tokens, both in the feature row and in this log entry. A pattern-matching guardrail that is good enough to catch a real leak is also good enough to catch its own description — worth wording docs around it.
+
+What was learned: a PreToolUse command hook is the right shape for a content guardrail: it sees the tool input before the write lands and a non-zero exit cleanly blocks it, with stderr relayed as the reason. Evidence for "in use" was already in the tree for the last three rows (the sonar `spec-check` run and its `.agents/tasks/spec-check-sonar/` artifacts, the 12 repo-scoped memories, and the autopilot task runs logged in entries 11 and 28), so marking them was a matter of pointing each row at what a judge can open.
