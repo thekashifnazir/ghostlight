@@ -927,6 +927,27 @@ void A11yLayer::runVerbOnSlot(int verb, int slot) {
 	e->_walkToObject = true;
 	e->walkToPoint(e->_roomObject[slot]);
 	e->checkAction(e->objectNum[slot]);
+
+	// R3.5 item return — drop a newly-PICKED item into the inventory, as a
+	// right-click would. Some room handlers reward a plain verb-on-object with
+	// an item via pickObject(): e.g. chapter-2 `open 183` (the trunk) runs
+	// pickObject(22), so the handbag ends up HELD on the cursor (takeObject == 1,
+	// pickedObject == 22), exactly as it would after the on-screen click — NOT
+	// yet in an inventory slot. In the real game the player then right-clicks to
+	// stow it; chooseObject()/selectVerb() only call addObject() for the
+	// previously held object on the NEXT selection, so without a drop here the
+	// picked item never reaches inventoryObjects[] and the diff shows no
+	// invAdded (and a later `open 22` errors: the handbag is not in inventory).
+	//
+	// selectVerb(kVerbNone) is the engine's own right-click-to-drop: its top runs
+	// `if (takeObject == 1) addObject(pickedObject)` (interface.cpp), stowing the
+	// held item and clearing the cursor. We only do it when the held object is a
+	// REAL item (id >= 7, gotcha 7): an UNHANDLED verb leaves the verb itself
+	// held (pickedObject == 1..6), and dropping that would dump a bogus
+	// verb-number "item" into inventory. The next command's own top-of-function
+	// reset clears a still-held verb, so leaving a held verb for it is correct.
+	if (e->takeObject == 1 && e->pickedObject >= 7)
+		e->selectVerb(kVerbNone);
 }
 
 // Handle a `<verb> <num>` command: resolve the slot for the engine object

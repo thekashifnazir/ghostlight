@@ -81,7 +81,7 @@ Hooks are kept to a few lines each; the work lives in `A11yLayer`.
 
 | Command | Engine path |
 |---|---|
-| `look/take/open/close/talk/push <obj>` | set verb, `walkToPoint(obj)`, run `verify2()` body / `checkAction(obj)` for the object slot |
+| `look/take/open/close/talk/push <obj>` | set verb, `walkToPoint(obj)`, run `verify2()` body / `checkAction(obj)` for the object slot; if the action picked up an item (a real id ≥ 7 left held, e.g. ch2 `open 183` → `pickObject(22)`), return it to the inventory afterwards, as a right-click would (R3.5) |
 | `walk <obj>` | walk to the object; if it is a door, `exitRoom(slot)` |
 | `use <item> <obj>` | `selectVerb(kVerbNone)`, `removeObject(item)`, `pickObject(item)`, run action for `obj`; return a still-held item afterwards |
 | `<verb> <item>` / `use <item> <item2>` | open inventory screen (right-click equivalent), set `_menuScreen`, `checkAction(item)`, close screen |
