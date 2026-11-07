@@ -61,7 +61,7 @@ These tasks build the server incrementally, replay-first so everything is runnab
   - Add `mcp/test/validation.test.ts`: with a started replay session in room 62, use `fast-check` to generate integers outside the room's hotspot numbers (and, for `use`, also outside held item ids and `50`), and assert every target-verb tool and `use` reject them with a target error and send nothing. Add the positive check that a valid in-room target passes validation.
   - _Requirements: 8.2, 8.3, 8.4_
 
-- [ ] 12. Contract-sharing guard test
+- [x] 12. Contract-sharing guard test
   - Add an assertion (in a test or a tiny static check) that the server imports `serializeCommand` and `parseA11yLine` from `src/engine/` and defines no local copy, so copying the contract later fails the suite.
   - Verify: `vitest run` green; a deliberate local redefinition makes it fail.
   - _Requirements: 2.7, 3.7, 5.4_
