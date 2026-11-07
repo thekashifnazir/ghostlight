@@ -1,15 +1,22 @@
 import { describe, expect, it } from "vitest";
-import { cacheFileName, cacheKey, cacheKeyWeb } from "../src/hints/cache.js";
+import {
+  cacheFileName,
+  cacheKey,
+  cacheKeyNode,
+  cacheKeyWeb,
+} from "../src/hints/cache.js";
 
 const VOICE = "nbk2esDn4RRk4cVDdoiE";
 const MODEL = "eleven_v4";
 
-describe("cacheKey (Node) and cacheKeyWeb (Web Crypto)", () => {
+describe("cacheKeyNode and cacheKeyWeb agree, and cacheKey matches both", () => {
   it("produce identical keys for the same inputs", async () => {
     const text = "There are three people in the bar you can talk to.";
-    const node = await cacheKey(text, VOICE, MODEL);
+    const node = await cacheKeyNode(text, VOICE, MODEL);
     const web = await cacheKeyWeb(text, VOICE, MODEL);
+    const auto = await cacheKey(text, VOICE, MODEL);
     expect(node).toBe(web);
+    expect(auto).toBe(node); // the runtime-agnostic entry agrees with both
     expect(node).toMatch(/^[0-9a-f]{64}$/); // 32-byte SHA-256 hex
   });
 
@@ -21,7 +28,7 @@ describe("cacheKey (Node) and cacheKeyWeb (Web Crypto)", () => {
       "unicode: café, señor, naïve",
     ];
     for (const text of samples) {
-      expect(await cacheKey(text, VOICE, MODEL)).toBe(
+      expect(await cacheKeyNode(text, VOICE, MODEL)).toBe(
         await cacheKeyWeb(text, VOICE, MODEL),
       );
     }

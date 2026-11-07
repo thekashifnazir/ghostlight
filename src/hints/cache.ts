@@ -24,22 +24,49 @@ function toHex(buffer: ArrayBuffer): string {
 }
 
 /**
- * The cache key for a line, computed with Node's `crypto` (synchronous). Used
- * by the generator script. Produces the same key as `cacheKeyWeb` for the same
- * inputs (verified by a unit test).
+ * The cache key for a line. Works in both runtimes: it uses Web Crypto
+ * (`crypto.subtle`) when available — the browser, and Node 20+ where it is a
+ * global — and falls back to Node's `crypto` module otherwise. Both hash the
+ * UTF-8 bytes of the same canonical string, so the key is identical whichever
+ * path runs (verified by a unit test comparing the two paths directly).
  */
 export async function cacheKey(
   text: string,
   voiceId: string,
   modelId: string,
 ): Promise<string> {
+  const message = canonical(text, voiceId, modelId);
+  if (typeof crypto !== "undefined" && crypto.subtle) {
+    const digest = await crypto.subtle.digest(
+      "SHA-256",
+      new TextEncoder().encode(message),
+    );
+    return toHex(digest);
+  }
   const { createHash } = await import("node:crypto");
-  return createHash("sha256").update(canonical(text, voiceId, modelId), "utf8").digest("hex");
+  return createHash("sha256").update(message, "utf8").digest("hex");
 }
 
 /**
- * The cache key for a line, computed with Web Crypto (asynchronous). Used by
- * browser playback. Produces the same key as `cacheKey` for the same inputs.
+ * The cache key computed explicitly with Node's `crypto` module, kept so the
+ * unit test can prove the Node and Web Crypto paths agree. `cacheKey` above is
+ * the one the engine and generator call.
+ */
+export async function cacheKeyNode(
+  text: string,
+  voiceId: string,
+  modelId: string,
+): Promise<string> {
+  const { createHash } = await import("node:crypto");
+  return createHash("sha256")
+    .update(canonical(text, voiceId, modelId), "utf8")
+    .digest("hex");
+}
+
+/**
+ * The cache key computed explicitly with Web Crypto, kept for the agreement
+ * unit test. Browser playback and the engine use `cacheKey`, which prefers this
+ * path when Web Crypto is present.
  */
 export async function cacheKeyWeb(
   text: string,

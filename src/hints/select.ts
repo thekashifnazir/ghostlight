@@ -23,7 +23,15 @@ export function selectTarget(
   progress: Progress,
   room: number,
 ): Milestone | undefined {
-  const offered = offeredMilestones(pack, progress);
+  // Drop offered milestones from a chapter the player has already moved past:
+  // Drascula's chapters are strictly sequential and cannot be revisited, so an
+  // unreached earlier-chapter milestone is no longer reachable and must not be
+  // hinted at (e.g. a ch1 start that never latched because the session began in
+  // ch2). The result stays a subset of the offered set, so the no-spoiler
+  // invariant is unaffected.
+  const offered = offeredMilestones(pack, progress).filter(
+    (m) => m.chapter >= progress.chapter,
+  );
   if (offered.length === 0) return undefined;
 
   // Rank by (room preference, required-over-optional). Ties keep offered order,

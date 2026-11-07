@@ -65,6 +65,23 @@ describe("selectTarget", () => {
     expect(selectTarget(pack, noneReached, 14)?.id).toBe("a");
   });
 
+  it("ignores an offered milestone from a chapter already passed", () => {
+    // A ch1 milestone that never latched (session began in ch2) stays offered,
+    // but the player has moved past chapter 1, so it must not be the target.
+    const pack = packOf([
+      m({ id: "ch1.start", chapter: 1 }),
+      m({ id: "ch2.handbag", chapter: 2, rooms: [14] }),
+    ]);
+    const progress = { chapter: 2, reached: new Set<string>() };
+    expect(selectTarget(pack, progress, 14)?.id).toBe("ch2.handbag");
+  });
+
+  it("returns undefined when the only offered milestones are from a passed chapter", () => {
+    const pack = packOf([m({ id: "ch1.start", chapter: 1 })]);
+    const progress = { chapter: 2, reached: new Set<string>() };
+    expect(selectTarget(pack, progress, 14)).toBeUndefined();
+  });
+
   it("never selects a milestone outside the offered set", () => {
     // `after` gates `b` until `a` is reached; with nothing reached only `a`
     // is offered, so `b` (ahead of the player) must never be chosen.

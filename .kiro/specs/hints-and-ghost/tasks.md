@@ -61,7 +61,7 @@ New code lives under `src/hints/` (including the committed audio cache at `src/h
   - Add `test/hints-cache.test.ts`: with the ElevenLabs call mocked (empty files written for computed keys, no key or network), run the generator over the real pack and assert every tier of every milestone has a file at `src/hints/ghost/<cacheKey(text, voice, model)>.mp3`.
   - _Requirements: 10.4, 10.5_
 
-- [ ] 12. Wire the hint key and diff fold into the player (additive)
+- [x] 12. Wire the hint key and diff fold into the player (additive)
   - Edit `src/ui/controller.ts`: add `askHint: () => void` to `ControllerDeps` and a single `case "h": case "H":` in `handleListKey` that calls `askHint()`. Change no existing binding. `stopAudio()` at the top of `handleKey` already runs first.
   - Edit `src/main.ts`: build a `ProgressTracker`, `HintEngine` and `GhostAudio`; keep a running `EngineHintState`; replace the `stopAudio` no-op with `() => ghostAudio.stop()`. In `applyRoom`, reset the running state to the room's full flags and inventory then call `hintEngine.onEngineState(state)`; in `applyDiff`, set the running state to `foldDiff(state, diff)` then call `hintEngine.onEngineState(state)`. Pass `askHint` to the controller (text to the live region first, then `ghostAudio.play` on a hint). Extend `HELP_TEXT` to mention the `H` hint key.
   - Verify an end-to-end run against a replay fixture: pressing `H` announces the nudge, then the clue, then the answer; a direct-answer path gives the answer; with nothing offered it says there is nothing to hint at; audio is silent when no file exists and stops on the next key; and the folded flags drive the reached set (a diff that sets a milestone's flag makes that milestone reached so the ghost no longer hints at it).

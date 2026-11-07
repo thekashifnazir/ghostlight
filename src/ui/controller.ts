@@ -38,6 +38,8 @@ export interface ControllerDeps {
   readHelp: () => void;
   /** Stop any playing speech/audio (R9.5). */
   stopAudio: () => void;
+  /** Ask the ghost for a hint (hints-and-ghost R7.2). */
+  askHint: () => void;
 }
 
 export class Controller {
@@ -94,6 +96,12 @@ export class Controller {
       case "l":
       case "L":
         this.d.readRoom();
+        return true;
+      case "h":
+      case "H":
+        // Ask the ghost for a hint. stopAudio() already ran at the top of
+        // handleKey, so any playing whisper is stopped first (R7.3).
+        this.d.askHint();
         return true;
       case "F1":
         this.d.readHelp();

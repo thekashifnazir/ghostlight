@@ -15,6 +15,12 @@ import { LiveAdapter } from "./engine/live-adapter.js";
 import { ReplayAdapter } from "./engine/replay-adapter.js";
 import { buildHotspotList, type Hotspot } from "./model/hotspot-list.js";
 import { loadPack, type Pack, type PackData } from "./model/pack.js";
+import { GhostAudio } from "./hints/audio.js";
+import { HintEngine } from "./hints/engine.js";
+import { foldDiff, type EngineHintState } from "./hints/fold.js";
+import { ProgressTracker } from "./hints/progress.js";
+// The hint core imports the pack tools' types; the player loads the same pack.
+import type { Pack as HintPack } from "../packs/tools/src/types.js";
 // The pack is imported read-only as a bundled JSON module, so the player never
 // writes it and no copy of it lives under src/. Vite resolves this to the real
 // packs/drascula-en.json at dev and build time.
@@ -32,7 +38,11 @@ const HELP_TEXT =
   "Press V for more actions: open, close, talk, push. " +
   "Tab opens your inventory; choose an item to make it active, then interact " +
   "with a thing to use it. Backspace cancels. R repeats the last line. " +
-  "L reads the whole room. F1 reads this help. Escape skips.";
+  "L reads the whole room. H asks the ghost for a hint. " +
+  "F1 reads this help. Escape skips.";
+
+/** Spoken when the player asks for a hint but nothing is offered yet. */
+const NO_HINT_TEXT = "There is nothing to hint at right now.";
 
 /** Minimal window.Module shape ScummVM expects; set up before boot. */
 declare global {
@@ -98,6 +108,23 @@ export async function boot(): Promise<void> {
   const state: PlayerState = { chapter: 1, room: 0, objects: [], inventory: [] };
   let currentList: Hotspot[] = [];
 
+  // Hint core (hints-and-ghost spec). The tracker and engine read the pack's
+  // milestones; the pack JSON is the pack-tools shape the hint core expects.
+  const hintPack = packJson as unknown as HintPack;
+  const hintTracker = new ProgressTracker(hintPack);
+  const hintEngine = new HintEngine(hintPack, hintTracker);
+  // The running complete engine state the hint core evaluates against: reset to
+  // a room's full flags/inventory on entry, folded forward on each diff.
+  let hintState: EngineHintState = {
+    chapter: 1,
+    room: 0,
+    flags: new Array(50).fill(0),
+    inventory: [],
+  };
+  // The ghost whisper player, created once the audio context exists (start
+  // gate). Until then it is undefined and the stop/play hooks are no-ops.
+  let ghostAudio: GhostAudio | undefined;
+
   const showHighlight = (h: Hotspot | undefined): void => {
     if (h) highlight.show(h.rect);
     else highlight.hide();
@@ -105,11 +132,20 @@ export async function boot(): Promise<void> {
 
   const list = new ListMode((t) => live.announce(t), showHighlight);
 
-  // Audio stop hook. No audio is produced yet in this spec (sonar/ghost are
-  // other specs), so this is a no-op placeholder the controller still calls on
-  // every key, satisfying R9.5's "stop on key" contract for when audio exists.
+  // Audio stop hook: stop the ghost whisper immediately (hints-and-ghost R6.3).
+  // The controller calls this at the top of every key handler, so any key press
+  // or focus change interrupts a playing whisper.
   const stopAudio = (): void => {
-    /* no audio in the player spec; sonar/ghost specs wire this. */
+    ghostAudio?.stop();
+  };
+
+  // Ask the ghost for a hint (hints-and-ghost R5, R6.1). Text to the live
+  // region first (always, complete on its own), then the optional whisper.
+  const askHint = (): void => {
+    void hintEngine.ask(state.room).then((r) => {
+      live.announce(r.kind === "none" ? NO_HINT_TEXT : r.text);
+      if (r.kind === "hint") ghostAudio?.play(r.audioKey);
+    });
   };
 
   // Decide the adapter: ?replay=<fixture> loads that fixture; else LiveAdapter.
@@ -159,6 +195,7 @@ export async function boot(): Promise<void> {
     readRoom,
     readHelp: () => live.announce(HELP_TEXT),
     stopAudio,
+    askHint,
   });
 
   // Route adapter events to the model and UI.
@@ -205,9 +242,25 @@ export async function boot(): Promise<void> {
     inventory.setItems(s.inventory);
     readRoom();
     showHighlight(list.current());
+
+    // Re-sync the running hint state to this room's full flags and inventory
+    // (hints-and-ghost R11.6), then let the tracker latch any reached milestone.
+    hintState = {
+      chapter: s.chapter,
+      room: s.room,
+      flags: s.flags.slice(),
+      inventory: s.inventory.slice(),
+    };
+    hintEngine.onEngineState(hintState);
   }
 
   function applyDiff(diff: Diff): void {
+    // Fold the diff onto the running complete hint state before any branching,
+    // so the hint core sees all 50 flags and the full inventory on every diff
+    // path (hints-and-ghost R11.1-R11.5), not the sparse delta the diff carries.
+    hintState = foldDiff(hintState, diff);
+    hintEngine.onEngineState(hintState);
+
     // A room or chapter change rebuilds from the diff's new objects.
     if (diff.room || diff.chapter) {
       if (diff.chapter) state.chapter = diff.chapter[1];
@@ -302,10 +355,12 @@ export async function boot(): Promise<void> {
     if (started) return;
     started = true;
     startGate.hidden = true;
-    // Create the audio context now that we have a user gesture (placeholder:
-    // sonar/ghost specs own actual audio; creating it here honours the policy).
+    // Create the audio context now that we have a user gesture, and build the
+    // ghost whisper player on it (hints-and-ghost R6). If audio is unavailable
+    // the player stays fully usable as text and hints remain text-only.
     try {
-      new (window.AudioContext ?? (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
+      const ctx = new (window.AudioContext ?? (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
+      ghostAudio = new GhostAudio(ctx);
     } catch {
       /* audio not available; the player is still fully usable as text. */
     }
