@@ -69,6 +69,16 @@ export class HintEngine {
     this.tracker.update(state);
   }
 
+  /**
+   * The latched reached milestone set as of the last folded state. Used by the
+   * player to resolve description variants that key on a milestone
+   * (description-variants R2.5). Flag- and inventory-keyed variants do not need
+   * it, but passing it keeps milestone-keyed variants correct.
+   */
+  reached(): ReadonlySet<string> {
+    return this.tracker.progress().reached;
+  }
+
   /** The next tier up for the current target, or `none` when nothing is offered. */
   async ask(room: number): Promise<HintResult> {
     const target = selectTarget(this.pack, this.tracker.progress(), room);

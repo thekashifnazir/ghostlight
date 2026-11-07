@@ -228,7 +228,10 @@ export async function boot(): Promise<void> {
     live.announce(
       LiveRegion.roomAnnouncement({
         name: pack.roomName(state.room),
-        short: pack.roomShort(state.room),
+        // Resolve the short against the running complete state and the reached
+        // set, so a variant (e.g. a passage opening) is spoken once its
+        // condition holds (description-variants R3.1, R3.5).
+        short: pack.roomShortFor(state.room, hintState, hintEngine.reached()),
         hotspots: currentList,
       }),
     );
@@ -238,6 +241,9 @@ export async function boot(): Promise<void> {
     adapter,
     pack,
     currentRoom: () => state.room,
+    // The folded state and reached set for resolving examine descriptions
+    // against variants (description-variants R3.3).
+    descriptionState: () => ({ state: hintState, reached: hintEngine.reached() }),
     list,
     verbMenu,
     inventory,
@@ -311,6 +317,15 @@ export async function boot(): Promise<void> {
   }
 
   function applyDiff(diff: Diff): void {
+    // Capture the resolved room descriptions BEFORE folding this diff, so a
+    // same-room variant change can be detected and re-announced once
+    // (description-variants R4.1). The reached set is a live reference to the
+    // tracker's set, so snapshot it before onEngineState mutates it.
+    const roomBefore = state.room;
+    const reachedBefore = new Set(hintEngine.reached());
+    const shortBefore = pack.roomShortFor(roomBefore, hintState, reachedBefore);
+    const longBefore = pack.roomLongFor(roomBefore, hintState, reachedBefore);
+
     // Fold the diff onto the running complete hint state before any branching,
     // so the hint core sees all 50 flags and the full inventory on every diff
     // path (hints-and-ghost R11.1-R11.5), not the sparse delta the diff carries.
@@ -398,6 +413,23 @@ export async function boot(): Promise<void> {
 
     if (diff.changed === false && !diff.said?.length) {
       live.announce("Nothing happened.");
+    }
+
+    // Re-announce the room once if this same-room diff changed which variant
+    // resolves for the short or long description, so a passage opening (or any
+    // state-driven description change) is spoken at the moment it happens
+    // (description-variants R4.1, R4.2, R4.5). This runs after the engine's own
+    // reply and the inventory lines, so the current room picture is the newest
+    // line (R4.4/R4.6). The room/chapter-change path returned early above, so
+    // reaching here means the room did not change (R4.3); roomBefore is only a
+    // belt-and-braces guard.
+    if (state.room === roomBefore) {
+      const reachedAfter = hintEngine.reached();
+      const shortAfter = pack.roomShortFor(state.room, hintState, reachedAfter);
+      const longAfter = pack.roomLongFor(state.room, hintState, reachedAfter);
+      if (shortAfter !== shortBefore || longAfter !== longBefore) {
+        readRoom();
+      }
     }
   }
 

@@ -60,7 +60,7 @@ These tasks implement the design. Each cites the requirements it covers. Work sp
   - Run the validator and coverage checker against the updated pack and confirm no new errors.
   - _Requirements: 7.1, 7.2, 7.3, 7.4_
 
-- [ ] 11. Wire resolution and re-announce into main.ts (only this task edits src/main.ts)
+- [x] 11. Wire resolution and re-announce into main.ts (only this task edits src/main.ts)
   - In `src/main.ts`, make `readRoom()` and the long-description read use the state-aware accessors, passing the running `hintState` and the reached set obtained from the hint engine (exposed via a getter on the hint engine; wire the controller's examine path to the state-aware object accessor through its existing deps).
   - In `applyDiff`, on the same-room path (no `diff.room`, no `diff.chapter`): capture the resolved `short` and `long` (and reached set) before folding the diff, fold as today, recompute the resolved `short` and `long` after, and if either changed, call `readRoom()` exactly once after `announceSaid(diff)` and the inventory announcements.
   - Do not re-announce on the room/chapter-change path (it already announces once); ensure at most one re-announce per diff even when both short and long change.
