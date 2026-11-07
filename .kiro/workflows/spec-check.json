@@ -1,0 +1,50 @@
+{
+  "version": "v1",
+  "name": "spec-check",
+  "description": "Audit one Ghostlight spec against its implementation. Runs the spec's tests, has two independent reviewers (on different models) list every acceptance criterion as met/unmet/untested with file:line evidence, merges and flags disagreements, then logs a dated spec-check entry to docs/kiro-process.md. Reviewers never edit code.",
+  "inputs": {
+    "spec": {
+      "description": "The spec name under .kiro/specs/ to audit, e.g. 'sonar', 'player', 'hints-and-ghost'.",
+      "required": true
+    }
+  },
+  "steps": [
+    {
+      "id": "run-tests",
+      "name": "Run the spec's tests",
+      "agent": "wf-coder",
+      "prompt": "Audit the Ghostlight spec \"{{spec}}\". This step ONLY runs tests and records the result; make no code changes.\n\n1. Create the run artifact directory: .agents/tasks/spec-check-{{spec}}/ (absolute: /Users/kash/Code/showcase/ghostlight/.agents/tasks/spec-check-{{spec}}/).\n2. From the repo root /Users/kash/Code/showcase/ghostlight, run the spec's vitest files scoped by name pattern: `npx vitest run {{spec}}` (vitest filters test files whose path contains the pattern; e.g. \"sonar\" matches sonar-audio, sonar-controller, sonar-mapping.prop). If that pattern matches no files, inspect the test/ directory and .kiro/specs/{{spec}}/tasks.md to find the real test file names for this spec and run those instead; note in your report which pattern you used.\n3. Record pass/fail: total test files, total tests, passed, failed, skipped, and the names of any failing tests. Save the full raw vitest summary and your pass/fail tally to .agents/tasks/spec-check-{{spec}}/tests.md.\n4. Do not edit any source or test file. Do not commit anything.\n\nReport the pass/fail tally and the artifact path."
+    },
+    {
+      "id": "reviews",
+      "name": "Two independent acceptance-criteria reviews (parallel)",
+      "parallel": true,
+      "steps": [
+        {
+          "id": "review-a",
+          "name": "Reviewer A",
+          "agent": "semantic_reviewer",
+          "prompt": "READ-ONLY acceptance-criteria audit of the Ghostlight spec \"{{spec}}\". You MUST NOT edit, create, or delete any code, test, or spec file. Your only output is your review document.\n\nRead .kiro/specs/{{spec}}/requirements.md in full, then read the implementing code (start under src/{{spec}}/ and follow imports into the rest of src/ and any adapters/controllers the spec names). Also read the spec's design.md and tasks.md for context only.\n\nList EVERY acceptance criterion in requirements.md, identified as \"Requirement N.M\" (requirement number, criterion number), and for each give exactly one verdict:\n- met: the code implements it; cite file:line evidence.\n- unmet: the code does not implement it, or implements it incorrectly; cite the file:line you checked and say what is missing or wrong.\n- untested: the behaviour may exist but no test exercises it, OR you cannot confirm it from the code; say which and cite what you checked.\nEvery row MUST carry file:line evidence (the file and line you inspected), even for unmet/untested.\n\nDo not skip any criterion. Include requirement 7 (sweep, the optional stretch) and mark it accordingly. Write your review as a Markdown table (Requirement | Verdict | Evidence file:line | Note) to .agents/tasks/spec-check-{{spec}}/review-a.md and end with a one-line count of met/unmet/untested. Do not read the other reviewer's output."
+        },
+        {
+          "id": "review-b",
+          "name": "Reviewer B",
+          "agent": "semantic_reviewer",
+          "prompt": "READ-ONLY acceptance-criteria audit of the Ghostlight spec \"{{spec}}\". You MUST NOT edit, create, or delete any code, test, or spec file. Your only output is your review document. Review independently; do not look at any other reviewer's report.\n\nRead .kiro/specs/{{spec}}/requirements.md in full, then read the implementing code (start under src/{{spec}}/ and follow imports into the rest of src/ and any adapters/controllers the spec names). Also read the spec's design.md and tasks.md for context only.\n\nList EVERY acceptance criterion in requirements.md, identified as \"Requirement N.M\" (requirement number, criterion number), and for each give exactly one verdict:\n- met: the code implements it; cite file:line evidence.\n- unmet: the code does not implement it, or implements it incorrectly; cite the file:line you checked and say what is missing or wrong.\n- untested: the behaviour may exist but no test exercises it, OR you cannot confirm it from the code; say which and cite what you checked.\nEvery row MUST carry file:line evidence (the file and line you inspected), even for unmet/untested.\n\nDo not skip any criterion. Include requirement 7 (sweep, the optional stretch) and mark it accordingly. Write your review as a Markdown table (Requirement | Verdict | Evidence file:line | Note) to .agents/tasks/spec-check-{{spec}}/review-b.md and end with a one-line count of met/unmet/untested."
+        }
+      ]
+    },
+    {
+      "id": "merge",
+      "name": "Merge reviews and flag disagreements",
+      "agent": "wf-review-aggregator",
+      "prompt": "Merge the two independent acceptance-criteria reviews of the Ghostlight spec \"{{spec}}\". This step makes no code changes.\n\nRead .agents/tasks/spec-check-{{spec}}/review-a.md and .agents/tasks/spec-check-{{spec}}/review-b.md, and .agents/tasks/spec-check-{{spec}}/tests.md.\n\nProduce one merged Markdown table keyed by acceptance criterion (Requirement N.M) with columns: Requirement | Reviewer A | Reviewer B | Agreed verdict | Evidence | Disagreement?. For each criterion:\n- If both reviewers gave the same verdict, set Agreed verdict to it and combine their evidence.\n- If the verdicts differ, OR they agree on the verdict but cite conflicting evidence, set Disagreement? to YES, leave Agreed verdict blank, and summarise the conflict.\nAfter the table, add: a count of met/unmet/untested among the agreed criteria, a list of every criterion flagged as a disagreement, and a one-line summary of the test result from tests.md (pass/fail tally).\n\nWrite the result to .agents/tasks/spec-check-{{spec}}/merged.md. Do not edit any source, test, or spec file. Report the merged counts and the list of disagreements."
+    },
+    {
+      "id": "log",
+      "name": "Append spec-check entry to the process log",
+      "agent": "wf-coder",
+      "prompt": "Append a dated process-log entry recording this spec-check of the Ghostlight spec \"{{spec}}\". Follow the process-log.md steering.\n\nRead .agents/tasks/spec-check-{{spec}}/merged.md and .agents/tasks/spec-check-{{spec}}/tests.md. Read the end of docs/kiro-process.md to find the next sequence number; entries are dated and newest last.\n\nAppend ONE new entry to the end of docs/kiro-process.md with:\n- Heading: `## <next-seq> · spec-check · <date> · spec-check: {{spec}}` (use today's date).\n- What was asked: an automated spec-check workflow run on the {{spec}} spec.\n- What Kiro did: the merged result — counts of met/unmet/untested among agreed criteria, the list of criteria the two reviewers disagreed on, and the test pass/fail tally. Point to the artifacts under .agents/tasks/spec-check-{{spec}}/.\n- Files changed: docs/kiro-process.md (and note the read-only artifacts written under .agents/tasks/).\n- Time taken: rough is fine.\n- What went wrong or surprised you: note any disagreements or failing tests, else 'nothing'.\n- What was learned: one line.\n\nOnly append; do not edit existing entries or another chat's rows. Then stage ONLY docs/kiro-process.md with an explicit path and commit it: `git commit -- docs/kiro-process.md -m \"spec-check: {{spec}} audit result\"`. Do not run git add -A, git stash, git reset, or any bulk command. Push to main. Report what you committed."
+    }
+  ]
+}
