@@ -2,14 +2,14 @@
 
 These tasks build the server incrementally, replay-first so everything is runnable before the native engine exists. Each task cites the requirements it satisfies. Stay inside `mcp/` and the single `.kiro/settings/mcp.json` entry; never touch `engine/`. Import the contract from `src/engine/` and read fixtures from `tests/engine/fixtures/` — do not copy either. After each task, append a `## NN · mcp · ...` entry to `docs/kiro-process.md`, update the relevant `docs/kiro-features.md` row, and commit only your own explicit paths.
 
-- [ ] 1. Scaffold the `mcp/` package
+- [x] 1. Scaffold the `mcp/` package
   - Create `mcp/package.json` (ESM, private) with its own `test` script (`vitest run`) and `@modelcontextprotocol/sdk`, `zod` as deps and `tsx`/`vitest` available; `mcp/tsconfig.json` extending the repo's config.
   - Give `mcp/` its own `mcp/vitest.config.ts` scoped to `mcp/test`. Do NOT edit the root `vitest.config.ts` or the root `package.json` — `mcp/` is self-contained.
   - Add a `mcp/README.md` stub naming the transports and the `replay` default.
   - Verify: `tsc --noEmit` over `mcp/` passes on an empty entrypoint; `npm --prefix mcp test` discovers `mcp/test` (no tests yet is fine).
   - _Requirements: 1.1, 10.1_
 
-- [ ] 2. Define the transport interface and the command result
+- [x] 2. Define the transport interface and the command result
   - Add `mcp/src/transport.ts`: the `Transport` interface (`start`/`send`/`stop`) and the `CommandResult` type, importing `Command`, `EngineEvent`, `RoomState`, `Diff` from `../../src/engine/adapter.js`. Define no parallel contract types.
   - Verify: `tsc --noEmit` resolves the `src/engine/` imports against the real exports.
   - _Requirements: 5.1, 5.4, 2.7, 3.7_
