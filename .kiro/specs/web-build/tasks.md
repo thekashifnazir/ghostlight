@@ -46,7 +46,7 @@ Scope boundaries for every task below:
   - Drive by keyboard and read A11Y lines (console or live region) only — never canvas pixels.
   - _Requirements: 6.1, 6.2, 6.3, 6.4, 6.5_
 
-- [ ] 7. Wire `LiveAdapter` into `main.ts` behind `?live` (final; after player task 18)
+- [x] 7. Wire `LiveAdapter` into `main.ts` behind `?live` (final; after player task 18)
   - **Precondition: do not start this task until the player spec's task 18 (create `main.ts` with boot and event routing) is complete.**
   - Make the smallest additive edit to `src/main.ts`'s existing adapter selection: choose `LiveAdapter` only when `?live` is present; otherwise keep the current selection (`?replay=`, else default) unchanged.
   - Do not rewrite the selection logic or make any other change to `main.ts`.

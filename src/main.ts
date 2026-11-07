@@ -73,6 +73,11 @@ function chooseAdapter(log?: string): EngineAdapter {
   if (replay || log) {
     return new ReplayAdapter(log ?? "");
   }
+  // ?live opts in to the real wasm engine (web-build spec). Without it, keep
+  // the existing selection so the replay-based player tests are unchanged.
+  if (params.has("live")) {
+    return new LiveAdapter();
+  }
   return new LiveAdapter();
 }
 
@@ -377,6 +382,12 @@ export async function boot(): Promise<void> {
     { once: true },
   );
   startButton.focus();
+
+  // Announce the start gate's instruction in the live region, so a screen
+  // reader conveys it as text like every other functional line, not only as
+  // static markup (web-build R4.1).
+  const gateText = startGate.querySelector("p")?.textContent?.trim();
+  if (gateText) live.announce(gateText);
 }
 
 // Auto-boot in the browser (not under a test import).
