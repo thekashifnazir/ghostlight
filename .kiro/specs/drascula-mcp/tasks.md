@@ -30,7 +30,7 @@ These tasks build the server incrementally, replay-first so everything is runnab
   - Verify: unit test that default selection is `replay` + `tavern`, and that a missing fixture name throws a message naming it.
   - _Requirements: 1.3, 1.4, 1.6, 6.1, 9.3, 9.4_
 
-- [ ] 6. Tool layer: schemas, start/stop, and the no-session guard
+- [x] 6. Tool layer: schemas, start/stop, and the no-session guard
   - Add `mcp/src/tools.ts`: register `start` (`{ slot?: int }`) and `stop` on an `McpServer`; `start` returns the first `RoomState`, `stop` returns `{ stopped: true }` and is safe with no session.
   - Register the game-playing tools' schemas (target-verb `{ target: int }`, `use` `{ item, target }`, `choose` `{ n: 1..4 }`, `save` `{ slot }`, and the no-arg `inventory`/`choices`/`skip`/`state`), each guarded to error with "call start first" when no session exists.
   - Document the `inv`/`inventory` and `dump`/`state` aliases in the tool descriptions.
