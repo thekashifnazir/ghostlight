@@ -66,7 +66,7 @@ These tasks build the server incrementally, replay-first so everything is runnab
   - Verify: `vitest run` green; a deliberate local redefinition makes it fail.
   - _Requirements: 2.7, 3.7, 5.4_
 
-- [ ] 13. Register the server in `.kiro/settings/mcp.json`
+- [x] 13. Register the server in `.kiro/settings/mcp.json`
   - Create the file if absent, or add/update only the `drascula` entry if it exists, leaving any other entries untouched. Launch over stdio, default `env` `DRASCULA_MCP_TRANSPORT=replay`, no key embedded. Set sensible `autoApprove` for read-only tools.
   - Verify: the entry parses; Kiro reconnects and lists the `drascula` tools; a `start` then `state` call over replay returns the room.
   - _Requirements: 9.1, 9.2, 9.3, 9.4, 10.4_
