@@ -14,7 +14,7 @@ These tasks build the server incrementally, replay-first so everything is runnab
   - Verify: `tsc --noEmit` resolves the `src/engine/` imports against the real exports.
   - _Requirements: 5.1, 5.4, 2.7, 3.7_
 
-- [ ] 3. Build the replay transport over the shared `ReplayAdapter`
+- [x] 3. Build the replay transport over the shared `ReplayAdapter`
   - Add `mcp/src/replay.ts`: load a fixture from `tests/engine/fixtures/<name>.json`, concatenate `startRaw` + each step's `raw[]` into one newline-delimited blob, construct `new ReplayAdapter(blob)` from `../../src/engine/replay-adapter.js`, and adapt its event stream to the request/response `Transport` (collect events per `send` until the diff/error, resolve with `CommandResult`).
   - `start()` returns the first `room` event as `RoomState`; a command the fixture did not record next returns the `ReplayAdapter`'s quoted mismatch error as `CommandResult.error`.
   - Verify: a scratch script (or the first unit test) loads `tavern`, starts, and reads back the room — remove the scratch before commit.
