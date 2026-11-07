@@ -10,51 +10,29 @@
 //
 // Text is always complete on its own: the summary and step lines are written
 // whether or not audio plays (muted, or no context), so a player with sound off
-// or no audio device still gets the full picture (R4.3, R5.4, R5.5). stop()
-// cancels any scan's sound and suppresses its pending summary (R5.1, R5.2); the
-// player wires stop() into its shared stop-audio hook, so any key press ends a
-// scan before the next action.
+// or no audio device still gets the full picture (R4.3, R5.4, R5.5). The scan
+// summary is announced synchronously, up front, before any ping plays, so a
+// later key press can stop the pings' sound but can never cancel or swallow the
+// summary text (R2.3, R5.1, R5.2). stop() only stops sound; the player wires it
+// into its shared stop-audio hook, so any key press ends a scan's audio before
+// the next action while leaving the already-announced summary intact.
 
 import type { RoomState } from "../engine/adapter.js";
 import type { Hotspot } from "../model/hotspot-list.js";
 import type { LiveRegion } from "../ui/live-region.js";
 import { SonarAudio } from "./audio.js";
-import { buildPings, GAP, type Ping } from "./mapping.js";
-
-/** A small timer seam so tests can drive the pending summary deterministically. */
-export interface Timer {
-  set(fn: () => void, seconds: number): void;
-  clear(): void;
-}
-
-/** The default timer: setTimeout in seconds, one pending timer at a time. */
-class DefaultTimer implements Timer {
-  private handle: ReturnType<typeof setTimeout> | undefined;
-  set(fn: () => void, seconds: number): void {
-    this.clear();
-    this.handle = setTimeout(fn, Math.max(0, seconds) * 1000);
-  }
-  clear(): void {
-    if (this.handle !== undefined) {
-      clearTimeout(this.handle);
-      this.handle = undefined;
-    }
-  }
-}
+import { buildPings, type Ping } from "./mapping.js";
 
 export interface SonarDeps {
   /** The player's single polite live region; every sonar line goes here. */
   live: LiveRegion;
   /** The start-gate AudioContext, or undefined until/if one exists (R5.5). */
   getContext: () => AudioContext | undefined;
-  /** Optional timer seam for the pending summary (defaults to setTimeout). */
-  timer?: Timer;
 }
 
 export class Sonar {
   private readonly live: LiveRegion;
   private readonly getContext: () => AudioContext | undefined;
-  private readonly timer: Timer;
 
   private state: RoomState | undefined;
   private list: Hotspot[] = [];
@@ -66,7 +44,6 @@ export class Sonar {
   constructor(deps: SonarDeps) {
     this.live = deps.live;
     this.getContext = deps.getContext;
-    this.timer = deps.timer ?? new DefaultTimer();
   }
 
   /**
@@ -80,24 +57,23 @@ export class Sonar {
   }
 
   /**
-   * Scan: play one ping per visible thing left to right, then a summary line
-   * (R2.1, R2.2). The summary is written as text regardless of audio (R2.3) and
-   * scheduled after the last ping so it never overlaps (R2.4). An empty room
+   * Scan: announce the summary line up front, then play one ping per visible
+   * thing left to right (R2.1, R2.2). The summary is written as text first and
+   * synchronously, so it always lands regardless of audio and a later key press
+   * that stops the pings can never cancel it (R2.3, R5.1, R5.2). An empty room
    * gets one "nothing here" line and no pings (R2.5).
    */
   scan(): void {
     const pings = this.pings();
     if (pings.length === 0) {
-      this.timer.clear();
       this.live.announce("The room is empty.");
       return;
     }
+    // Announce the summary immediately, before any ping, so the text is already
+    // out when the pings start. stop() can silence the pings afterwards but has
+    // nothing pending to swallow.
+    this.live.announce(summaryLine(pings));
     this.audioLayer()?.play(pings);
-    const summary = summaryLine(pings);
-    const lastOnset = pings[pings.length - 1].onset;
-    // Write the summary just after the last ping's onset, so it follows the
-    // pings. With no audio the delay is harmless; the text still lands.
-    this.timer.set(() => this.live.announce(summary), lastOnset + GAP);
   }
 
   /** Step to the next thing: one ping, then its name, direction, distance (R3.1). */
@@ -118,11 +94,12 @@ export class Sonar {
   }
 
   /**
-   * Stop all sonar sound now and suppress a pending summary (R5.1, R5.2). The
-   * player's shared stop-audio hook calls this on every key press.
+   * Stop all sonar sound now (R5.1). The player's shared stop-audio hook calls
+   * this on every key press. The scan summary was already announced
+   * synchronously up front, so there is nothing pending for stop() to swallow
+   * (R5.2) — this only silences audio.
    */
   stop(): void {
-    this.timer.clear();
     this.audio?.stop();
   }
 

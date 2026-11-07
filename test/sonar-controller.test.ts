@@ -2,16 +2,16 @@ import { describe, expect, it } from "vitest";
 import type { RoomObject, RoomState } from "../src/engine/adapter.js";
 import type { Hotspot } from "../src/model/hotspot-list.js";
 import type { LiveRegion } from "../src/ui/live-region.js";
-import { Sonar, summaryLine, type Timer } from "../src/sonar/sonar.js";
+import { Sonar, summaryLine } from "../src/sonar/sonar.js";
 import { buildPings } from "../src/sonar/mapping.js";
 
 // Drives the Sonar controller with a fake LiveRegion (records every announced
-// line) and a manual Timer (so the pending summary fires only when the test
-// says so, and stop() can be shown to suppress it). The audio layer is exercised
-// via a fake AudioContext, or omitted entirely to prove the text-only path
-// (R5.5). These tests pin the scan summary (R2.2), the empty-room lines (R2.5,
-// R3.5), stepping with wrap and reset (R3.1-R3.6), mute (R5.3, R5.4), the
-// pending-summary suppression on stop (R5.2) and the no-context path (R5.5).
+// line). The audio layer is exercised via a fake AudioContext, or omitted
+// entirely to prove the text-only path (R5.5). These tests pin the scan summary
+// announced synchronously up front (R2.2, R2.3), the empty-room lines (R2.5,
+// R3.5), stepping with wrap and reset (R3.1-R3.6), mute (R5.3, R5.4), that
+// stop() cannot swallow the already-announced summary (R5.2) and the no-context
+// path (R5.5).
 
 /** A LiveRegion stand-in recording announced lines; `last` is the newest. */
 class FakeLive {
@@ -21,25 +21,6 @@ class FakeLive {
   }
   get last(): string | undefined {
     return this.lines[this.lines.length - 1];
-  }
-}
-
-/** A Timer whose pending callback runs only when `flush()` is called. */
-class ManualTimer implements Timer {
-  private pending: (() => void) | undefined;
-  set(fn: () => void): void {
-    this.pending = fn;
-  }
-  clear(): void {
-    this.pending = undefined;
-  }
-  flush(): void {
-    const fn = this.pending;
-    this.pending = undefined;
-    fn?.();
-  }
-  get hasPending(): boolean {
-    return this.pending !== undefined;
   }
 }
 
@@ -121,22 +102,18 @@ describe("summaryLine", () => {
 });
 
 describe("Sonar scan", () => {
-  it("plays a ping per thing and then the summary line", () => {
+  it("announces the summary line immediately, then plays a ping per thing", () => {
     const live = new FakeLive();
-    const timer = new ManualTimer();
     const { ctx, oscillatorCount } = makeFakeCtx();
-    const sonar = new Sonar({ live: live as unknown as LiveRegion, getContext: () => ctx, timer });
+    const sonar = new Sonar({ live: live as unknown as LiveRegion, getContext: () => ctx });
     const { state, list } = room(threeThings);
     sonar.setRoom(state, list);
 
     sonar.scan();
+    // The summary is announced synchronously on scan(), before any flush/timer.
+    expect(live.last).toBe("3 things, left to right: 1 person, 1 object, 1 exit.");
     // An object(1) + exit(2 notes) + person(1) = at least 3 voices scheduled.
     expect(oscillatorCount()).toBeGreaterThanOrEqual(3);
-    // The summary is pending, not yet announced.
-    expect(timer.hasPending).toBe(true);
-    expect(live.lines).toHaveLength(0);
-    timer.flush();
-    expect(live.last).toBe("3 things, left to right: 1 person, 1 object, 1 exit.");
   });
 
   it("announces an empty room and plays nothing", () => {
@@ -218,15 +195,13 @@ describe("Sonar mute", () => {
 
   it("while muted, scan/step still announce text but schedule no audio", () => {
     const live = new FakeLive();
-    const timer = new ManualTimer();
     const { ctx, oscillatorCount } = makeFakeCtx();
-    const sonar = new Sonar({ live: live as unknown as LiveRegion, getContext: () => ctx, timer });
+    const sonar = new Sonar({ live: live as unknown as LiveRegion, getContext: () => ctx });
     const { state, list } = room(threeThings);
     sonar.setRoom(state, list);
     sonar.toggleMute(); // mute
 
     sonar.scan();
-    timer.flush();
     expect(live.last).toBe("3 things, left to right: 1 person, 1 object, 1 exit.");
     sonar.next();
     expect(live.last).toBe("thing-1, person, left, mid, 1 of 3");
@@ -235,31 +210,28 @@ describe("Sonar mute", () => {
 });
 
 describe("Sonar stop", () => {
-  it("suppresses the pending summary when a scan is stopped", () => {
+  it("leaves the already-announced summary intact when a scan is stopped", () => {
     const live = new FakeLive();
-    const timer = new ManualTimer();
     const { ctx } = makeFakeCtx();
-    const sonar = new Sonar({ live: live as unknown as LiveRegion, getContext: () => ctx, timer });
+    const sonar = new Sonar({ live: live as unknown as LiveRegion, getContext: () => ctx });
     const { state, list } = room(threeThings);
     sonar.setRoom(state, list);
     sonar.scan();
-    expect(timer.hasPending).toBe(true);
+    // The summary was announced synchronously up front.
+    expect(live.last).toBe("3 things, left to right: 1 person, 1 object, 1 exit.");
+    // stop() only silences audio; it cannot swallow the summary text.
     sonar.stop();
-    expect(timer.hasPending).toBe(false);
-    timer.flush(); // nothing pending, so nothing announced.
-    expect(live.lines).toHaveLength(0);
+    expect(live.last).toBe("3 things, left to right: 1 person, 1 object, 1 exit.");
   });
 });
 
 describe("Sonar without an audio context", () => {
   it("still announces scan and step as text (R5.5)", () => {
     const live = new FakeLive();
-    const timer = new ManualTimer();
-    const sonar = new Sonar({ live: live as unknown as LiveRegion, getContext: () => undefined, timer });
+    const sonar = new Sonar({ live: live as unknown as LiveRegion, getContext: () => undefined });
     const { state, list } = room(threeThings);
     sonar.setRoom(state, list);
     sonar.scan();
-    timer.flush();
     expect(live.last).toBe("3 things, left to right: 1 person, 1 object, 1 exit.");
     sonar.next();
     expect(live.last).toBe("thing-1, person, left, mid, 1 of 3");
