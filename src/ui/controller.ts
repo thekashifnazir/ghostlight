@@ -7,8 +7,9 @@
 // commands through the adapter targeting hotspot numbers, and returns focus to
 // the list after actions.
 
-import type { Command, EngineAdapter } from "../engine/adapter.js";
+import type { Command, Diff, EngineAdapter } from "../engine/adapter.js";
 import type { Hotspot } from "../model/hotspot-list.js";
+import type { Pack } from "../model/pack.js";
 import type { Sonar } from "../sonar/sonar.js";
 import type { Inventory } from "./inventory.js";
 import type { ListMode } from "./list-mode.js";
@@ -27,6 +28,10 @@ function primaryVerb(hotspot: Hotspot): Command {
 
 export interface ControllerDeps {
   adapter: EngineAdapter;
+  /** The accessibility pack, for authored examine descriptions (R3.4). */
+  pack: Pack;
+  /** The room the player is in now, for keying pack descriptions by hotspot. */
+  currentRoom: () => number;
   list: ListMode;
   verbMenu: VerbMenu;
   inventory: Inventory;
@@ -197,10 +202,27 @@ export class Controller {
     this.d.adapter.send(primaryVerb(h));
   }
 
-  /** Examine the focused hotspot (look), without walking (R3.4). */
+  /**
+   * Examine the focused hotspot (look), without walking (R3.4).
+   *
+   * The engine's own look reply is useless for people and doors — it answers
+   * the stock "I can't see anything in particular" line, or nothing. So we
+   * announce the pack's authored description first (an object's/person's
+   * `description`, or an exit's `label` — whatever the pack carries for that
+   * hotspot number), then still send `look` so the engine's reply can append
+   * anything it adds beyond the pack. The generic no-info line is filtered out
+   * of that reply (see suppressGenericLook, applied where look replies surface)
+   * so it never reaches the player. When the pack has nothing for the hotspot,
+   * nothing is announced up front and the engine text stands alone, as before.
+   */
   private examine(): void {
     const h = this.d.list.current();
     if (!h) return;
+    const room = this.d.currentRoom();
+    const authored =
+      this.d.pack.objectDescription(room, h.num) ??
+      (h.kind === "exit" ? this.d.pack.exitLabel(room, h.num) : undefined);
+    if (authored) this.d.live.announce(authored);
     this.d.adapter.send({ verb: "look", target: h.num });
   }
 
@@ -216,4 +238,30 @@ export class Controller {
     if (!h) return;
     this.d.adapter.send({ verb, target: h.num });
   }
+}
+
+/**
+ * The signature of the engine's stock "no useful look" reply. The Drascula
+ * engine answers an examine it has no special text for with a line of the form
+ * "I can't see anything in particular", matched case-insensitively on this
+ * distinctive phrase so authored pack descriptions are never caught.
+ */
+const GENERIC_LOOK_PHRASE = "anything in particular";
+
+/** True if `text` is the engine's generic no-info look reply. */
+export function isGenericLookLine(text: string): boolean {
+  return text.toLowerCase().includes(GENERIC_LOOK_PHRASE);
+}
+
+/**
+ * Drop the engine's generic no-info look line from a look diff's spoken text,
+ * so examine (which announces the pack's authored description itself) does not
+ * also read the useless stock reply. Scoped to look commands only: other verbs'
+ * diffs are returned unchanged, so this never swallows text for talk, take, and
+ * the rest. Returns the diff's `said` entries to announce (possibly empty).
+ */
+export function suppressGenericLook(diff: Diff): { color: string; text: string }[] {
+  const said = diff.said ?? [];
+  if (!diff.cmd?.startsWith("look ")) return said;
+  return said.filter((line) => !isGenericLookLine(line.text));
 }

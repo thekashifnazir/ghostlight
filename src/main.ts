@@ -26,7 +26,7 @@ import type { Pack as HintPack } from "../packs/tools/src/types.js";
 // writes it and no copy of it lives under src/. Vite resolves this to the real
 // packs/drascula-en.json at dev and build time.
 import packJson from "../packs/drascula-en.json";
-import { Controller } from "./ui/controller.js";
+import { Controller, suppressGenericLook } from "./ui/controller.js";
 import { Highlight } from "./ui/highlight.js";
 import { Inventory } from "./ui/inventory.js";
 import { ListMode } from "./ui/list-mode.js";
@@ -221,6 +221,8 @@ export async function boot(): Promise<void> {
 
   const controller = new Controller({
     adapter,
+    pack,
+    currentRoom: () => state.room,
     list,
     verbMenu,
     inventory,
@@ -384,7 +386,11 @@ export async function boot(): Promise<void> {
   }
 
   function announceSaid(diff: Diff): void {
-    for (const line of diff.said ?? []) {
+    // For a look diff, drop the engine's generic "can't see anything in
+    // particular" reply: examine already announced the pack's authored
+    // description, and the stock line adds nothing. suppressGenericLook is
+    // scoped to look commands, so every other verb's text is announced as-is.
+    for (const line of suppressGenericLook(diff)) {
       live.announce(line.text);
     }
   }
