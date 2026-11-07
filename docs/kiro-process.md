@@ -1345,3 +1345,11 @@ Files changed: `packs/tools/src/types.ts`, `.kiro/specs/description-variants/tas
 Time taken: a few minutes.
 What went wrong or surprised you: the type widening compiled with zero errors, which confirmed the existing validator and coverage checker never read description text as a string; they key on hotspot numbers and presence. That makes tasks 4 and 5 small.
 What was learned: when a type widens from `string` to a union, a clean typecheck is a quick proof of how many call sites actually depend on the narrow type; here, none did.
+
+## 104 · description-variants · 2026-11-07 · Task 4: validate variant conditions
+What was asked: task 4, walk every variant `when` in rooms (short, long) and objects (description) through the validator's existing cross-reference checks.
+What Kiro did: in `packs/tools/src/validate.ts`, imported `isVariantList` and `Describable`, and added a `checkVariants` helper that, for an object-form description, runs each variant's `when` through the existing `checkConditionFlags` (which uses `walkCondition`, so nested `all`/`any`/`not` are covered). Wired it into the room loop alongside `exits.*.opensWhen`, passing the room's first chapter for the flag-range message and precise paths like `/rooms/5/short/variants/0/when`. Verified with a scratch run: valid variants report nothing; flag 50 gives a range error at the variant path; an unknown milestone is caught at the variant path; a nested `any` with a bad flag is caught; and two bad variants are both reported (no short-circuit). Flag-range messages carry the chapter (2).
+Files changed: `packs/tools/src/validate.ts`, `.kiro/specs/description-variants/tasks.md`, `docs/kiro-process.md`.
+Time taken: about 15 minutes.
+What went wrong or surprised you: nothing. Reusing `checkConditionFlags`/`walkCondition` meant the recursion into `all`/`any`/`not` came for free, so the only new code is the per-description dispatch.
+What was learned: the validator's existing condition walk is the right single seam; variant checking is just "find the conditions and hand them to the walk", which keeps variant and milestone/opensWhen checks identical by construction.

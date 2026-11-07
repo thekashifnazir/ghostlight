@@ -2,8 +2,8 @@
 // schema cannot express. Collects every error, never short-circuits.
 import Ajv2020 from "ajv/dist/2020.js";
 import type { ErrorObject } from "ajv";
-import { FLAG_MAX, FLAG_MIN } from "./types.js";
-import type { Condition, Milestone, Pack } from "./types.js";
+import { FLAG_MAX, FLAG_MIN, isVariantList } from "./types.js";
+import type { Condition, Describable, Milestone, Pack } from "./types.js";
 
 export interface ValidationError {
   /** JSON pointer / dotted path to the offending value, or "" for whole-pack. */
@@ -97,7 +97,21 @@ export function validateCrossRefs(pack: Pack): ValidationError[] {
     );
   };
 
-  // exits.*.opensWhen conditions.
+  // exits.*.opensWhen conditions, and description variant `when` conditions on
+  // room short/long and object descriptions. A room may list several chapters;
+  // the first is passed only to make the flag-range message more specific (the
+  // 0 to 49 bound itself is chapter-independent).
+  const checkVariants = (
+    desc: Describable | undefined,
+    where: string,
+    chapter?: number,
+  ) => {
+    if (!isVariantList(desc)) return;
+    desc.variants.forEach((v, i) => {
+      checkConditionFlags(v.when, `${where}/variants/${i}/when`, chapter);
+    });
+  };
+
   for (const [roomNum, room] of Object.entries(pack.rooms)) {
     for (const [exitNum, exit] of Object.entries(room.exits)) {
       if (exit.opensWhen) {
@@ -106,6 +120,17 @@ export function validateCrossRefs(pack: Pack): ValidationError[] {
           `/rooms/${roomNum}/exits/${exitNum}/opensWhen`,
         );
       }
+    }
+
+    const roomChapter = room.chapters[0];
+    checkVariants(room.short, `/rooms/${roomNum}/short`, roomChapter);
+    checkVariants(room.long, `/rooms/${roomNum}/long`, roomChapter);
+    for (const [objNum, obj] of Object.entries(room.objects)) {
+      checkVariants(
+        obj.description,
+        `/rooms/${roomNum}/objects/${objNum}/description`,
+        roomChapter,
+      );
     }
   }
 

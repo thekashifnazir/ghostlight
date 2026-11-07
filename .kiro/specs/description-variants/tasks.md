@@ -22,7 +22,7 @@ These tasks implement the design. Each cites the requirements it covers. Work sp
   - Confirm `tsc --noEmit` passes for the tools package with the new types.
   - _Requirements: 1.1, 1.2, 1.3_
 
-- [ ] 4. Validate variant conditions in the cross-reference stage
+- [x] 4. Validate variant conditions in the cross-reference stage
   - In `packs/tools/src/validate.ts`, add a pass in `validateCrossRefs` that, for each room, inspects `short`, `long`, and each object's `description`; when a value is the object form, run each variant's `when` through the existing `checkConditionFlags` (which uses `walkCondition`, so nested `all`/`any`/`not` are covered).
   - Use precise paths, for example `/rooms/5/short/variants/0/when`, `/rooms/5/long/variants/1/when`, `/rooms/5/objects/213/description/variants/0/when`.
   - For room description variants, pass a chapter for the flag-range message (the room's first covered chapter); the 0 to 49 bound itself is chapter-independent.
