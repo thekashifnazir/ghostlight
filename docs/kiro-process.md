@@ -1329,3 +1329,11 @@ Files changed: `packs/schema.json`, `.kiro/specs/description-variants/tasks.md`,
 Time taken: about 15 minutes.
 What went wrong or surprised you: nothing. JSON Schema keeps `maxLength` on a `$ref`'d string only if the referenced def carries it, so the cleanest way to preserve the `short` 300-cap across the union was a separate `shortText` def rather than trying to layer `maxLength` on top of a `$ref`.
 What was learned: making the change a `oneOf` with the plain string first keeps every existing pack valid with zero migration, and the short cap only needs duplicating once as a parallel def tree.
+
+## 102 · description-variants · 2026-11-07 · Task 2: document variants in FORMAT.md
+What was asked: task 2, document the describable union in `packs/FORMAT.md` with a worked example and the additive-only promise.
+What Kiro did: noted on the `short`, `long` and object `description` table rows that each is a plain string or the variant object form; added a "Description variants" subsection under Rooms describing the object form (`default` + ordered `variants`, each `when` + `text` + optional `note`), first-match-wins, default on no match, the earlier-wins ordering rule, the 300-char cap kept on short variant text, and the writing rules (no spoilers, names only what is there now). Added the Drascula room 5 church-window worked example (flag 8, milestone `ch2.church`, re-announce once on change) and the additive promise that plain-string packs stay valid. Walked the new text against the task-1 schema field by field; confirmed no em dashes.
+Files changed: `packs/FORMAT.md`, `.kiro/specs/description-variants/tasks.md`, `docs/kiro-process.md`.
+Time taken: about 10 minutes.
+What went wrong or surprised you: nothing.
+What was learned: documenting the union as "a default with no variants" for the plain form makes the backward-compatibility story one sentence and keeps authors from thinking variants are a separate, heavier mechanism.

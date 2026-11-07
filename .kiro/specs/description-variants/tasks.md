@@ -9,7 +9,7 @@ These tasks implement the design. Each cites the requirements it covers. Work sp
   - Confirm a plain-string pack still validates (the `oneOf` string branch) and that unknown keys on a variant or description object are rejected except `x-`.
   - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7_
 
-- [ ] 2. Document variants in FORMAT.md
+- [x] 2. Document variants in FORMAT.md
   - In `packs/FORMAT.md`, under the room and object sections, document the describable union: the plain-string form (common case), the object form (`default` plus an ordered `variants` list), each variant as `when` + `text` (+ optional `note`), first match wins, default applies when none match, and `when` is the same `Condition` used by `milestone.when` and `exits.opensWhen`.
   - State the additive-only stability promise: existing plain-string packs remain valid.
   - Add a worked example using the room 5 church window (boarded default, opened-when-flag-8 variant), walking the schema field by field so document and schema agree.

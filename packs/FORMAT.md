@@ -75,14 +75,37 @@ The top-level required sections are `format`, `formatVersion`, `game`, `pack` an
 |---|---|
 | `chapters` | Chapters the room appears in. A room number that means a different place in different chapters is not handled in v1 (Drascula does not need it). |
 | `name` | Short, no article: "Guest bedroom". At most 40 characters. |
-| `short` | 1 to 2 sentences, at most 300 characters. Said on entering a room in list mode. |
-| `long` | Said on "describe the room". Concrete: what is on the left, middle, right. No puzzle answers. |
+| `short` | 1 to 2 sentences, at most 300 characters. Said on entering a room in list mode. A plain string, or the variant object form (see Description variants). |
+| `long` | Said on "describe the room". Concrete: what is on the left, middle, right. No puzzle answers. A plain string, or the variant object form. |
 | `seen` | `true` if written from the room's actual picture, `false` if from object names and game text only. |
 | `note` | Optional, for maintainers. Never spoken. |
 | `exits` | Keyed by hotspot number. `label` (spoken, at most 60 characters), `to` (destination room number, or `null` when walking through ends a chapter or runs a scene), optional `direction` (`left`, `right`, `ahead`, `back`, `up`, `down`), optional `opensWhen` (a condition, below) for exits that only work in some states, optional `note`. |
-| `objects` | Keyed by hotspot number. `name` (spoken, replaces the engine's label, at most 40 characters), `type` (`object`, `exit`, `npc`), optional `description`, optional `note`. Use `type: "exit"` here for something that looks like a way out but is not an engine door. |
+| `objects` | Keyed by hotspot number. `name` (spoken, replaces the engine's label, at most 40 characters), `type` (`object`, `exit`, `npc`), optional `description` (a plain string, or the variant object form), optional `note`. Use `type: "exit"` here for something that looks like a way out but is not an engine door. |
 
 Several engine hotspots can share one number (four garlic bunches in Drascula's room 18). The pack has one entry per number, and a list mode de-duplicates the same way.
+
+### Description variants
+
+A room's `short`, a room's `long`, and an object's `description` can change with game state. A boarded window that is later forced open, a gate that is unbarred, a passage that opens: the picture changes, and a blind player should hear the new state, not the old wording. Each of these three fields is therefore either a plain string (the common case, unchanged) or an object that carries a `default` string and an ordered list of `variants`:
+
+```json
+"short": {
+  "default": "The church front, seen from behind the fence. The window on the left is boarded up.",
+  "variants": [
+    { "when": { "flags": { "8": 1 } }, "text": "The church front, seen from behind the fence. The boards are off the window on the left, and it is open." }
+  ]
+}
+```
+
+- Each variant has a `when` (the same condition used by milestones and `exits.opensWhen`, see Conditions) and a `text` (the spoken description), plus an optional author `note`.
+- The reader picks the first variant whose `when` holds, in list order. When no variant holds, it uses `default`. So exactly one description is chosen for any state.
+- Put the more specific or later-game states earlier in the list when two variants could both hold, because the first match wins.
+- A room `short` variant `text` keeps the 300-character cap; a `long` or `description` variant `text` has no length cap, as for the plain form.
+- Variant `text` and `default` follow the same writing rules as any description: plain British English, no em dashes, concrete left-to-right positioning, and no puzzle answers. A variant names what is there now; it never says how the state changed or what to do next.
+
+Worked example (Drascula room 5, "Behind the church fence"). Engine flag 8 is set once the player prises the boards off the church window (milestone `ch2.church`). The `default` short and long keep the boarded-up wording; a single variant keyed on `{ "flags": { "8": 1 } }` describes the window as forced open with the way into the church available. Before flag 8 the player hears the boarded default; after it, the opened description. The player re-announces the room once at the moment the variant changes, so the opening is not silent.
+
+A pack that uses only plain strings is unchanged and still valid: the plain form is just "a default with no variants".
 
 Every hotspot the engine can report for a covered room should have an entry in `exits` or `objects`. The coverage checker checks this against the census.
 
