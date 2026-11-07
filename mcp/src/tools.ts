@@ -148,10 +148,7 @@ export class Tools {
     );
   }
 
-  // --- command verbs: guard, validate, then send ----------------------------
-  // Task 7 establishes guard+validate+send. Task 8 adds the per-tool JSON
-  // shaping (inventory items, choices, saved slot) and registers these on the
-  // McpServer. Here they return the raw CommandResult so validation is testable.
+  // --- command verbs: guard, validate, then send (Req 2, 3) -----------------
 
   /** A target verb (look/take/open/close/talk/push/walk) on a hotspot number. */
   async targetVerb(verb: TargetVerb, target: number): Promise<ToolReply> {
@@ -171,15 +168,66 @@ export class Tools {
     return this.dispatch({ verb: "use", item, target });
   }
 
+  /** `choose <n>` — a conversation option (1 to 4). No target to validate. */
+  async choose(n: number): Promise<ToolReply> {
+    const guard = this.requireSession();
+    if (guard) return guard;
+    return this.dispatch({ verb: "choose", n });
+  }
+
+  /** `skip` — end the current speech line or cutscene. */
+  async skip(): Promise<ToolReply> {
+    const guard = this.requireSession();
+    if (guard) return guard;
+    return this.dispatch({ verb: "skip" });
+  }
+
   /**
-   * Send a validated command and return its result. Task 8 replaces this body
-   * with per-tool JSON shaping; for now it carries the CommandResult through so
-   * the task-7 validation boundary is exercised end to end.
+   * `inventory` — return the held items (ids, names, look text) from the
+   * A11Y_INV event the command produces (Req 3.3). On the engine the command is
+   * `inv`/`inventory` (both accepted); the shared serialiser emits `inventory`.
    */
-  protected async dispatch(cmd: Command): Promise<ToolReply> {
+  async inventory(): Promise<ToolReply> {
+    const guard = this.requireSession();
+    if (guard) return guard;
+    const result = await this.session.send({ verb: "inventory" });
+    if (result.error) return err(result.error, { events: result.events });
+    const inv = result.events.find((e) => e.type === "inv");
+    const items = inv && inv.type === "inv" ? inv.items : [];
+    return ok({ items, diff: result.diff });
+  }
+
+  /** `choices` — return the current conversation choices (Req 3.4). */
+  async choices(): Promise<ToolReply> {
+    const guard = this.requireSession();
+    if (guard) return guard;
+    const result = await this.session.send({ verb: "choices" });
+    if (result.error) return err(result.error, { events: result.events });
+    const ev = result.events.find((e) => e.type === "choices");
+    const choices = ev && ev.type === "choices" ? ev.choices : [];
+    return ok({ choices, diff: result.diff });
+  }
+
+  /** `save <slot>` — save the game; return the saved slot (Req 3.6). */
+  async save(slot: number): Promise<ToolReply> {
+    const guard = this.requireSession();
+    if (guard) return guard;
+    const result = await this.session.send({ verb: "save", slot });
+    if (result.error) return err(result.error, { events: result.events });
+    const saved = result.events.find((e) => e.type === "saved");
+    return ok({ slot: saved && saved.type === "saved" ? saved.slot : slot });
+  }
+
+  /**
+   * Send a validated command and shape the reply. The full CommandResult
+   * (events + diff) is returned so no engine output is lost (Req 3.1, 3.2); an
+   * engine A11Y_ERR (no diff) comes back error-flagged with the message and the
+   * events, leaving the session usable (Req 3.8).
+   */
+  private async dispatch(cmd: Command): Promise<ToolReply> {
     const result = await this.session.send(cmd);
     if (result.error) return err(result.error, { events: result.events });
-    return ok(result);
+    return ok({ diff: result.diff, events: result.events });
   }
 }
 
@@ -244,7 +292,83 @@ export function registerTools(
     async () => reply(tools.state()),
   );
 
-  // The sending command tools (look/take/open/close/talk/push/walk/use/
-  // inventory/choices/choose/skip/save) are registered in task 8, once the
-  // Tools logic wires them to the session.
+  // Target verbs: one tool each, same { target } schema (Req 2.1, 2.3).
+  const verbDescriptions: Record<TargetVerb, string> = {
+    look: "Look at / examine the hotspot with the given number in the current room.",
+    take: "Take (pick up) the hotspot with the given number.",
+    open: "Open the hotspot with the given number (e.g. a door or container).",
+    close: "Close the hotspot with the given number.",
+    talk: "Talk to the person with the given number; opens a conversation (see the choices tool).",
+    push: "Push the hotspot with the given number.",
+    walk: "Walk to the hotspot with the given number; on a door, walk through it.",
+  };
+  for (const verb of TARGET_VERBS) {
+    server.registerTool(
+      verb,
+      {
+        description:
+          `${verbDescriptions[verb]} Returns the resulting A11Y diff and events as JSON. ` +
+          `Rejects a target not present in the current room.`,
+        inputSchema: schemas.target,
+      },
+      async ({ target }) => reply(await tools.targetVerb(verb, target)),
+    );
+  }
+
+  server.registerTool(
+    "use",
+    {
+      description:
+        "Use an inventory item on a target. `target` is a room hotspot number, " +
+        "an inventory item id, or 50 to use the item on the hero (self). Returns the A11Y diff and events.",
+      inputSchema: schemas.use,
+    },
+    async ({ item, target }) => reply(await tools.use(item, target)),
+  );
+
+  server.registerTool(
+    "inventory",
+    {
+      description:
+        "List the items currently carried (id, name, look text). The engine command is `inv`/`inventory`.",
+      inputSchema: schemas.empty,
+    },
+    async () => reply(await tools.inventory()),
+  );
+
+  server.registerTool(
+    "choices",
+    {
+      description: "List the current conversation's choices (1 to 4). Call during a talk conversation.",
+      inputSchema: schemas.empty,
+    },
+    async () => reply(await tools.choices()),
+  );
+
+  server.registerTool(
+    "choose",
+    {
+      description: "Choose conversation option `n` (1 to 4); 4 typically ends the conversation.",
+      inputSchema: schemas.choose,
+    },
+    async ({ n }) => reply(await tools.choose(n)),
+  );
+
+  server.registerTool(
+    "skip",
+    {
+      description: "Skip the current speech line or cutscene.",
+      inputSchema: schemas.empty,
+    },
+    async () => reply(await tools.skip()),
+  );
+
+  server.registerTool(
+    "save",
+    {
+      description: "Save the game to the given slot; returns the saved slot.",
+      inputSchema: schemas.save,
+    },
+    async ({ slot }) => reply(await tools.save(slot)),
+  );
 }

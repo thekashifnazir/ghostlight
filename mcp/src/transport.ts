@@ -14,13 +14,15 @@
 // (task 12) defends this import against a future copy-paste.
 
 import type {
+  Choice,
   Command,
   Diff,
   EngineEvent,
+  InvItem,
   RoomState,
 } from "../../src/engine/adapter.js";
 
-export type { Command, Diff, EngineEvent, RoomState };
+export type { Choice, Command, Diff, EngineEvent, InvItem, RoomState };
 
 /**
  * Every parsed event one command produced, up to and including its diff or

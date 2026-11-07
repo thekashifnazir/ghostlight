@@ -42,7 +42,7 @@ These tasks build the server incrementally, replay-first so everything is runnab
   - Verify: covered by the property test in task 11; add a focused unit case here (look at an absent number rejects; look at a present number passes validation).
   - _Requirements: 8.2, 8.3, 8.4, 8.5, 2.4_
 
-- [ ] 8. Wire command tools to the session and shape JSON replies
+- [x] 8. Wire command tools to the session and shape JSON replies
   - Each target-verb/`use`/`choose`/`skip` tool builds a `Command`, calls `session.send()` (which uses `serializeCommand`), and returns `CommandResult` (events + diff) as JSON; `inventory` returns the `inv` items, `choices` the choices, `save` the saved slot, `state` the current room. An engine `A11Y_ERR` result is returned as an MCP error-flagged result that leaves the session usable.
   - Verify: unit test over replay that `talk 53` returns the four choices and `look 999` comes back error-flagged.
   - _Requirements: 2.7, 3.1, 3.2, 3.3, 3.4, 3.5, 3.6, 3.8_
