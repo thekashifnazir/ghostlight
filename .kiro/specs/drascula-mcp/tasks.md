@@ -57,7 +57,7 @@ These tasks build the server incrementally, replay-first so everything is runnab
   - Verify: `vitest run` green.
   - _Requirements: 7.3, 3.1, 3.2, 5.3_
 
-- [ ] 11. Property test — every tool rejects an out-of-room target
+- [x] 11. Property test — every tool rejects an out-of-room target
   - Add `mcp/test/validation.test.ts`: with a started replay session in room 62, use `fast-check` to generate integers outside the room's hotspot numbers (and, for `use`, also outside held item ids and `50`), and assert every target-verb tool and `use` reject them with a target error and send nothing. Add the positive check that a valid in-room target passes validation.
   - _Requirements: 8.2, 8.3, 8.4_
 
