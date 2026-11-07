@@ -173,8 +173,12 @@ export async function boot(): Promise<void> {
   // region first (always, complete on its own), then the optional whisper.
   const askHint = (): void => {
     void hintEngine.ask(state.room).then((r) => {
+      // Every outcome's text goes to the live region, complete on its own: a
+      // tier hint, the "nothing to hint at" line, or the exhausted line once
+      // the answer has been given twice. The whisper is optional; GhostAudio
+      // is a silent no-op when no cached file matches the key.
       live.announce(r.kind === "none" ? NO_HINT_TEXT : r.text);
-      if (r.kind === "hint") ghostAudio?.play(r.audioKey);
+      if (r.kind !== "none") ghostAudio?.play(r.audioKey);
     });
   };
 
