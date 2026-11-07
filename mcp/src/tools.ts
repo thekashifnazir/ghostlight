@@ -61,14 +61,20 @@ function err(message: string, extra?: Record<string, unknown>): ToolReply {
 export class Tools {
   constructor(
     private readonly session: Session,
-    private readonly makeTransport: () => Transport,
+    private readonly makeTransport: (slot?: number) => Transport,
   ) {}
 
   // --- session lifecycle (Req 4) --------------------------------------------
 
-  async start(): Promise<ToolReply> {
+  /**
+   * Start a new game session. On the native transport an optional `slot` loads
+   * that saved game so the session begins partway through (Req 6.2). The slot
+   * is passed to the transport factory, which overrides the launch config's
+   * slot with it; the replay transport ignores it (fixtures have no slot).
+   */
+  async start(slot?: number): Promise<ToolReply> {
     try {
-      const room = await this.session.start(this.makeTransport());
+      const room = await this.session.start(this.makeTransport(slot));
       return ok(room satisfies RoomState);
     } catch (e) {
       return err(`start failed: ${messageOf(e)}`);
@@ -269,7 +275,7 @@ export function registerTools(
         "On the native transport, an optional `slot` loads a saved game to begin partway through.",
       inputSchema: schemas.start,
     },
-    async () => reply(await tools.start()),
+    async ({ slot }) => reply(await tools.start(slot)),
   );
 
   server.registerTool(

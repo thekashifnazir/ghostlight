@@ -27,11 +27,17 @@ function log(message: string): void {
  * binary presence is checked in resolveConfig, so a bad selection has already
  * failed before this runs (Req 1.4).
  */
-function transportFactory(config: Config): () => Transport {
+function transportFactory(config: Config): (slot?: number) => Transport {
   if (config.transport === "replay") {
+    // Fixtures have no slot; the replay transport ignores it.
     return () => new ReplayTransport(config.fixture);
   }
-  return () => new NativeTransport(config.native);
+  // A slot passed to the start tool overrides the launch-config slot
+  // (DRASCULA_MCP_SLOT), so the caller can choose which save to load per start.
+  return (slot?: number) =>
+    new NativeTransport(
+      slot === undefined ? config.native : { ...config.native, slot },
+    );
 }
 
 async function main(): Promise<void> {

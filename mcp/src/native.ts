@@ -21,7 +21,7 @@
 // serializeCommand, so the bytes the engine parses match the player's.
 
 import { spawn, type ChildProcess } from "node:child_process";
-import { mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, rmSync, writeFileSync, writeSync } from "node:fs";
 import { join } from "node:path";
 
 import { parseA11yLine } from "../../src/engine/a11y-lines.js";
@@ -41,6 +41,28 @@ const HARD_CAP_MS = 60_000;
 /** The command file name the engine reads under the save path. */
 const COMMAND_FILE = "a11y-cmd.txt";
 
+/**
+ * A per-command log sink. Each line is flushed as soon as it is written, so if
+ * a command hangs the last line on stderr names the call that blocked, rather
+ * than nothing printing until the (up to 60 s) cap fires. Injectable so a test
+ * can capture the lines without reading stderr.
+ */
+export type NativeLogger = (line: string) => void;
+
+/**
+ * Default logger: write to stderr (stdout is reserved for MCP protocol traffic,
+ * Req 1.5) with a synchronous flush. `fs.writeSync(2, ...)` writes straight to
+ * the fd and does not buffer, so the line is on disk/the terminal before the
+ * next, possibly blocking, step runs.
+ */
+function defaultLogger(line: string): void {
+  try {
+    writeSync(2, `[drascula-mcp native] ${line}\n`);
+  } catch {
+    /* logging must never throw into the transport */
+  }
+}
+
 /** A waiter the line pump feeds until its command settles or the cap fires. */
 interface PendingSend {
   /** The serialised command we are waiting to see settle. */
@@ -56,6 +78,8 @@ interface PendingSend {
 export class NativeTransport implements Transport {
   private readonly config: NativeConfig;
   private readonly commandFile: string;
+  /** Per-command log sink, flushed on every line (so a hang shows its call). */
+  private readonly log: NativeLogger;
   private child: ChildProcess | undefined;
   private pid: number | undefined;
 
@@ -72,9 +96,10 @@ export class NativeTransport implements Transport {
   /** Installed once, removed on stop: kill our child if the process exits. */
   private readonly exitHandler = () => this.killChild();
 
-  constructor(config: NativeConfig) {
+  constructor(config: NativeConfig, logger: NativeLogger = defaultLogger) {
     this.config = config;
     this.commandFile = join(config.savePath, COMMAND_FILE);
+    this.log = logger;
   }
 
   // --- start ----------------------------------------------------------------
@@ -96,6 +121,11 @@ export class NativeTransport implements Transport {
       args.push(`--save-slot=${this.config.slot}`);
     }
     args.push("drascula");
+
+    this.log(
+      `start` +
+        (this.config.slot !== undefined ? ` (save-slot ${this.config.slot})` : ""),
+    );
 
     const child = spawn(this.config.binary, args, {
       stdio: ["ignore", "pipe", "pipe"],
@@ -166,6 +196,9 @@ export class NativeTransport implements Transport {
     }
 
     const expected = serializeCommand(cmd);
+    // Flush a "sending" line BEFORE the write and the wait, so if the engine
+    // never answers, the last line on stderr names the command that blocked.
+    this.log(`send "${expected}"`);
     // Write one command. The engine reads the file each frame, queues the line,
     // and truncates the file (engine/a11y.cpp readCommandFile), so one write
     // per send is correct and leaves nothing behind for the next frame.
@@ -177,6 +210,7 @@ export class NativeTransport implements Transport {
         const p = this.pending;
         this.pending = undefined;
         if (p) {
+          this.log(`timeout "${expected}" after ${HARD_CAP_MS / 1000}s`);
           resolve({
             events: p.events,
             error:
@@ -315,6 +349,12 @@ export class NativeTransport implements Transport {
     if (!p) return;
     clearTimeout(p.timer);
     this.pending = undefined;
+    const outcome = result.error
+      ? `error (${result.error})`
+      : result.diff
+        ? "diff"
+        : "choices";
+    this.log(`settled "${p.expected}": ${outcome}`);
     p.resolve(result);
   }
 }
