@@ -81,7 +81,7 @@ static bool parseInt(const Common::String &s, int &out);
 A11yLayer::A11yLayer(DrasculaEngine *engine)
 	: _engine(engine), _lastChapter(-1), _lastRoom(-1), _queueHead(0),
 	  _converseActive(false), _converseNeedChoices(false), _choicePressed(false),
-	  _clickState(kClickIdle) {
+	  _clickState(kClickIdle), _lastSkipPollMs(0) {
 	for (int i = 0; i < 4; i++)
 		_choiceBottom[i] = 0;
 	// Register as the engine's current a11y layer so the centerText() hook in
@@ -381,6 +381,21 @@ void A11yLayer::runCommand(const Common::String &cmd) {
 	// text is ignored.
 	if (verb == "inventory" || verb == "inv") {
 		dispatchInventory();
+		return;
+	}
+
+	// Cutscene / speech skipping (task 16, R7.3 / R7.4). A `skip` that reaches
+	// the main-loop reader means no cutscene or speech loop is currently blocking
+	// poll() (a `skip` queued DURING a cutscene is taken by the updateEvents()
+	// hook, onUpdateEvents(), long before control returns here). So this is a
+	// `skip` with nothing to skip: raise the engine's kActionSkip anyway — it is
+	// a harmless no-op (the action sits in the engine's buffer and is drained by
+	// the next getScan()/getAction() in the main loop with no visible effect),
+	// which the design allows ("a `skip` with nothing to skip should be a
+	// harmless no-op"). Modelling it on the real skip key keeps one code path for
+	// skip whether or not a cutscene is running.
+	if (verb == "skip") {
+		raiseSkip();
 		return;
 	}
 
@@ -1684,6 +1699,117 @@ void A11yLayer::poll() {
 
 	if (_engine->currentChapter != _lastChapter || _engine->_roomNumber != _lastRoom)
 		emitRoomState();
+}
+
+// --- Cutscene / speech skipping (task 16, R7.3 / R7.4 / gotcha 5) -----------
+//
+// A cutscene or a speech line runs the engine's OWN loop and does not return to
+// the main loop until it finishes or is skipped, so A11yLayer::poll() — and the
+// command reader it drives — never runs for the whole duration (gotcha 5). Two
+// kinds of blocking loop matter here:
+//
+//   * Speech (talk.cpp). Every talker runs `do { ...draw frame... pause(3); }
+//     while (!isTalkFinished())`. isTalkFinished() calls getScan() and
+//     getAction(); if a key was pressed OR an action fired (anything other than
+//     kActionNone) it calls stopSound(), which ends the current line. So a
+//     single skip input ends exactly the line on screen (R7.4, "one line at a
+//     time").
+//   * Cutscenes (animation.cpp, e.g. animation_2_1 the chapter 1->2 crossing).
+//     These run a long sequence of steps with `if (getAction() == kActionSkip)
+//     break;` between them, so a kActionSkip aborts the whole cutscene and
+//     returns control to the caller. animation_3_1 (the tavern first-visit
+//     talk) is just playTalkSequence(3), i.e. a run of talk lines, so it is
+//     skipped the speech way — one line per skip.
+//
+// Both getScan() and getAction() call updateEvents() first (the engine's
+// per-frame event pump, which also runs directly inside the animation loops),
+// so updateEvents() is the single point that executes every frame inside BOTH
+// kinds of loop. Hooking it is therefore the only way to deliver a `skip` from
+// the command file while poll() is blocked. The hook calls onUpdateEvents().
+//
+// Rather than invent a bespoke "skip pending" flag, we raise the engine's OWN
+// skip input: kActionSkip pushed through the engine's addActionToBuffer(),
+// exactly as the keymapper does for the player's skip key. This makes the
+// engine's existing skip path fire with no new engine logic — the loops already
+// watch for kActionSkip (cutscenes) and for any key/action (speech).
+
+// Raise one skip: push kActionSkip into the engine's action buffer the same way
+// a real skip-key press does (R7.4). getAction() inside the running talk or
+// animation loop then returns it, ending one speech line or aborting the
+// cutscene. One call == one skip event, so repeated `skip`s step through a
+// multi-line cutscene one line at a time.
+void A11yLayer::raiseSkip() {
+	Common::CustomEventType action = kActionSkip;
+	_engine->addActionToBuffer(action);
+}
+
+// Remove the first queued `skip` from the command queue (keeping the rest in
+// order) and report whether one was found. Lets onUpdateEvents() honour a `skip`
+// that arrived while a cutscene blocks poll(), without disturbing any other
+// commands the page queued at the same time (they wait in the queue for poll()
+// to run once control returns to the main loop). A command is a `skip` when its
+// first whitespace-delimited word is exactly "skip" (any trailing text is
+// ignored, matching the lenient parsing the main reader uses).
+bool A11yLayer::takeQueuedSkip() {
+	for (uint i = _queueHead; i < _commandQueue.size(); i++) {
+		const Common::String &cmd = _commandQueue[i];
+
+		// First word of the command.
+		uint sp = 0;
+		while (sp < cmd.size() && cmd[sp] != ' ')
+			sp++;
+		Common::String verb = (sp < cmd.size()) ? Common::String(cmd.c_str(), sp) : cmd;
+
+		if (verb == "skip") {
+			// Echo it as received (R2.4), exactly as the main reader would.
+			emitLine(Common::String("A11Y_CMD ") + cmd);
+			// Remove just this entry, preserving the order of the rest.
+			_commandQueue.remove_at(i);
+			return true;
+		}
+	}
+	return false;
+}
+
+// Hook body: run from the end of DrasculaEngine::updateEvents() every frame.
+// Because a cutscene/speech loop can call updateEvents() every ~10 ms, reading
+// the command file on each call would churn the filesystem; so we throttle to
+// about one read every 250 ms (gotcha 5), which is well within human skip
+// cadence. When a `skip` is queued we take it and raise the engine's skip
+// input; non-`skip` commands are left for poll() to run once control returns to
+// the main loop (so a `walk`-into-a-cutscene followed by other commands still
+// runs those commands in order afterwards). Guarded so it does nothing before
+// g_system exists.
+void A11yLayer::onUpdateEvents() {
+	if (!g_system)
+		return;
+
+	// Throttle: at most one command-file read per ~250 ms from this hook. poll()
+	// still reads every frame when the main loop is running; this cap only
+	// applies to the high-frequency in-cutscene path. _lastSkipPollMs == 0 means
+	// we have not read from here yet, so the first in-cutscene frame reads at
+	// once (no startup lag on the very first skip).
+	uint32 now = g_system->getMillis();
+	if (_lastSkipPollMs != 0 && now - _lastSkipPollMs < 250)
+		return;
+	_lastSkipPollMs = now;
+
+	// Pull any newly-written lines into the queue, then honour every queued
+	// `skip` this tick. Honouring all of them (not just one) means a burst of
+	// `skip`s written together steps the cutscene forward that many lines on the
+	// next poll windows; each raiseSkip() is a separate action event the loop's
+	// getAction() consumes one at a time.
+	readCommandFile();
+	while (takeQueuedSkip())
+		raiseSkip();
+
+	// Reclaim a fully-drained queue so a long cutscene does not leave a growing
+	// spent prefix. Only when nothing is pending — a non-`skip` command left in
+	// the queue must survive for poll() to run after the cutscene ends.
+	if (_queueHead >= _commandQueue.size()) {
+		_commandQueue.clear();
+		_queueHead = 0;
+	}
 }
 
 } // namespace Drascula

@@ -81,10 +81,86 @@
 #     All the logic lives in engine/a11y.cpp; these are just the call sites, each
 #     guarded on _a11y so the engine builds and runs unchanged with no layer.
 #
-# Later tasks add the updateEvents() hook (skip polling); they will extend this
-# patch.
+# Task 16 hook (cutscene/speech skipping, drascula.cpp — R7.3 / R7.4 / gotcha 5):
+#   * one line at the END of DrasculaEngine::updateEvents(): `if (_a11y)
+#     _a11y->onUpdateEvents();`. updateEvents() is the engine's per-frame event
+#     pump and the ONE function that runs every frame inside BOTH the speech
+#     loops (talk.cpp's `do { ... } while (!isTalkFinished())`, which reach it
+#     via getScan()/getAction()) and the cutscene loops (animation.cpp, e.g.
+#     animation_2_1 the chapter 1->2 crossing and animation_3_1 the tavern
+#     first-visit talk, which call it directly and test `getAction() ==
+#     kActionSkip`). A cutscene or speech line runs the engine's OWN loop and
+#     does not return to the main loop until it finishes or is skipped, so
+#     A11yLayer::poll() — and the command reader it drives — never runs for the
+#     whole duration (gotcha 5). Hooking updateEvents() is therefore the only
+#     way to deliver a `skip` from the command file while a cutscene blocks
+#     poll(). onUpdateEvents() reads the command file (throttled to ~250 ms so a
+#     ~10 ms delay loop does not churn the FS) and, when a `skip` is queued,
+#     raises the engine's OWN skip input — kActionSkip pushed through
+#     addActionToBuffer(), exactly as the keymapper does for the player's skip
+#     key — so the engine's existing skip path fires with no new engine logic:
+#     a speech line ends (isTalkFinished() stopSound()), a cutscene aborts (its
+#     `getAction() == kActionSkip` break). Placed after the event-pump `while`
+#     so the injected action is not clobbered the same frame; guarded on _a11y.
+diff --git a/engines/drascula/converse.cpp b/engines/drascula/converse.cpp
+index 3e045cb81b..eaafd3494b 100644
+--- a/engines/drascula/converse.cpp
++++ b/engines/drascula/converse.cpp
+@@ -22,6 +22,7 @@
+ #include "common/textconsole.h"
+ 
+ #include "drascula/drascula.h"
++#include "drascula/a11y.h"
+ 
+ #include "common/text-to-speech.h"
+ 
+@@ -214,6 +215,13 @@ void DrasculaEngine::converse(int index) {
+ 	sayText(ttsPhrase3, Common::TextToSpeechManager::QUEUE);
+ 	sayText(ttsPhrase4, Common::TextToSpeechManager::QUEUE);
+ 
++	// Ghostlight: a conversation runs this modal loop, so the main loop and
++	// A11yLayer::poll() do not run while it is open (gotcha 4). Tell the layer a
++	// conversation has opened so it lists the choices and services `choose`/
++	// `choices` from inside the loop below (R7.1, R7.2, R6.3).
++	if (_a11y)
++		_a11y->onConverseBegin();
++
+ 	while (breakOut == 0 && !shouldQuit()) {
+ 		updateRoom();
+ 
+@@ -235,6 +243,17 @@ void DrasculaEngine::converse(int index) {
+ 		phrase3_bottom = phrase2_bottom + 8 * print_abc_opc(phrase3, phrase2_bottom + 2, game3);
+ 		phrase4_bottom = phrase3_bottom + 8 * print_abc_opc(phrase4, phrase3_bottom + 2, kDialogOptionUnselected);
+ 
++		// Ghostlight: the four option lines are now laid out, so the layer has
++		// the band bottoms it needs to apply a `choose <n>` as a click. Describe
++		// the conversation (A11Y_CHOICES on the opening frame and after each
++		// choice) and, if a `choose`/`choices` is queued, act on it — a `choose`
++		// sets _mouseY/_leftMouseButton here so the engine's own selection below
++		// fires for that option this frame (R7.1, R7.2, R6.3).
++		if (_a11y)
++			_a11y->onConverseFrame(phrase1, phrase2, phrase3, phrase4,
++			                       game1, game2, game3,
++			                       phrase1_bottom, phrase2_bottom, phrase3_bottom, phrase4_bottom);
++
+ 		if (_mouseY > 0 && _mouseY < phrase1_bottom) {
+ 			if (game1 == kDialogOptionClicked && _color != kColorWhite)
+ 				color_abc(kColorWhite);
+@@ -302,6 +321,12 @@ void DrasculaEngine::converse(int index) {
+ 		updateScreen();
+ 	} // while (breakOut == 0)
+ 
++	// Ghostlight: the conversation has ended (option 4 or breakOut). Tell the
++	// layer so `choices`/`choose` go back to "no conversation open" and the
++	// per-conversation state is cleared for the next one (R7.2).
++	if (_a11y)
++		_a11y->onConverseEnd();
++
+ 	if (currentChapter == 2)
+ 		loadPic(menuBackground, backSurface);
+ 	else
 diff --git a/engines/drascula/drascula.cpp b/engines/drascula/drascula.cpp
-index aeccc822cb..5d275436e6 100644
+index aeccc822cb..1319f93695 100644
 --- a/engines/drascula/drascula.cpp
 +++ b/engines/drascula/drascula.cpp
 @@ -33,6 +33,7 @@
@@ -155,6 +231,24 @@ index aeccc822cb..5d275436e6 100644
  		if (!_characterMoved) {
  			stepX = STEP_X;
  			stepY = STEP_Y;
+@@ -900,6 +930,17 @@ void DrasculaEngine::updateEvents() {
+ 			break;
+ 		}
+ 	}
++
++	// Ghostlight: updateEvents() is the engine's per-frame event pump, and the
++	// one function that runs every frame inside BOTH the speech loops (talk.cpp,
++	// via getScan()/getAction()) and the cutscene loops (animation.cpp), neither
++	// of which returns to the main loop — so A11yLayer::poll() cannot honour a
++	// `skip` while they block it (gotcha 5). Let the a11y layer read the command
++	// file here (throttled) and, if a `skip` is queued, raise the engine's own
++	// kActionSkip so the loop's existing skip test fires (R7.3, R7.4). Guarded
++	// on _a11y so the engine runs unchanged with no layer live.
++	if (_a11y)
++		_a11y->onUpdateEvents();
+ }
+ 
+ void DrasculaEngine::delay(int ms) {
 diff --git a/engines/drascula/drascula.h b/engines/drascula/drascula.h
 index 6784cf39c0..cfa1d0484c 100644
 --- a/engines/drascula/drascula.h
@@ -210,61 +304,3 @@ index d39d58f6f0..2647b13a7d 100644
  	char msg[200];
  	Common::strlcpy(msg, message, 200);
  
-diff --git a/engines/drascula/converse.cpp b/engines/drascula/converse.cpp
-index 3e045cb81b..eaafd3494b 100644
---- a/engines/drascula/converse.cpp
-+++ b/engines/drascula/converse.cpp
-@@ -22,6 +22,7 @@
- #include "common/textconsole.h"
- 
- #include "drascula/drascula.h"
-+#include "drascula/a11y.h"
- 
- #include "common/text-to-speech.h"
- 
-@@ -214,6 +215,13 @@ void DrasculaEngine::converse(int index) {
- 	sayText(ttsPhrase3, Common::TextToSpeechManager::QUEUE);
- 	sayText(ttsPhrase4, Common::TextToSpeechManager::QUEUE);
- 
-+	// Ghostlight: a conversation runs this modal loop, so the main loop and
-+	// A11yLayer::poll() do not run while it is open (gotcha 4). Tell the layer a
-+	// conversation has opened so it lists the choices and services `choose`/
-+	// `choices` from inside the loop below (R7.1, R7.2, R6.3).
-+	if (_a11y)
-+		_a11y->onConverseBegin();
-+
- 	while (breakOut == 0 && !shouldQuit()) {
- 		updateRoom();
- 
-@@ -235,6 +243,17 @@ void DrasculaEngine::converse(int index) {
- 		phrase3_bottom = phrase2_bottom + 8 * print_abc_opc(phrase3, phrase2_bottom + 2, game3);
- 		phrase4_bottom = phrase3_bottom + 8 * print_abc_opc(phrase4, phrase3_bottom + 2, kDialogOptionUnselected);
- 
-+		// Ghostlight: the four option lines are now laid out, so the layer has
-+		// the band bottoms it needs to apply a `choose <n>` as a click. Describe
-+		// the conversation (A11Y_CHOICES on the opening frame and after each
-+		// choice) and, if a `choose`/`choices` is queued, act on it — a `choose`
-+		// sets _mouseY/_leftMouseButton here so the engine's own selection below
-+		// fires for that option this frame (R7.1, R7.2, R6.3).
-+		if (_a11y)
-+			_a11y->onConverseFrame(phrase1, phrase2, phrase3, phrase4,
-+			                       game1, game2, game3,
-+			                       phrase1_bottom, phrase2_bottom, phrase3_bottom, phrase4_bottom);
-+
- 		if (_mouseY > 0 && _mouseY < phrase1_bottom) {
- 			if (game1 == kDialogOptionClicked && _color != kColorWhite)
- 				color_abc(kColorWhite);
-@@ -302,6 +321,12 @@ void DrasculaEngine::converse(int index) {
- 		_system->delayMillis(10);
- 		updateScreen();
- 	} // while (breakOut == 0)
- 
-+	// Ghostlight: the conversation has ended (option 4 or breakOut). Tell the
-+	// layer so `choices`/`choose` go back to "no conversation open" and the
-+	// per-conversation state is cleared for the next one (R7.2).
-+	if (_a11y)
-+		_a11y->onConverseEnd();
-+
- 	if (currentChapter == 2)
- 		loadPic(menuBackground, backSurface);
- 	else

@@ -117,6 +117,28 @@ public:
 	void onConverseBegin();
 	void onConverseEnd();
 
+	// Called from the DrasculaEngine::updateEvents() hook — the engine's own
+	// per-frame event pump, which every cutscene and speech loop calls while it
+	// runs (talk.cpp's `do { ... } while (!isTalkFinished())` loops reach it via
+	// getScan()/getAction(); animation.cpp's cutscene loops call it directly and
+	// test getAction()). A cutscene or speech line runs the engine's OWN loop
+	// and does NOT return to the main loop — so poll() (and its command reader)
+	// never runs for the whole duration of that loop (gotcha 5). updateEvents()
+	// is the one place that DOES run every frame inside those loops, so this is
+	// the only hook that can honour a `skip` queued in the command file while a
+	// cutscene blocks poll().
+	//
+	// Each call (throttled to about every 250 ms so a ~10 ms delay loop does not
+	// hammer the filesystem) it reads the command file, and if a `skip` is
+	// queued it consumes that one command and raises the engine's own skip input
+	// — the SAME input the player's Escape/skip key produces — so the engine's
+	// existing skip path fires: a talk line ends (isTalkFinished sees the
+	// action/ a non-zero key and calls stopSound()), or a cutscene aborts (its
+	// `getAction() == kActionSkip` test breaks the animation loop). Non-`skip`
+	// commands queued meanwhile are left untouched for poll() to run once the
+	// cutscene settles and control returns to the main loop.
+	void onUpdateEvents();
+
 	// Called on every room entry; emits one `A11Y { ... }` room-state line.
 	void onRoomEntry();
 
@@ -348,6 +370,29 @@ private:
 	// handler yet emits A11Y_ERR and the layer keeps running (R2.5).
 	void runCommand(const Common::String &cmd);
 
+	// --- Cutscene / speech skipping (task 16, R7.3 / R7.4 / gotcha 5) -------
+
+	// Raise the engine's own skip input so its existing skip path fires. `skip`
+	// is modelled on the player's Escape/skip key, not a bespoke flag: we push
+	// kActionSkip into the engine's action buffer with the engine's own
+	// addActionToBuffer(), exactly as the keymapper does when the player presses
+	// the skip key. The next getAction() call inside the running loop then
+	// returns kActionSkip — a talk line ends (isTalkFinished() treats a non-None
+	// action as "skip" and calls stopSound()), and a cutscene aborts (the
+	// animation loop's `getAction() == kActionSkip` test breaks). One call ends
+	// exactly one line / advances one cutscene step, matching R7.4 ("one line at
+	// a time"). Used by both onUpdateEvents() (during a cutscene) and the
+	// poll()-path `skip` command.
+	void raiseSkip();
+
+	// Scan the command queue from _queueHead for the first `skip` line, and if
+	// one is present remove just that entry (keeping the order of the rest) and
+	// return true. Used by onUpdateEvents() so a `skip` queued while a cutscene
+	// blocks poll() is honoured immediately, while any non-`skip` commands
+	// queued at the same time stay in the queue for poll() to run once the
+	// cutscene settles. Returns false when no `skip` is queued.
+	bool takeQueuedSkip();
+
 	// --- Conversation helpers (task 15) -------------------------------------
 
 	// Emit one `A11Y_CHOICES` line from the current conversation's four option
@@ -435,6 +480,16 @@ private:
 	// of the next command to run; entries before it are spent. (R2.1, R2.2)
 	Common::Array<Common::String> _commandQueue;
 	uint _queueHead;
+
+	// Wall-clock time (g_system->getMillis()) of the last command-file read done
+	// from the updateEvents() skip hook. A cutscene's delay loops call
+	// updateEvents() every ~10 ms, so reading the command file on every call
+	// would churn the filesystem hundreds of times a second. onUpdateEvents()
+	// reads at most about once every 250 ms (gotcha 5 / the design's "about
+	// every 250 ms"), which is well inside human skip-key cadence and keeps a
+	// cutscene responsive to `skip` without the I/O storm. 0 means "never read
+	// from the skip hook yet", so the first cutscene frame reads immediately.
+	uint32 _lastSkipPollMs;
 
 	// Synthetic click state machine (R8 / gotchas 2, 3). A real mouse click is
 	// a press event on one frame followed by a release event on a later frame;
