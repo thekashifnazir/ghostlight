@@ -34,7 +34,7 @@ These tasks implement the design. Each cites the requirements it covers. Work sp
   - Confirm the checker compiles against the new `Describable` types and that behaviour is identical for plain-string and object-form descriptions.
   - _Requirements: 6.1, 6.2, 6.3_
 
-- [ ] 6. Validator and coverage tests for variants
+- [x] 6. Validator and coverage tests for variants
   - Under `packs/tools/test/`, add tests: a variant `when` with flag 50 reports one range error at the variant path; a variant `when` with an unknown milestone reports one unknown-milestone error at the variant path; a nested `any`/`all` inside a variant `when` with a bad flag is caught; a pack with valid variants reports no new errors; and `drascula-en.json` with the room 5 variants added (fixture or the real pack) passes coverage with no new gaps.
   - _Requirements: 5.2, 5.3, 5.4, 6.1, 6.2, 6.3_
 

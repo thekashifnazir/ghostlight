@@ -1361,3 +1361,11 @@ Files changed: `packs/tools/src/coverage.ts`, `.kiro/specs/description-variants/
 Time taken: about 10 minutes.
 What went wrong or surprised you: the planned `hasDescription` helper turned out to have no call site, because coverage checks presence by hotspot number, not by description text. Added a documenting comment instead of an unused function, which is the honest version of the task.
 What was learned: a design that says "add X where Y happens, if anywhere" needs the implementer to check whether Y happens at all; here it does not, so the right move was to prove and document agnosticism rather than add machinery no code reaches.
+
+## 106 · description-variants · 2026-11-07 · Task 6: validator and coverage tests for variants
+What was asked: task 6, add tests under `packs/tools/test/` for variant validation (bad flag, unknown milestone, nested combinator, valid variants) and for coverage being unaffected by variants.
+What Kiro did: added `packs/tools/test/variants.test.ts` (vitest, matching the existing style of resolving the real pack/schema/census). Validator cases: valid variants produce no errors; an out-of-range flag in a short variant is reported at `/rooms/5/short/variants/0/when`; an unknown milestone in a long variant is reported at its path; a nested `any` with a bad flag inside an object description variant is caught; and two bad variants are both reported (no short-circuit). Coverage case: the real pack with room 5 short/long and object-213 description switched to the object form still covers chapters 1 and 2 with zero gaps. Ran the file (6 passed) and the full tools suite (18 passed across 4 files).
+Files changed: `packs/tools/test/variants.test.ts`, `.kiro/specs/description-variants/tasks.md`, `docs/kiro-process.md`.
+Time taken: about 15 minutes.
+What went wrong or surprised you: nothing. The vitest stdout did not stream through the shell wrapper on the first run, so redirected to a log file and read it back.
+What was learned: filtering the validator result to paths containing `/variants/` makes the tests assert precisely on variant handling without being brittle to unrelated pack errors, and reusing the real pack as the fixture keeps the coverage test honest about the actual data.
