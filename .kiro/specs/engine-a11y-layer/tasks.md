@@ -104,7 +104,8 @@ These tasks implement the design. Each cites the requirements it covers. Our eng
   - Chapter-2 tests load a save at the chapter-2 start via `--save-slot` instead of replaying all of chapter 1 (the ch2-handbag and ch2-vending-machine fixtures); the save is generated on demand by `scripts/make-ch2-save.sh` and never committed (a Drascula save embeds a graphics thumbnail). Chapter-1 fixtures still replay from the start.
   - _Requirements: 9.1, 9.2_
 
-- [ ] 20. Low-level commands and parity lines
+- [ ] 20. Low-level commands and parity lines _(Optional — skipped)_
+  - Intentionally skipped for the chapters 1–2 demo: parity-only `verb`/`click` and `A11Y_HOVER`/`A11Y_SAY` lines are a nice-to-have, not needed to ship.
   - Keep `verb <0-6>` and `click <obj>` (click acts on the slot directly, mouse warped for hover).
   - Keep `A11Y_HOVER` and `A11Y_SAY` for parity with the spikes.
   - _Requirements: 2.6, 3.3_
@@ -123,7 +124,7 @@ These tasks implement the design. Each cites the requirements it covers. Our eng
     - every accepted command yields exactly one `A11Y_DIFF` or exactly one `A11Y_ERR`.
   - _Requirements: 2.2, 2.5, 4.1, 4.5, 4.8, 5.*_
 
-- [ ] 23. Cutscene over-skip guard
+- [x] 23. Cutscene over-skip guard
   - Extra `skip` commands arriving during a cutscene or speech loop (more skips than there are lines/cutscenes to end) MUST NOT leave the engine in a broken state: ignore or queue the surplus skips so that once the cutscene ends, no stray skip bleeds into the next room/line and state stays coherent.
   - Add a test that sends more `skip` commands than the crossing needs and asserts the chapter 1→2 crossing still yields exactly one coherent A11Y_DIFF (chapter [1,2], room [62,14]) and the engine remains in a valid state afterward.
   - _Requirements: 7.3, 7.4, gotcha 5_

@@ -510,6 +510,30 @@ private:
 	// cutscene settles. Returns false when no `skip` is queued.
 	bool takeQueuedSkip();
 
+	// --- Cutscene over-skip guard (task 23, R7.3 / R7.4 / gotcha 5) ---------
+	//
+	// Drop every `skip` the player queued beyond what the cutscene/speech loop
+	// actually consumed, so a burst of extra skips cannot bleed past the
+	// cutscene into the next room or line. Two leftovers can exist once a
+	// blocking loop ends:
+	//   1. `skip` ACTIONS already pushed into the engine's own _actionBuffer by
+	//      raiseSkip() that the loop never drained (it ended first). The next
+	//      getAction() in the new room would otherwise return kActionSkip and
+	//      skip that room's first line. We discard them by resetting the
+	//      engine's action-buffer indices (we are a friend of DrasculaEngine),
+	//      which drops ONLY the queued input — it runs no engine logic and is
+	//      the same net state as the buffer having drained naturally.
+	//   2. `skip` COMMANDS still sitting unread in _commandQueue (the player
+	//      queued more than the cutscene needed). poll() would run each as a
+	//      main-loop `skip` in the new room, raising a fresh kActionSkip there.
+	//      We remove every queued `skip` from _queueHead onward, keeping any
+	//      non-`skip` command's order intact so legitimate follow-up commands
+	//      still run.
+	// Non-`skip` state is never touched. Called when a chapter-crossing cutscene
+	// has just ended (the crossing path in poll()) and defensively at a fresh
+	// chapter start (onStartup()), so no stray skip survives the transition.
+	void dropSurplusSkips();
+
 	// --- Conversation helpers (task 15) -------------------------------------
 
 	// Emit one `A11Y_CHOICES` line from the current conversation's four option

@@ -2199,6 +2199,15 @@ bool A11yLayer::poll() {
 			// coherent diff once its room is live (R4.3, design "Settling"). Then
 			// return true so the main-loop hook ends runCurrentChapter(), exactly
 			// as `if (verify1()) return true;` does for a real door click.
+			//
+			// Task 23 (R7.3/R7.4, gotcha 5): the crossing cutscene (animation_2_1)
+			// was advanced by paced `skip`s, and the player may have queued MORE
+			// skips than the cutscene had steps to end. Drop the surplus now —
+			// both the extra kActionSkip left unconsumed in the engine's action
+			// buffer and any extra `skip` still unread in our queue — so no stray
+			// skip bleeds into chapter 2's first room (skipping its opening line)
+			// or runs as a main-loop `skip` there. Non-`skip` commands are kept.
+			dropSurplusSkips();
 			stashCrossChapterDiff(cmd, before, errCountBefore);
 			return true;
 		}
@@ -2325,6 +2334,15 @@ bool A11yLayer::emitPendingCrossChapterDiff() {
 	// emitDiff() takes the after-snapshot from the live engine (now the new
 	// chapter's room) and builds the one coherent crossing diff.
 	emitDiff(cmd, before, errCountBefore);
+
+	// Task 23 (R7.3/R7.4, gotcha 5): belt-and-braces over-skip guard on the
+	// RECEIVING side. The outgoing chapter-1 layer already dropped the surplus,
+	// but this new layer was constructed before chapter 2's setup ran, so its
+	// onUpdateEvents() could have pulled further `skip`s the player wrote while
+	// the setup animations played. Drop any such surplus now that chapter 2's
+	// first room is live, so the very first command the player issues in the new
+	// room is not a stray leftover skip and no unconsumed kActionSkip lingers.
+	dropSurplusSkips();
 
 	// Sync the last-room markers to the settled state so poll() does not then
 	// re-emit a plain room-state line for the same room.
@@ -2462,6 +2480,48 @@ bool A11yLayer::takeQueuedSkip() {
 		}
 	}
 	return false;
+}
+
+// Drop every surplus `skip` once a cutscene/speech loop has ended, so an
+// over-skip (more skips than there were lines/cutscenes to end) cannot bleed
+// past the cutscene into the next room or line (task 23, R7.3/R7.4, gotcha 5).
+// Two kinds of leftover can survive a blocking loop; both are cleared here, and
+// nothing else is touched.
+void A11yLayer::dropSurplusSkips() {
+	// 1) Skip ACTIONS still queued in the engine's own action buffer. During a
+	//    cutscene onUpdateEvents() raises one kActionSkip per queued `skip`; the
+	//    cutscene drains them between steps via getAction(). If more were raised
+	//    than the cutscene had steps left to consume, the surplus kActionSkip
+	//    entries sit in _actionBuffer and the NEXT getAction() — now in the new
+	//    room — would return kActionSkip and skip that room's first line. As a
+	//    friend of DrasculaEngine we discard exactly those queued actions by
+	//    collapsing the ring buffer (tail := head). This drops only unread input
+	//    and runs no engine logic — the same net state as the buffer having
+	//    drained naturally — and we deliberately do NOT call the engine's
+	//    flushActionBuffer(), which would re-enter updateEvents() (and so this
+	//    hook) mid-transition.
+	_engine->_actionBufferTail = _engine->_actionBufferHead;
+
+	// 2) Skip COMMANDS still unread in our own queue (the player queued more
+	//    `skip`s than the cutscene needed). Left in place, poll() would run each
+	//    as a main-loop `skip` in the new room, raising a fresh kActionSkip
+	//    there. Remove every `skip` from _queueHead onward, keeping the order of
+	//    any non-`skip` command so legitimate follow-ups still run (R2.2).
+	uint w = _queueHead;
+	for (uint r = _queueHead; r < _commandQueue.size(); r++) {
+		const Common::String &cmd = _commandQueue[r];
+		uint sp = 0;
+		while (sp < cmd.size() && cmd[sp] != ' ')
+			sp++;
+		Common::String verb = (sp < cmd.size()) ? Common::String(cmd.c_str(), sp) : cmd;
+		if (verb == "skip")
+			continue;                 // surplus skip: drop it
+		if (w != r)
+			_commandQueue[w] = _commandQueue[r];
+		w++;
+	}
+	while (_commandQueue.size() > w)
+		_commandQueue.remove_at(_commandQueue.size() - 1);
 }
 
 // Hook body: run from the end of DrasculaEngine::updateEvents() every frame.
