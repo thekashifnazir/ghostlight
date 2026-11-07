@@ -83,7 +83,7 @@ describe("replay fixtures: the recorded A11Y_DIFF sequence", () => {
     expect(start.chapter).toBe(1);
     expect(start.room).toBe(62);
     // Hero point is curX + curWidth/2, curY + curHeight in object space (R5).
-    expect(start.hero).toEqual({ x: 171, y: 158 });
+    expect(start.hero).toEqual({ x: 65, y: 145 });
 
     const seq = diffSequence(steps).map((d) => d.cmd);
     expect(seq).toEqual([
@@ -95,7 +95,6 @@ describe("replay fixtures: the recorded A11Y_DIFF sequence", () => {
       "walk 105",
       "talk 52",
       "walk 105",
-      "skip",
     ]);
 
     // Conversation: talk 53 opens choices, choose 2 marks it used and speaks

@@ -1,6 +1,6 @@
 {
   "label": "tavern",
-  "startRaw": "A11Y {\"chapter\":1,\"room\":62,\"hero\":{\"x\":171,\"y\":158},\"objects\":[{\"num\":52,\"name\":\"BARTENDER\",\"rect\":[2,100,42,60],\"walkTo\":[40,160],\"visible\":true,\"door\":false},{\"num\":53,\"name\":\"DRUNKARD\",\"rect\":[120,110,40,55],\"walkTo\":[150,165],\"visible\":true,\"door\":false},{\"num\":102,\"name\":\"BOTTLE\",\"rect\":[60,120,16,20],\"walkTo\":[70,160],\"visible\":true,\"door\":false},{\"num\":105,\"name\":\"DOOR\",\"rect\":[260,80,40,90],\"walkTo\":[270,165],\"visible\":true,\"door\":true,\"toRoom\":63}],\"inventory\":[28],\"flags\":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]}",
+  "startRaw": "A11Y {\"chapter\":1,\"room\":62,\"hero\":{\"x\":65,\"y\":145},\"objects\":[{\"num\":52,\"name\":\"BARTENDER\",\"rect\":[113,50,39,34],\"walkTo\":[113,121],\"visible\":true,\"door\":false},{\"num\":53,\"name\":\"DRUNKARD\",\"rect\":[178,52,25,60],\"walkTo\":[153,115],\"visible\":true,\"door\":false},{\"num\":54,\"name\":\"PIANIST\",\"rect\":[232,117,44,54],\"walkTo\":[216,133],\"visible\":true,\"door\":false},{\"num\":100,\"name\":\"SKULL\",\"rect\":[285,102,18,16],\"walkTo\":[206,152],\"visible\":true,\"door\":false},{\"num\":101,\"name\":\"BIN\",\"rect\":[59,93,20,24],\"walkTo\":[96,119],\"visible\":true,\"door\":false},{\"num\":102,\"name\":\"POSTER\",\"rect\":[87,18,46,16],\"walkTo\":[104,122],\"visible\":true,\"door\":false},{\"num\":103,\"name\":\"BLACKBOARD\",\"rect\":[73,66,16,16],\"walkTo\":[87,118],\"visible\":true,\"door\":false},{\"num\":104,\"name\":\"DOOR\",\"rect\":[7,74,36,51],\"walkTo\":[48,130],\"visible\":true,\"door\":false},{\"num\":105,\"name\":\"DOOR\",\"rect\":[206,44,28,39],\"walkTo\":[220,116],\"visible\":true,\"door\":true,\"toRoom\":63},{\"num\":106,\"name\":\"DOOR\",\"rect\":[257,49,18,50],\"walkTo\":[234,101],\"visible\":true,\"door\":true,\"toRoom\":63}],\"inventory\":[28],\"flags\":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]}",
   "steps": [
     {
       "cmd": "inv",
@@ -14,25 +14,25 @@
       "cmd": "look 102",
       "raw": [
         "A11Y_CMD look 102",
-        "A11Y_TEXT IT'S A BOTTLE OF WINE",
-        "A11Y_DIFF {\"cmd\":\"look 102\",\"flags\":{\"12\":[0,1]},\"said\":[{\"color\":\"yellow\",\"text\":\"IT'S A BOTTLE OF WINE\"}],\"changed\":false}"
+        "A11Y_TEXT BEST BURGERS ON THIS SIDE OF THE DANUBE, ONLY 325!",
+        "A11Y_DIFF {\"cmd\":\"look 102\",\"said\":[{\"color\":\"yellow\",\"text\":\"BEST BURGERS ON THIS SIDE OF THE DANUBE, ONLY 325!\"}],\"changed\":false}"
       ]
     },
     {
       "cmd": "talk 53",
       "raw": [
         "A11Y_CMD talk 53",
-        "A11Y_CHOICES {\"choices\":[{\"n\":1,\"text\":\"HI BOSS, HOW ARE YOU?\",\"used\":false},{\"n\":2,\"text\":\"AND HOW IS THE FAMILY?\",\"used\":false},{\"n\":3,\"text\":\"HAVE YOU SEEN A WOMAN ROUND HERE?\",\"used\":false},{\"n\":4,\"text\":\"I'D BETTER NOT SAY ANYTHING.\",\"used\":false,\"ends\":true}]}",
-        "A11Y_DIFF {\"cmd\":\"talk 53\",\"flags\":{\"12\":[1,0]},\"changed\":false}"
+        "A11Y_CHOICES {\"choices\":[{\"n\":1,\"text\":\"HI BOSS, HOW ARE YOU?\",\"used\":false},{\"n\":2,\"text\":\"AND HOW IS THE FAMILY?\",\"used\":false},{\"n\":3,\"text\":\"THIS IS QUITE GROOVY, HUH?\",\"used\":false},{\"n\":4,\"text\":\"I'D BETTER NOT SAY ANYTHING.\",\"used\":false,\"ends\":true}]}",
+        "A11Y_DIFF {\"cmd\":\"talk 53\",\"changed\":false}"
       ]
     },
     {
       "cmd": "choose 2",
       "raw": [
         "A11Y_CMD choose 2",
-        "A11Y_CHOICES {\"choices\":[{\"n\":1,\"text\":\"HI BOSS, HOW ARE YOU?\",\"used\":false},{\"n\":2,\"text\":\"AND HOW IS THE FAMILY?\",\"used\":true},{\"n\":3,\"text\":\"HAVE YOU SEEN A WOMAN ROUND HERE?\",\"used\":false},{\"n\":4,\"text\":\"I'D BETTER NOT SAY ANYTHING.\",\"used\":false,\"ends\":true}]}",
         "A11Y_TEXT AND HOW IS THE FAMILY?",
         "A11Y_TEXT THEY ARE ALL DEAD, THANKS.  HIC...!",
+        "A11Y_CHOICES {\"choices\":[{\"n\":1,\"text\":\"HI BOSS, HOW ARE YOU?\",\"used\":false},{\"n\":2,\"text\":\"AND HOW IS THE FAMILY?\",\"used\":true},{\"n\":3,\"text\":\"THIS IS QUITE GROOVY, HUH?\",\"used\":false},{\"n\":4,\"text\":\"I'D BETTER NOT SAY ANYTHING.\",\"used\":false,\"ends\":true}]}",
         "A11Y_DIFF {\"cmd\":\"choose 2\",\"said\":[{\"color\":\"yellow\",\"text\":\"AND HOW IS THE FAMILY?\"},{\"color\":\"darkgreen\",\"text\":\"THEY ARE ALL DEAD, THANKS.  HIC...!\"}],\"changed\":false}"
       ]
     },
@@ -40,7 +40,8 @@
       "cmd": "choose 4",
       "raw": [
         "A11Y_CMD choose 4",
-        "A11Y_DIFF {\"cmd\":\"choose 4\",\"changed\":false}"
+        "A11Y_TEXT I'D BETTER NOT SAY ANYTHING.",
+        "A11Y_DIFF {\"cmd\":\"choose 4\",\"flags\":{\"12\":[1,0]},\"said\":[{\"color\":\"yellow\",\"text\":\"I'D BETTER NOT SAY ANYTHING.\"}],\"changed\":false}"
       ]
     },
     {
@@ -55,23 +56,54 @@
       "cmd": "talk 52",
       "raw": [
         "A11Y_CMD talk 52",
+        "A11Y_CMD skip",
         "A11Y_TEXT YOU, BARTENDER...!!",
         "A11Y_TEXT WHAT HAPPENED? WHAT'S THE MATTER?",
-        "A11Y_DIFF {\"cmd\":\"talk 52\",\"flags\":{\"0\":[0,1]},\"said\":[{\"color\":\"yellow\",\"text\":\"YOU, BARTENDER...!!\"},{\"color\":\"maroon\",\"text\":\"WHAT HAPPENED? WHAT'S THE MATTER?\"}],\"changed\":true}"
+        "A11Y_CMD skip",
+        "A11Y_TEXT I WOULD LIKE TO HAVE A ROOM PLEASE",
+        "A11Y_CMD skip",
+        "A11Y_TEXT OK. ROOM 512. UPSTAIRS. THE KEY IS UNDER THE DOOR",
+        "A11Y_CMD skip",
+        "A11Y_TEXT DO YOU KNOW WHERE I CAN FIND THE MAN CALLED DRASCULA?",
+        "A11Y_CMD skip",
+        "A11Y_TEXT COUNT DRASCULA!!?",
+        "A11Y_CMD skip",
+        "A11Y_TEXT YES, SO WHAT?",
+        "A11Y_CMD skip",
+        "A11Y_TEXT NO, NOTHING. THAT GUY JUST HAS A BAD REPUTATION AROUND HERE",
+        "A11Y_CMD skip",
+        "A11Y_TEXT SO?",
+        "A11Y_TEXT WELL, THERE ARE ALL KINDS OF STORIES GOING AROUND ABOUT HIM, SOME SAY HE IS A VAMPIRE WHO KIDNAPS PEOPLE TO SUCK THEIR BLOOD",
+        "A11Y_CMD skip",
+        "A11Y_TEXT HOWEVER, SOME OTHERS SAY THAT HE IS JUST AN ORGAN-DEALER AND THAT IS THE REASON WHY THERE ARE BODY PARTS ALL OVER THE PLACE",
+        "A11Y_CMD skip",
+        "A11Y_TEXT IS...THAT RIGHT?",
+        "A11Y_CMD skip",
+        "A11Y_TEXT BUT OF COURSE, THOSE ARE JUST RUMORS. HE'S PROBABLY BOTH THINGS. BY THE WAY, WHY DO YOU WANT TO MEET HIM?",
+        "A11Y_CMD skip",
+        "A11Y_TEXT GOOD QUESTION. LET ME TELL YOU MY STORY. LOOK...",
+        "A11Y_CMD skip",
+        "A11Y_TEXT FORGET IT. I'M REALLY BUSY...",
+        "A11Y_CMD skip",
+        "A11Y_TEXT IT WILL TAKE JUST FIVE MINUTES",
+        "A11Y_CMD skip",
+        "A11Y_TEXT WELL, OK. BUT JUST BECAUSE I WANT TO DO IT, NOT BECAUSE YOU TOLD ME TO",
+        "A11Y_CMD skip",
+        "A11Y_TEXT I'M JOHN HACKER AND I REPRESENT A BRITISH PROPERTY COMPANY",
+        "A11Y_CMD skip",
+        "A11Y_TEXT AS FAR AS I KNOW, COUNT DRASCULA WANTS TO BUY SOME PIECES OF LAND IN GIBRALTAR AND MY COMPANY SENT ME HERE TO NEGOTIATE THE SALE",
+        "A11Y_CMD skip",
+        "A11Y_TEXT I THINK I'M GOING BACK TO MY MUM'S TOMORROW, FIRST THING IN THE MORNING",
+        "A11Y_CMD skip",
+        "A11Y_DIFF {\"cmd\":\"talk 52\",\"flags\":{\"0\":[0,1]},\"said\":[{\"color\":\"yellow\",\"text\":\"YOU, BARTENDER...!!\"},{\"color\":\"maroon\",\"text\":\"WHAT HAPPENED? WHAT'S THE MATTER?\"},{\"color\":\"yellow\",\"text\":\"I WOULD LIKE TO HAVE A ROOM PLEASE\"},{\"color\":\"maroon\",\"text\":\"OK. ROOM 512. UPSTAIRS. THE KEY IS UNDER THE DOOR\"},{\"color\":\"yellow\",\"text\":\"DO YOU KNOW WHERE I CAN FIND THE MAN CALLED DRASCULA?\"},{\"color\":\"maroon\",\"text\":\"COUNT DRASCULA!!?\"},{\"color\":\"yellow\",\"text\":\"YES, SO WHAT?\"},{\"color\":\"maroon\",\"text\":\"NO, NOTHING. THAT GUY JUST HAS A BAD REPUTATION AROUND HERE\"},{\"color\":\"yellow\",\"text\":\"SO?\"},{\"color\":\"maroon\",\"text\":\"WELL, THERE ARE ALL KINDS OF STORIES GOING AROUND ABOUT HIM, SOME SAY HE IS A VAMPIRE WHO KIDNAPS PEOPLE TO SUCK THEIR BLOOD\"},{\"color\":\"maroon\",\"text\":\"HOWEVER, SOME OTHERS SAY THAT HE IS JUST AN ORGAN-DEALER AND THAT IS THE REASON WHY THERE ARE BODY PARTS ALL OVER THE PLACE\"},{\"color\":\"yellow\",\"text\":\"IS...THAT RIGHT?\"},{\"color\":\"maroon\",\"text\":\"BUT OF COURSE, THOSE ARE JUST RUMORS. HE'S PROBABLY BOTH THINGS. BY THE WAY, WHY DO YOU WANT TO MEET HIM?\"},{\"color\":\"yellow\",\"text\":\"GOOD QUESTION. LET ME TELL YOU MY STORY. LOOK...\"},{\"color\":\"maroon\",\"text\":\"FORGET IT. I'M REALLY BUSY...\"},{\"color\":\"yellow\",\"text\":\"IT WILL TAKE JUST FIVE MINUTES\"},{\"color\":\"maroon\",\"text\":\"WELL, OK. BUT JUST BECAUSE I WANT TO DO IT, NOT BECAUSE YOU TOLD ME TO\"},{\"color\":\"yellow\",\"text\":\"I'M JOHN HACKER AND I REPRESENT A BRITISH PROPERTY COMPANY\"},{\"color\":\"yellow\",\"text\":\"AS FAR AS I KNOW, COUNT DRASCULA WANTS TO BUY SOME PIECES OF LAND IN GIBRALTAR AND MY COMPANY SENT ME HERE TO NEGOTIATE THE SALE\"},{\"color\":\"yellow\",\"text\":\"I THINK I'M GOING BACK TO MY MUM'S TOMORROW, FIRST THING IN THE MORNING\"}],\"changed\":true}"
       ]
     },
     {
       "cmd": "walk 105",
       "raw": [
         "A11Y_CMD walk 105",
-        "A11Y_DIFF {\"cmd\":\"walk 105\",\"chapter\":[1,2],\"room\":[62,14],\"objects\":[{\"num\":159,\"name\":\"ESCALERA\",\"rect\":[10,60,40,100],\"walkTo\":[40,160],\"visible\":true,\"door\":true,\"toRoom\":12},{\"num\":162,\"name\":\"HABITACIONES\",\"rect\":[200,40,60,80],\"walkTo\":[230,160],\"visible\":true,\"door\":true,\"toRoom\":16},{\"num\":171,\"name\":\"DOOR\",\"rect\":[120,70,36,90],\"walkTo\":[135,160],\"visible\":true,\"door\":true,\"toRoom\":15},{\"num\":52,\"name\":\"BARTENDER\",\"rect\":[2,100,42,60],\"walkTo\":[40,160],\"visible\":true,\"door\":false}],\"changed\":true}"
-      ]
-    },
-    {
-      "cmd": "skip",
-      "raw": [
         "A11Y_CMD skip",
-        "A11Y_DIFF {\"cmd\":\"skip\",\"changed\":false}"
+        "A11Y_DIFF {\"cmd\":\"walk 105\",\"chapter\":[1,2],\"room\":[62,14],\"objects\":[{\"num\":159,\"name\":\"ESCALERA\",\"rect\":[4,66,36,68],\"walkTo\":[38,128],\"visible\":true,\"door\":true,\"toRoom\":12},{\"num\":162,\"name\":\"HABITACIONES\",\"rect\":[200,39,37,49],\"walkTo\":[238,109],\"visible\":true,\"door\":true,\"toRoom\":16},{\"num\":171,\"name\":\"DOOR\",\"rect\":[254,47,25,57],\"walkTo\":[245,107],\"visible\":true,\"door\":true,\"toRoom\":15},{\"num\":52,\"name\":\"BARTENDER\",\"rect\":[111,48,38,32],\"walkTo\":[123,127],\"visible\":true,\"door\":false},{\"num\":54,\"name\":\"PIANIST\",\"rect\":[235,118,30,43],\"walkTo\":[215,130],\"visible\":true,\"door\":false},{\"num\":53,\"name\":\"DRUNKARD\",\"rect\":[176,55,26,56],\"walkTo\":[156,122],\"visible\":true,\"door\":false},{\"num\":199,\"name\":\"PIANO\",\"rect\":[266,119,36,54],\"walkTo\":[228,162],\"visible\":true,\"door\":false},{\"num\":200,\"name\":\"POSTER\",\"rect\":[280,73,13,22],\"walkTo\":[239,127],\"visible\":true,\"door\":false},{\"num\":203,\"name\":\"SKULL\",\"rect\":[285,100,15,19],\"walkTo\":[222,158],\"visible\":true,\"door\":false},{\"num\":202,\"name\":\"POSTER\",\"rect\":[88,17,47,18],\"walkTo\":[206,114],\"visible\":true,\"door\":false},{\"num\":201,\"name\":\"BLACKBOARD\",\"rect\":[74,66,14,16],\"walkTo\":[99,118],\"visible\":true,\"door\":false},{\"num\":204,\"name\":\"BIN\",\"rect\":[60,93,15,23],\"walkTo\":[99,118],\"visible\":true,\"door\":false}],\"flags\":{\"0\":[1,0],\"16\":[0,1],\"17\":[0,1],\"27\":[0,1]},\"changed\":true}"
       ]
     }
   ]
