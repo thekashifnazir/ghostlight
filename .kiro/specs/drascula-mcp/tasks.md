@@ -71,7 +71,7 @@ These tasks build the server incrementally, replay-first so everything is runnab
   - Verify: the entry parses; Kiro reconnects and lists the `drascula` tools; a `start` then `state` call over replay returns the room.
   - _Requirements: 9.1, 9.2, 9.3, 9.4, 10.4_
 
-- [ ] 14. Native transport (written to the contract; verified when the engine build lands)
+- [x] 14. Native transport (written to the contract; verified when the engine build lands)
   - Add `mcp/src/native.ts`: spawn `vendor/scummvm/scummvm` with `--savepath=/tmp/ghostlight-mcp --subtitles` plus the game/extra paths from config and the optional load-slot; create and own `/tmp/ghostlight-mcp`; write commands to its `a11y-cmd.txt`; read stderr, parse each line with `parseA11yLine`, buffer partial lines.
   - Settle on markers (`A11Y_CMD` echo → single `A11Y_DIFF`/`A11Y_ERR`, accumulating interleaved events), with a hard 60 s cap returning a timeout `CommandResult.error`; never use fixed sleeps. Surface a subtitles-off `A11Y_ERR` as a start error.
   - Teardown: `SIGTERM` then `SIGKILL`, remove only the command file (`a11y-cmd.txt`); never delete the save files, because the `--save-slot` start path needs them to begin partway through. A process-exit handler kills a still-running child.
