@@ -1353,3 +1353,11 @@ Files changed: `packs/tools/src/validate.ts`, `.kiro/specs/description-variants/
 Time taken: about 15 minutes.
 What went wrong or surprised you: nothing. Reusing `checkConditionFlags`/`walkCondition` meant the recursion into `all`/`any`/`not` came for free, so the only new code is the per-description dispatch.
 What was learned: the validator's existing condition walk is the right single seam; variant checking is just "find the conditions and hand them to the walk", which keeps variant and milestone/opensWhen checks identical by construction.
+
+## 105 · description-variants · 2026-11-07 · Task 5: coverage stays agnostic to description shape
+What was asked: task 5, keep the coverage checker correct for packs that use variants, with a `hasDescription` helper where coverage reasons about description presence.
+What Kiro did: grepped `packs/tools/src/coverage.ts` and confirmed it never reads `short`, `long` or `description` text; it reasons only over hotspot numbers, doors and the exit graph. So the checks are already shape-agnostic. Rather than add the design's `hasDescription` helper as dead code (the design made it conditional on "if anywhere", and there is no anywhere), documented the intent with a header comment and left the checks untouched. Verified: coverage on the real pack and on a pack with room 5 short/long and object-213 description in the object form both return ok=true with 0 gaps.
+Files changed: `packs/tools/src/coverage.ts`, `.kiro/specs/description-variants/tasks.md`, `docs/kiro-process.md`.
+Time taken: about 10 minutes.
+What went wrong or surprised you: the planned `hasDescription` helper turned out to have no call site, because coverage checks presence by hotspot number, not by description text. Added a documenting comment instead of an unused function, which is the honest version of the task.
+What was learned: a design that says "add X where Y happens, if anywhere" needs the implementer to check whether Y happens at all; here it does not, so the right move was to prove and document agnosticism rather than add machinery no code reaches.

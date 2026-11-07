@@ -29,7 +29,7 @@ These tasks implement the design. Each cites the requirements it covers. Work sp
   - Collect every error into the existing list without short-circuiting.
   - _Requirements: 5.1, 5.2, 5.3, 5.4, 5.5_
 
-- [ ] 5. Keep coverage agnostic to description shape
+- [x] 5. Keep coverage agnostic to description shape
   - In `packs/tools/src/coverage.ts`, add a local `hasDescription(d: Describable | undefined): boolean` helper (true for a non-empty string or an object-form value) and use it anywhere coverage reasons about description presence; leave room, hotspot, door and exit-graph checks otherwise unchanged.
   - Confirm the checker compiles against the new `Describable` types and that behaviour is identical for plain-string and object-form descriptions.
   - _Requirements: 6.1, 6.2, 6.3_

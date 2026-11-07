@@ -1,5 +1,10 @@
 // Coverage checker: compare a pack to the census for the covered chapters.
 // Reads data only; no network, no writes.
+//
+// Coverage reasons only over hotspot numbers, doors and the exit graph; it
+// never inspects room `short`/`long` or object `description` text. So a
+// description being a plain string or the variant object form (Describable)
+// makes no difference here: a covered room or hotspot stays covered either way.
 import type { Census, Pack } from "./types.js";
 
 export interface CoverageGap {
