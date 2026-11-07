@@ -52,8 +52,8 @@ These tasks build the server incrementally, replay-first so everything is runnab
   - Verify: launch the server with the MCP SDK's inspector or a scripted client over stdio; confirm tools are listed and `start`→`state` works on replay. Confirm nothing but protocol reaches stdout.
   - _Requirements: 1.1, 1.2, 1.4, 1.5, 1.6_
 
-- [ ] 10. Replay regression test — recorded diffs for `tavern.cmd`
-  - Add `mcp/test/replay.test.ts`: start the `tavern` replay session and drive the tools in the fixture's recorded order, asserting each returns the recorded parsed diff/events — the `talk 53` choices, the `talk 52` `flags {"0":[0,1]}` / `changed:true`, the `walk 105` chapter crossing (`chapter [1,2]`, `room [62,14]`, new objects), and the `look 999` error result.
+- [x] 10. Replay regression test — recorded diffs for `tavern.cmd`
+  - Add `mcp/test/replay.test.ts`: start the `tavern` replay session and drive the tools in the fixture's re-recorded order (8 steps; the `inv` step omitted per the entry-65 gap): `look 102`, `talk 53`, `choose 2`, `choose 4`, `walk 105` (door text), `talk 52`, `walk 105` (crossing). Assert each returns the recorded parsed diff/events — `look 102` the "BEST BURGERS…" `said`/`changed:false`, `talk 53` the four choices (option 4 `ends:true`), `choose 2` the two-line exchange with option 2 then `used`, `talk 52` `flags {"0":[0,1]}` / `changed:true`, and the second `walk 105` the chapter crossing (`chapter [1,2]`, `room [62,14]`, new objects). The `look 999` error case is the validation property test (task 11), not in this fixture.
   - Verify: `vitest run` green.
   - _Requirements: 7.3, 3.1, 3.2, 5.3_
 
