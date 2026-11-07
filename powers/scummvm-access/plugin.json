@@ -1,0 +1,12 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "scummvm-access",
+  "version": "1.0.0",
+  "description": "Make a ScummVM point-and-click adventure playable by blind and low-vision people (the ScummVM Access method): an accessibility pack format and validator, the pack-writing and engine-gotchas rules, and the game-as-tools drascula-mcp server for surveying a game by command. Use when authoring or validating an accessibility pack, writing the text a player hears, adapting a new ScummVM engine, or surveying a game through the MCP server.",
+  "author": {
+    "name": "Ghostlight"
+  },
+  "keywords": ["scummvm", "accessibility", "a11y", "adventure game", "pack format", "screen reader", "hotspot", "milestone", "hints", "survey", "mcp"],
+  "license": "MIT",
+  "repository": "https://github.com/thekashifnazir/ghostlight"
+}

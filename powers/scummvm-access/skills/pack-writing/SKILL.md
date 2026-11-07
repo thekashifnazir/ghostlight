@@ -1,6 +1,26 @@
+---
+name: "pack-writing"
+description: "Write and review the text in a ScummVM accessibility pack: room names and descriptions, exit labels, spoken object and item names, text fixes, cutscene descriptions, recaps, and graded hints. Use when authoring or reviewing any line of text a player will hear."
+license: "MIT"
+compatibility: "Writing or reviewing accessibility-pack text (packs/<gameId>-<lang>.json). Pairs with the scummvm-access pack schema and validator."
+metadata:
+  author: "Ghostlight"
+  version: "1.0.0"
+---
+
 # Pack writing
 
-Rules for all text in accessibility packs (room names and descriptions, exit labels, spoken object names, item names, text fixes, cutscene descriptions, recaps and hints). The engine supplies live state; the pack supplies words.
+## Overview
+
+Rules for all text in accessibility packs: room names and descriptions, exit labels, spoken object names, item names, text fixes, cutscene descriptions, recaps, and hints. The engine supplies live state (which room you are in, hotspot numbers and positions, inventory ids, progress flags); the pack supplies the words. This skill governs the prose, not the structure. For the field-by-field format see the pack schema and `FORMAT.md` bundled with this power.
+
+Load this skill before authoring or reviewing any line a player will hear. For a pure validation run, just run the validator; for adapting a new engine, use the `engine-gotchas` skill instead.
+
+## Prerequisites Checklist
+
+- [ ] You are writing or reviewing the text content of a pack, not its structure
+- [ ] You know the pack's language and region (for example `-en` is British English)
+- [ ] You have the room's or scene's actual picture when you intend to set `seen: true`
 
 ## Voice and style
 
@@ -37,3 +57,11 @@ Rules for all text in accessibility packs (room names and descriptions, exit lab
 
 - Set `seen: true` only when the text was written from the room's or scene's actual picture, `false` when from object names and game text only.
 - Every hotspot the engine can report for a covered room needs an entry in `exits` or `objects`. The coverage checker enforces this against the census.
+
+## Troubleshooting
+
+### A hotspot name reads as Spanish or is wrong in the engine data
+The engine reports names as-is. Do not edit the engine. Add a label override through the pack's `textFixes` so the player hears the corrected word.
+
+### The coverage checker reports a hotspot with no pack entry
+Every hotspot the engine can report for a covered room must appear in `exits` or `objects`. Add the missing entry rather than narrowing coverage.

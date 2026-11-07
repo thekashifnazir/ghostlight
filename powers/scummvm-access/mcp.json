@@ -1,22 +1,15 @@
 {
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json",
   "mcpServers": {
     "drascula": {
-      "command": "mcp/node_modules/.bin/tsx",
-      "args": [
-        "mcp/src/server.ts"
-      ],
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "tsx", "src/server.ts"],
+      "cwd": "${PLUGIN_DATA}/drascula-mcp",
       "env": {
         "DRASCULA_MCP_TRANSPORT": "replay",
         "DRASCULA_MCP_FIXTURE": "tavern"
-      },
-      "disabled": false,
-      "autoApprove": [
-        "start",
-        "stop",
-        "state",
-        "inventory",
-        "choices"
-      ]
+      }
     }
   }
 }
