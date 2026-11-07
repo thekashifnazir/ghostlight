@@ -25,7 +25,7 @@ These tasks build the server incrementally, replay-first so everything is runnab
   - Verify: unit test that a room-change diff (the `walk 105` chapter crossing from `tavern.json`) updates `currentRoom` to room 14 with the new objects.
   - _Requirements: 4.1, 4.2, 8.1, 8.4_
 
-- [ ] 5. Config and transport selection
+- [x] 5. Config and transport selection
   - Add `mcp/src/config.ts`: resolve transport (`replay` default) and fixture name from env/flags; resolve native launch config (binary, game path, extrapath, savepath default `/tmp/ghostlight-mcp`, optional slot) with defaults matching `scripts/build-engine.sh`. Throw a clear named error for an unresolvable selection. Never read or print a key.
   - Verify: unit test that default selection is `replay` + `tavern`, and that a missing fixture name throws a message naming it.
   - _Requirements: 1.3, 1.4, 1.6, 6.1, 9.3, 9.4_
