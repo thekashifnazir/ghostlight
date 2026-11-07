@@ -1369,3 +1369,11 @@ Files changed: `packs/tools/test/variants.test.ts`, `.kiro/specs/description-var
 Time taken: about 15 minutes.
 What went wrong or surprised you: nothing. The vitest stdout did not stream through the shell wrapper on the first run, so redirected to a log file and read it back.
 What was learned: filtering the validator result to paths containing `/variants/` makes the tests assert precisely on variant handling without being brittle to unrelated pack errors, and reusing the real pack as the fixture keeps the coverage test honest about the actual data.
+
+## 107 · description-variants · 2026-11-07 · Task 7: the pure resolver
+What was asked: task 7, add `src/model/variants.ts` with a pure `resolveDescription(d, state, reached)` reusing the hint core's `evaluate`.
+What Kiro did: wrote `src/model/variants.ts` with a player-side `Describable` type (`string | { default, variants:[{when,text}] }`), an `isVariantList` guard, and `resolveDescription` that returns a plain string as-is, else the first variant whose `when` holds (via `evaluate` from `src/hints/reached.ts` against the `EngineHintState` and reached set), else the `default`. Imports `Condition` from the pack tools types as `reached.ts` does, so the player keeps no pack-tools runtime dependency. Player typecheck clean. Smoke-ran the four behaviours: plain returns itself, default on no match, variant on match, first-match-wins among overlapping.
+Files changed: `src/model/variants.ts`, `.kiro/specs/description-variants/tasks.md`, `docs/kiro-process.md`.
+Time taken: about 10 minutes.
+What went wrong or surprised you: nothing in the code. The bash wrapper intermittently swallowed tsc/vitest stdout, so ran the player typecheck through the npm script and smoke tests through tsx to get reliable output.
+What was learned: keeping the resolver a single pure function with one return per path is what makes the "exactly one string" property provable in task 8 without any branching cleverness.

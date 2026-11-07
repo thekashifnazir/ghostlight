@@ -38,7 +38,7 @@ These tasks implement the design. Each cites the requirements it covers. Work sp
   - Under `packs/tools/test/`, add tests: a variant `when` with flag 50 reports one range error at the variant path; a variant `when` with an unknown milestone reports one unknown-milestone error at the variant path; a nested `any`/`all` inside a variant `when` with a bad flag is caught; a pack with valid variants reports no new errors; and `drascula-en.json` with the room 5 variants added (fixture or the real pack) passes coverage with no new gaps.
   - _Requirements: 5.2, 5.3, 5.4, 6.1, 6.2, 6.3_
 
-- [ ] 7. The pure resolver
+- [x] 7. The pure resolver
   - Add `src/model/variants.ts` with a pure `resolveDescription(d, state, reached)` that returns `d` when it is a string, otherwise returns the first variant whose `when` holds (evaluated with `evaluate` from `src/hints/reached.ts` against the `EngineHintState` and reached set), otherwise the `default`.
   - Define the player-side `Describable` type locally (import `Condition` from the pack tools types as `reached.ts` does), so the player does not depend on pack-tools runtime.
   - Guarantee exactly one return per call path; never zero, never more than one.
