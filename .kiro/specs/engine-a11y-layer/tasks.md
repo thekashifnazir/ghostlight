@@ -92,7 +92,7 @@ These tasks implement the design. Each cites the requirements it covers. Our eng
   - Ensure a chapter-crossing `walk` (walk out, cutscene, enter next chapter) yields one coherent diff.
   - _Requirements: 4.1, 4.2, 4.3, 4.4, 4.5, 4.6, 4.7, 4.8, gotcha 8_
 
-- [-] 18. Checkpoint: replay the tavern script (after diff)
+- [x] 18. Checkpoint: replay the tavern script (after diff)
   - Run the replay harness on the tavern script against the native build and assert the full `A11Y_DIFF` sequence matches the spike transcript.
   - Confirm conversations emit `A11Y_CHOICES`, `said` carries colours, flags appear in diffs, and the chapter 1-to-2 crossing yields one coherent diff.
   - _Requirements: 4.*, 6.3, 7.*, gotcha 12_
