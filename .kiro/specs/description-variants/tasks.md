@@ -48,7 +48,7 @@ These tasks implement the design. Each cites the requirements it covers. Work sp
   - Add a fast-check suite (player test setup) that generates arbitrary `EngineHintState` and reached sets and asserts: resolving any description yields exactly one string; with no matching variant the result is `default`; a plain-string description resolves to itself; and with two overlapping always-true-together variants the earlier one wins.
   - _Requirements: 2.4, 2.6, 8.1, 8.2, 8.3, 8.4, 8.5_
 
-- [ ] 9. State-aware accessors in the pack reader
+- [x] 9. State-aware accessors in the pack reader
   - In `src/model/pack.ts`, change the `short`, `long`, and object `description` fields of the local interfaces to the player-side `Describable` type.
   - Add `roomShortFor(room, state, reached)`, `roomLongFor(room, state, reached)`, and `objectDescriptionFor(room, num, state, reached)` that read the raw `Describable` and return `resolveDescription(value, state, reached)` when present, `undefined` when absent (so engine fallback is preserved). Replace the plain-string accessors with these `*For` accessors and update the small number of in-tree callers (controller examine path, any look-around reader) to pass the state and reached set.
   - Keep `objectDescriptionFor` scoped to objects and NPCs; exits still fall back to `exitLabel`.

@@ -74,3 +74,81 @@ describe("Pack reader", () => {
     expect(() => loadPack(bad)).toThrow(/formatVersion/);
   });
 });
+
+describe("Pack reader: state-aware description accessors (description-variants)", () => {
+  // A small synthetic pack exercising both description forms, independent of
+  // the real pack's data so these tests stand alone.
+  function variantPack(): Pack {
+    const data = {
+      formatVersion: "1.0",
+      rooms: {
+        "5": {
+          chapters: [2],
+          name: "Behind the church fence",
+          short: {
+            default: "The window is boarded up.",
+            variants: [{ when: { flags: { "8": 1 } }, text: "The window is open." }],
+          },
+          long: {
+            default: "A boarded window on the left.",
+            variants: [
+              { when: { flags: { "8": 1 } }, text: "The forced-open window on the left." },
+            ],
+          },
+          objects: {
+            "213": {
+              name: "other window",
+              type: "object",
+              description: {
+                default: "A second window, shut.",
+                variants: [{ when: { flags: { "8": 1 } }, text: "A second window, beside the open one." }],
+              },
+            },
+            "212": { name: "moon", type: "object", description: "A full moon." },
+          },
+        },
+      },
+      items: [],
+    } as unknown as PackData;
+    return loadPack(data);
+  }
+
+  const pack = variantPack();
+  const base = { chapter: 2, room: 5, inventory: [] as number[] };
+  const closed = { ...base, flags: new Array(50).fill(0) };
+  const open = { ...base, flags: Object.assign(new Array(50).fill(0), { 8: 1 }) };
+  const NONE: ReadonlySet<string> = new Set();
+
+  it("resolves room short/long to the default before the condition holds", () => {
+    expect(pack.roomShortFor(5, closed, NONE)).toBe("The window is boarded up.");
+    expect(pack.roomLongFor(5, closed, NONE)).toBe("A boarded window on the left.");
+  });
+
+  it("resolves room short/long to the variant once the condition holds", () => {
+    expect(pack.roomShortFor(5, open, NONE)).toBe("The window is open.");
+    expect(pack.roomLongFor(5, open, NONE)).toBe("The forced-open window on the left.");
+  });
+
+  it("resolves an object description by state", () => {
+    expect(pack.objectDescriptionFor(5, 213, closed, NONE)).toBe("A second window, shut.");
+    expect(pack.objectDescriptionFor(5, 213, open, NONE)).toBe(
+      "A second window, beside the open one.",
+    );
+  });
+
+  it("returns a plain-string object description unchanged for any state", () => {
+    expect(pack.objectDescriptionFor(5, 212, closed, NONE)).toBe("A full moon.");
+    expect(pack.objectDescriptionFor(5, 212, open, NONE)).toBe("A full moon.");
+  });
+
+  it("returns undefined for unknown rooms/objects (engine fallback preserved)", () => {
+    expect(pack.roomShortFor(9999, open, NONE)).toBeUndefined();
+    expect(pack.objectDescriptionFor(5, 9999, open, NONE)).toBeUndefined();
+  });
+
+  it("the plain accessors return the default form, ignoring variants", () => {
+    expect(pack.roomShort(5)).toBe("The window is boarded up.");
+    expect(pack.roomLong(5)).toBe("A boarded window on the left.");
+    expect(pack.objectDescription(5, 213)).toBe("A second window, shut.");
+  });
+});

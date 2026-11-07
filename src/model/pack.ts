@@ -7,6 +7,15 @@
 // engine data. The pack is never written here.
 
 /** Minimal shapes of the parts of the pack this reader reads. */
+import type { EngineHintState } from "../hints/fold.js";
+import { resolveDescription, type Describable } from "./variants.js";
+
+/** The default form of a description: the string itself, or an object form's `default`. */
+function defaultText(d: Describable | undefined): string | undefined {
+  if (d === undefined) return undefined;
+  return typeof d === "string" ? d : d.default;
+}
+
 interface PackExit {
   label: string;
   to: number | null;
@@ -16,14 +25,14 @@ interface PackExit {
 interface PackObject {
   name: string;
   type?: "object" | "npc" | "exit";
-  description?: string;
+  description?: Describable;
 }
 
 interface PackRoom {
   chapters: number[];
   name: string;
-  short?: string;
-  long?: string;
+  short?: Describable;
+  long?: Describable;
   exits?: Record<string, PackExit>;
   objects?: Record<string, PackObject>;
 }
@@ -80,14 +89,46 @@ export class Pack {
     return this.room(room)?.name;
   }
 
-  /** The room's short description, or undefined. */
-  roomShort(room: number): string | undefined {
-    return this.room(room)?.short;
+  /**
+   * The room's short description resolved for the given state, or undefined if
+   * the room is not in the pack. A plain-string description resolves to itself;
+   * an object-form description resolves to its first matching variant, else its
+   * default (description-variants R2, R3.1).
+   */
+  roomShortFor(
+    room: number,
+    state: EngineHintState,
+    reached: ReadonlySet<string>,
+  ): string | undefined {
+    const short = this.room(room)?.short;
+    return short === undefined
+      ? undefined
+      : resolveDescription(short, state, reached);
   }
 
-  /** The room's long description, or undefined. */
+  /**
+   * The room's long description resolved for the given state, or undefined
+   * (description-variants R3.2).
+   */
+  roomLongFor(
+    room: number,
+    state: EngineHintState,
+    reached: ReadonlySet<string>,
+  ): string | undefined {
+    const long = this.room(room)?.long;
+    return long === undefined
+      ? undefined
+      : resolveDescription(long, state, reached);
+  }
+
+  /** The room's short description in its default form, ignoring variants. */
+  roomShort(room: number): string | undefined {
+    return defaultText(this.room(room)?.short);
+  }
+
+  /** The room's long description in its default form, ignoring variants. */
   roomLong(room: number): string | undefined {
-    return this.room(room)?.long;
+    return defaultText(this.room(room)?.long);
   }
 
   /** The spoken label for an exit hotspot, or undefined. */
@@ -119,9 +160,27 @@ export class Pack {
     return obj.type ?? "object";
   }
 
-  /** An object's description, or undefined. */
+  /**
+   * An object's description resolved for the given state, or undefined if the
+   * object has no description. Covers objects and NPCs only; exits have a
+   * label, not a description, so callers fall back to exitLabel for exits
+   * (description-variants R3.3).
+   */
+  objectDescriptionFor(
+    room: number,
+    num: number,
+    state: EngineHintState,
+    reached: ReadonlySet<string>,
+  ): string | undefined {
+    const desc = this.room(room)?.objects?.[String(num)]?.description;
+    return desc === undefined
+      ? undefined
+      : resolveDescription(desc, state, reached);
+  }
+
+  /** An object's description in its default form, ignoring variants. */
   objectDescription(room: number, num: number): string | undefined {
-    return this.room(room)?.objects?.[String(num)]?.description;
+    return defaultText(this.room(room)?.objects?.[String(num)]?.description);
   }
 
   /**

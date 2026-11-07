@@ -32,6 +32,15 @@ export interface ControllerDeps {
   pack: Pack;
   /** The room the player is in now, for keying pack descriptions by hotspot. */
   currentRoom: () => number;
+  /**
+   * The complete folded engine state and reached milestone set, for resolving
+   * description variants on examine (description-variants R3.3). Optional: when
+   * absent, examine uses the default description form. Wired by main.ts.
+   */
+  descriptionState?: () => {
+    state: import("../hints/fold.js").EngineHintState;
+    reached: ReadonlySet<string>;
+  };
   list: ListMode;
   verbMenu: VerbMenu;
   inventory: Inventory;
@@ -228,8 +237,12 @@ export class Controller {
     const h = this.d.list.current();
     if (!h) return;
     const room = this.d.currentRoom();
+    const ds = this.d.descriptionState?.();
+    const objectText = ds
+      ? this.d.pack.objectDescriptionFor(room, h.num, ds.state, ds.reached)
+      : this.d.pack.objectDescription(room, h.num);
     const authored =
-      this.d.pack.objectDescription(room, h.num) ??
+      objectText ??
       (h.kind === "exit" ? this.d.pack.exitLabel(room, h.num) : undefined);
     if (authored) this.d.live.announce(authored);
     this.d.adapter.send({ verb: "look", target: h.num });
