@@ -34,7 +34,7 @@ describe("Tools command wiring over replay (task 8)", () => {
     await tools.start();
     const r = await tools.targetVerb("look", 999);
     expect(r.isError).toBe(true);
-    expect((r.data as { error: string }).error).toMatch(/not a hotspot/);
+    expect((r.data as { error: string }).error).toMatch(/target 999 is neither a hotspot/);
   });
 
   it("look 102 returns a diff with the spoken line and changed:false", async () => {

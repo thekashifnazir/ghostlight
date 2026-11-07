@@ -34,6 +34,20 @@ export const TARGET_VERBS = [
 ] as const;
 export type TargetVerb = (typeof TARGET_VERBS)[number];
 
+/**
+ * The target verbs that may act on a held inventory item as well as a room
+ * hotspot. The engine accepts held items as targets for look/take/open/close/
+ * push (engine task 11); walk and talk only make sense on a room hotspot, so
+ * they stay room-only.
+ */
+const ITEM_TARGET_VERBS: ReadonlySet<TargetVerb> = new Set([
+  "look",
+  "take",
+  "open",
+  "close",
+  "push",
+]);
+
 /** The hero object number: `use <item> 50` and acting on self (Req 2.4). */
 const HERO = 50;
 
@@ -115,22 +129,34 @@ export class Tools {
   // --- target validation before send (Req 8) --------------------------------
 
   /**
-   * Reject a target that is not present in the current room, BEFORE any command
-   * reaches the transport (Req 8.2). Validity is judged against the current
-   * room only, so a target valid in a previous room is rejected after a room
-   * change (Req 8.4). Returns an error reply to send back, or null when valid.
+   * Reject a target that is neither present in the current room nor (for the
+   * item-capable verbs) a held inventory item, BEFORE any command reaches the
+   * transport (Req 8.2). Validity is judged against the current room only, so a
+   * target valid in a previous room is rejected after a room change (Req 8.4).
+   * Returns an error reply to send back, or null when valid.
    *
    * The session guard runs first, so by the time validation is reached a room
    * is known (Req 8.5); the defensive `room == null` branch keeps this total.
    */
-  private rejectBadTarget(target: number): ToolReply | null {
+  private rejectBadTarget(verb: TargetVerb, target: number): ToolReply | null {
     if (this.session.isTargetInRoom(target)) return null;
+    // look/take/open/close/push also accept a currently held item (Req 8.3,
+    // engine task 11); walk and talk stay room-only.
+    const allowHeld = ITEM_TARGET_VERBS.has(verb);
+    if (allowHeld && this.session.heldItemIds().includes(target)) return null;
     const room = this.session.room;
     const present = (room?.objects ?? []).map((o) => o.num);
+    const held = this.session.heldItemIds();
+    const message = allowHeld
+      ? `target ${target} is neither a hotspot in the current room nor a held item ` +
+        `(chapter ${room?.chapter ?? "?"}, room ${room?.room ?? "?"}).`
+      : `target ${target} is not a hotspot in the current room ` +
+        `(chapter ${room?.chapter ?? "?"}, room ${room?.room ?? "?"}).`;
     return err(
-      `target ${target} is not a hotspot in the current room ` +
-        `(chapter ${room?.chapter ?? "?"}, room ${room?.room ?? "?"}).`,
-      { room: room?.room, validTargets: present },
+      message,
+      allowHeld
+        ? { room: room?.room, validTargets: present, heldItems: held }
+        : { room: room?.room, validTargets: present },
     );
   }
 
@@ -156,11 +182,15 @@ export class Tools {
 
   // --- command verbs: guard, validate, then send (Req 2, 3) -----------------
 
-  /** A target verb (look/take/open/close/talk/push/walk) on a hotspot number. */
+  /**
+   * A target verb on a hotspot number. look/take/open/close/push also accept a
+   * currently held inventory item as the target (Req 8.3); walk and talk stay
+   * room-only.
+   */
   async targetVerb(verb: TargetVerb, target: number): Promise<ToolReply> {
     const guard = this.requireSession();
     if (guard) return guard;
-    const bad = this.rejectBadTarget(target);
+    const bad = this.rejectBadTarget(verb, target);
     if (bad) return bad;
     return this.dispatch({ verb, target });
   }

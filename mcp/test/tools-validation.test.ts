@@ -42,7 +42,11 @@ describe("Tools target validation (task 7)", () => {
     const { tools, transport } = await started();
     const r = await tools.targetVerb("look", 999);
     expect(r.isError).toBe(true);
-    expect((r.data as { error: string }).error).toMatch(/target 999 is not a hotspot/);
+    // look is an item-capable verb, so 999 (neither hotspot nor held) is
+    // rejected with the item-aware message.
+    expect((r.data as { error: string }).error).toMatch(
+      /target 999 is neither a hotspot in the current room nor a held item/,
+    );
     expect(transport.sent).toHaveLength(0);
   });
 
@@ -51,6 +55,25 @@ describe("Tools target validation (task 7)", () => {
     const r = await tools.targetVerb("look", 52);
     expect(r.isError).toBe(false);
     expect(transport.sent).toEqual([{ verb: "look", target: 52 }]);
+  });
+
+  it("open accepts a currently held item (the handbag) and sends it", async () => {
+    // Regression: open 28 (the held handbag) was wrongly rejected because the
+    // target verbs only allowed room hotspots. The engine accepts held items
+    // for look/take/open/close/push (engine task 11), so this must pass.
+    const { tools, transport } = await started();
+    const r = await tools.targetVerb("open", 28);
+    expect(r.isError).toBe(false);
+    expect(transport.sent).toEqual([{ verb: "open", target: 28 }]);
+  });
+
+  it("walk and talk still reject a held item (room-only verbs)", async () => {
+    const { tools, transport } = await started();
+    for (const verb of ["walk", "talk"] as const) {
+      const r = await tools.targetVerb(verb, 28);
+      expect(r.isError).toBe(true);
+    }
+    expect(transport.sent).toHaveLength(0);
   });
 
   it("use accepts a held item, the hero (50), and an in-room hotspot", async () => {
