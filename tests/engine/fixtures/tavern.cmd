@@ -1,97 +1,81 @@
-# tavern.cmd — chapter 1, room 62 (the tavern) command script.
+# tavern.cmd — chapter 1, room 62 (the tavern) full-loop command script.
 #
 # Used by the engine-a11y-layer replay checkpoints (scripts/replay.sh).
 #
-# At the task-6 checkpoint (reader + room state, before verb dispatch) every
-# verb below answered with A11Y_ERR "no handler" — that was expected then.
-# Tasks 8-11 added the real dispatch, so at the task-12 checkpoint these verbs
-# now RUN the engine's own logic (verify2()/checkAction()/exitRoom()), not the
-# "no handler" stub. This script exercises that real dispatch end to end:
+# By the task-18 checkpoint every piece of the loop exists: A11Y_DIFF (task 17),
+# text capture (14), conversations (15), cutscene/speech skip (16) and the
+# snapshot diff that carries a chapter/room change (17). This script drives the
+# WHOLE loop end to end in one real-window run, in the order the game allows:
 #
-#   * look / take / push / open / close on tavern objects
-#   * look 50 and use <item> on 50 (the hero / self, object 50)
-#   * a verb on an inventory item (the inventory-screen path)
-#   * use <item> on <object>, with the item returned when it does not apply
-#   * a free-point walk
-#   * deliberately bad targets, to confirm A11Y_ERR still fires
-#   * a door, exercising the engine's own exitRoom() door path (R3.8)
+#   room-state A11Y on entry  ->  a look that SAYS a line and reports a
+#   changed:false diff with that `said` text  ->  a conversation (talk opens
+#   A11Y_CHOICES, choose <n> replies, choose 4 ends it)  ->  a state-changing
+#   command (talk 52 sets progress flag 0, changed:true)  ->  a real door room
+#   change through the chapter 1 -> 2 crossing (walk 105 + skip, one coherent
+#   room-change A11Y_DIFF)  ->  a bad command (A11Y_ERR, no diff).
+#
+# Each dispatched game command echoes as A11Y_CMD and then produces EXACTLY ONE
+# A11Y_DIFF *or* at least one A11Y_ERR, never both and never neither (task 17 /
+# R4.1 / R2.5). Flag 12 flips on its own on many actions; the layer reports it
+# faithfully but does not count it as `changed` (gotcha 8).
 #
 # Room 62 objects (live engine numbers from this build): 52 BARTENDER,
-# 53 DRUNKARD, 54 PIANIST, 100 SKULL, 101 BIN, 102 POSTER, 103 BLACKBOARD,
-# 104 DOOR (the inn door — never opens in chapter 1), 105/106 DOOR -> room 63.
+# 53 DRUNKARD, 102 BOTTLE, 105 DOOR -> room 63 (the way out to chapter 2).
 # Inventory starts with the phone, item 28.
 #
-# Door 105 in chapter 1 is a good R3.8 door-path check: with the unlock flag
-# clear, walking it runs the engine's exitRoom(), which returns the game's own
-# "I DON'T HAVE A ROOM YET" text and stays in the room — correct game behaviour,
-# not an A11Y_ERR, and poll() finds the room unchanged. (Once that flag is set
-# via `talk 52`, the same `walk 105` runs the chapter 1 -> 2 crossing cutscene,
-# after which poll() re-emits a fresh A11Y room-state line for the new room —
-# but that cutscene only ends on `skip`, which lands in task 16. So the live
-# room-change re-emit is left to the task-18 checkpoint, once skip/diffs exist;
-# here the door PATH is exercised without a cutscene that cannot settle yet.)
-#
-# NOTE: A11Y_DIFF, text capture, conversations, inventory listing, cutscene
-# skipping and saving land in tasks 13-19, so there is no A11Y_DIFF line yet
-# and `talk`/`choose`/`choices`/`inventory`/`skip`/`save` are deliberately NOT
-# used here — `talk` would open an un-settleable conversation/cutscene and the
-# rest would still be "no handler". The way a change shows at this checkpoint is
-# the room-state A11Y re-emit on a room change, plus `dump`.
+# NOTE: this stays a readable, reusable SMOKE script. Task 21 formalises the
+# four spike scripts (tavern/leave-tavern/ch2-handbag/ch2-vending-machine) into
+# regression fixtures that assert the full A11Y_DIFF sequence; the golden
+# transcript for this run lives in tavern.json. Keep the two in step.
 #
 # Blank lines and lines beginning with `#` are ignored by the reader (R2.3).
 
-# Re-print the room we start in (tavern). Same A11Y format as room entry (R1.5).
+# --- room state on entry (R1.5) ---------------------------------------------
+# Re-print the room we start in (the tavern), same A11Y format as room entry.
 dump
 
-# --- verbs on room objects (real dispatch now, task 8) ----------------------
-# Each is echoed as A11Y_CMD and runs the engine's own action for the object
-# slot (verify2()/checkAction()), not the old "no handler" stub.
+# --- a look that says a line + changed:false diff with `said` text (R4.7/4.8) -
+# look 102 (the wine bottle) runs the engine's own look action: it SPEAKS a
+# line (captured as A11Y_TEXT, then carried in the diff's `said` with its
+# colour), and nothing in the world moves, so the A11Y_DIFF is changed:false.
+# Flag 12 may flip here; it is reported but not counted as a change (gotcha 8).
 look 102
-look 52
-take 101
-push 53
-open 105
-close 105
 
-# --- the hero / self, object 50 (task 11) -----------------------------------
-look 50
+# --- a conversation: open choices, reply, end (task 15, R7.1/R7.2/R6.3) ------
+# talk 53 (the drunkard) opens the conversation: an A11Y_CHOICES line lists the
+# four option phrases (option 4 carries "ends":true). choose 2 clicks option 2,
+# the drunkard replies (A11Y_TEXT for both the player line and the reply, both
+# in the diff's `said` with colours), and the option list re-opens with option 2
+# now "used":true. choose 4 is the goodbye line and ends the conversation.
+talk 53
+choose 2
+choose 4
 
-# --- a verb on an inventory item (inventory-screen path, task 11) -----------
-# The phone (item 28) is in the inventory; `look 28` opens the inventory
-# screen, runs the look-at-item action, and closes it again.
-look 28
+# --- a state-changing command: changed:true with a flag move (R4.6) ----------
+# talk 52 (the bartender), the chapter-1 progression: the bartender exchange
+# sets progress flag 0 from 0 to 1 (this is what unlocks the way out). The diff
+# reports flags {"0":[0,1]}, the spoken lines under `said`, and changed:true.
+talk 52
 
-# --- use <item> on <object>, with item return (task 10) ---------------------
-# Using the phone on the bartender does not apply, so the phone must be
-# returned to the inventory (R3.5): the `dump` below should still list item 28.
-use 28 on 52
-
-# --- use <item> on 50 (the hero / self, task 11) ----------------------------
-use 28 on 50
-
-# Confirm the phone is still held after the non-applying uses above.
-dump
-
-# --- a free-point walk (task 9) ---------------------------------------------
-# Walk the hero to a floor point; the engine clamps it to the walkable area.
-walk 120 140
-
-# --- deliberately bad targets (confirm A11Y_ERR still fires, R2.5) ----------
-# 999 is not a room object, the hero, or an inventory item.
-look 999
-# `walk door` is not a number: a clear malformed-target error, not atoi() 0.
-walk door
-# use an item that is not in the inventory.
-use 77 on 52
-
-# --- the door path: locked door returns text, not an error (R3.8) -----------
-# With the unlock flag still clear, walking door 105 runs the engine's own
-# exitRoom(): it says "I DON'T HAVE A ROOM YET" and stays in the room — correct
-# game behaviour, not an A11Y_ERR. poll() finds the room unchanged, so no new
-# A11Y line follows. This confirms the door dispatch reaches exitRoom() and a
-# locked door behaves as the game intends without hanging the queue.
+# --- a real door room change: the chapter 1 -> 2 crossing (R3.8 + R4.3) ------
+# Now that flag 0 is set, walking door 105 runs the engine's own exitRoom(),
+# which plays the chapter 1 -> 2 crossing cutscene (animation_2_1) and enters
+# chapter 2. That cutscene runs its own loop, so a queued `skip` is honoured
+# from the updateEvents() hook to abort it and return control (task 16). poll()
+# then builds ONE coherent room-change A11Y_DIFF: chapter [1,2], room [62,14],
+# with the NEW room's objects (doors carrying their toRoom). This is the real
+# door transition the task-12 and task-17 checkpoints deferred to here — the
+# room-change A11Y_DIFF path proven on a real in-game transition, not faked.
 walk 105
+skip
 
-# Re-print the room, to confirm we are still in the tavern and the queue has
-# drained cleanly after the door path (R1.5).
+# --- a bad command: A11Y_ERR and NO diff (R2.5 / R4.1) -----------------------
+# 999 is not a room object, the hero, or an inventory item, so dispatch cannot
+# run it: one A11Y_ERR, and emitDiff() suppresses the A11Y_DIFF for the erring
+# command (exactly one of diff XOR err per dispatched command). The layer keeps
+# running and drains the queue cleanly.
+look 999
+
+# Re-print the (chapter-2) room we ended in, to confirm the queue drained
+# cleanly and the crossing settled (R1.5).
 dump

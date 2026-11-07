@@ -17,14 +17,27 @@
 #   * call _a11y.onStartup() once the first playable room is entered, to assert
 #     subtitles and emit the first A11Y room-state line (R1.4, R6.1)
 #
-# Task 4 hook (drascula.cpp):
-#   * call _a11y.poll() once per frame at the top of the main loop. For now
-#     poll() watches for a room/chapter change and re-emits the A11Y room-state
-#     line, so the line prints on every room change (R1.1). The transition
-#     itself happens in exitRoom()/enterRoom() (rooms.cpp, not patched); control
-#     returns to the main loop once the move settles, so detecting the change in
-#     poll() keeps all engine hooks in drascula.cpp (R10.2). The command reader
-#     and A11Y_DIFF build on this same per-frame entry point in later tasks.
+# Task 4 / 18 hook (drascula.cpp):
+#   * call _a11y.poll() once per frame at the top of the main loop, as
+#     `if (_a11y.poll()) return true;`. poll() reads the command file, runs one
+#     queued command, emits its A11Y_DIFF and watches for room/chapter changes
+#     (R1.1). The transition itself happens in exitRoom()/enterRoom() (rooms.cpp,
+#     not patched); control returns to the main loop once the move settles, so
+#     detecting the change in poll() keeps all engine hooks in drascula.cpp
+#     (R10.2).
+#   * poll() returns true when the command it ran ENDED the chapter — a `walk`
+#     through a chapter-ending door (chapter 1's door 105, which runs
+#     animation_2_1() and makes exitRoom() return true). The engine's own door
+#     path propagates exactly this signal: exitRoom()'s true flows out of
+#     verify1() (`if (exitRoom(l)) return true;`) to the main loop
+#     (`if (verify1()) return true;`), ending runCurrentChapter() so run()
+#     advances to the next chapter. Our `walk` dispatch calls exitRoom() directly
+#     (not via a pixel click through verify1()), so we must relay the SAME true:
+#     `if (_a11y.poll()) return true;`. Without it the chapter never ends and the
+#     hero walks past door 105 into invalid coordinates (the task 18 crossing
+#     bug). The crossing's single A11Y_DIFF is emitted by the NEXT chapter's
+#     onStartup() from a module-static carrier, since this layer is torn down
+#     before chapter 2's first room is set up.
 #
 # Task 13 hook (drascula.h):
 #   * declare `friend class A11yLayer;` on DrasculaEngine. The a11y layer reads
@@ -211,7 +224,7 @@ index aeccc822cb..1319f93695 100644
  
  		selectVerb(kVerbNone);
  		loadPic("2aux62.alg", drawSurface2);
-@@ -550,7 +568,19 @@ bool DrasculaEngine::runCurrentChapter() {
+@@ -550,7 +568,26 @@ bool DrasculaEngine::runCurrentChapter() {
  
  	showCursor();
  
@@ -222,11 +235,18 @@ index aeccc822cb..1319f93695 100644
 +
  	while (!shouldQuit()) {
 +		// Ghostlight: once per frame, let the a11y layer observe and drive the
-+		// game. For now poll() watches for a room/chapter change (the transition
-+		// itself happens in exitRoom()/enterRoom()) and emits the new A11Y room
-+		// state (R1.1); the command reader and A11Y_DIFF build on this in later
-+		// tasks.
-+		_a11y.poll();
++		// game. poll() reads the command file, runs one queued command, emits
++		// the A11Y_DIFF, and watches for room/chapter changes (R1.1). It returns
++		// true when the command it ran ENDED the chapter — a `walk` through a
++		// chapter-ending door (chapter 1's door 105 -> animation_2_1), whose
++		// exitRoom() returned true. We relay that out exactly as the engine's own
++		// door path does (`if (verify1()) return true;` below, and
++		// `if (exitRoom(l)) return true;` inside verify1()): returning true here
++		// ends runCurrentChapter() so run() advances to the next chapter. Without
++		// this the chapter never ends and the hero walks past the door into
++		// invalid state (task 18 crossing bug).
++		if (_a11y.poll())
++			return true;
 +
  		if (!_characterMoved) {
  			stepX = STEP_X;

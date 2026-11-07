@@ -46,6 +46,61 @@ namespace Drascula {
 // (the engine runs one frame at a time), so no synchronisation is needed.
 static uint32 g_errCount = 0;
 
+// --- Cross-chapter diff carrier (task 17/18, R4.3 / design "Settling") ------
+//
+// A `walk` through a chapter-ending door (chapter 1's door 105) runs
+// animation_2_1() and makes exitRoom() return true, which we relay up so
+// runCurrentChapter() returns and run() advances to the next chapter. That tears
+// down the chapter-1 A11yLayer (it lives on the stack of runCurrentChapter())
+// BEFORE the next chapter's first room (chapter 2 room 14) is set up — so the
+// chapter-1 layer cannot build the crossing's A11Y_DIFF itself: the "after"
+// state does not exist yet when it is destroyed.
+//
+// Instead the chapter-1 layer, at the moment it detects the crossing, stashes
+// the before-snapshot, the `cmd` string, the error-count baseline and the
+// `said` lines captured during the cutscene into this module-static carrier
+// (module-static so it survives the layer's destruction, like g_errCount). The
+// NEXT chapter's layer, once its first room is fully set up, emits ONE
+// A11Y_DIFF from the carrier in onStartup() — chapter [1,2], room [62,14], the
+// new room's objects — instead of a plain A11Y room-state line. This is what
+// makes the chapter-crossing walk yield exactly one coherent diff (R4.3), and
+// matches the leave-tavern fixture and the spike transcript.
+//
+// The carrier mirrors the Snapshot fields the diff needs (Snapshot is a private
+// nested type, so we store its parts here) plus the captured said lines.
+struct CrossChapterDiff {
+	bool pending;
+	Common::String cmd;
+	uint32 errCountBefore;
+	// before-snapshot parts
+	int chapter;
+	int room;
+	Common::Array<int> objNums;
+	Common::Array<bool> objVisible;
+	Common::Array<bool> objDoor;
+	Common::Array<int> inventory;
+	int flags[NUM_FLAGS];
+	// said lines captured during the crossing cutscene (colour, text pairs)
+	Common::Array<Common::String> saidColor;
+	Common::Array<Common::String> saidText;
+
+	CrossChapterDiff() : pending(false), errCountBefore(0), chapter(0), room(0) {
+		for (int f = 0; f < NUM_FLAGS; f++)
+			flags[f] = 0;
+	}
+};
+
+// The single process-lifetime carrier, reached through g_crossDiff(). Held by
+// a lazily-constructed pointer rather than a static object so no global
+// constructor/destructor runs at load/exit (ScummVM builds with
+// -Wglobal-constructors). It lives for the whole process — the crossing data it
+// carries is handed from one chapter's layer to the next and is never needed
+// after that — so the one-time allocation is deliberately not freed.
+static CrossChapterDiff &g_crossDiff() {
+	static CrossChapterDiff *instance = new CrossChapterDiff();
+	return *instance;
+}
+
 // All a11y output is one prefixed line on stderr, so a web page reads it via
 // Module.printErr and a native run reads it on fd 2 (Requirement 10.6). We go
 // through g_system->logMessage() with the error type because, on the SDL
@@ -172,8 +227,18 @@ void A11yLayer::onStartup() {
 		         "Relaunch with --subtitles.");
 	}
 
-	// Emit the first playable room exactly as a normal room entry would, so the
-	// very first line an external reader sees is a complete A11Y room state.
+	// If the previous chapter ended on a chapter-crossing `walk` (door 105 ->
+	// animation_2_1 -> chapter 2), the previous layer stashed the before-state;
+	// emit the one coherent crossing A11Y_DIFF now that this chapter's first
+	// room is live, INSTEAD of a plain room-state line. The leave-tavern fixture
+	// and spike transcript show the crossing as a single diff with no A11Y line
+	// (R4.3, design "Settling").
+	if (emitPendingCrossChapterDiff())
+		return;
+
+	// Normal chapter start (no pending crossing): emit the first playable room
+	// exactly as a room entry would, so the very first line an external reader
+	// sees is a complete A11Y room state.
 	onRoomEntry();
 }
 
@@ -647,7 +712,12 @@ void A11yLayer::readCommandFile() {
 // commands have a handler. Anything else has no handler yet, so it emits
 // A11Y_ERR and the layer keeps running (R2.5) — exactly the behaviour a real,
 // still-unimplemented command should have until its task lands.
-void A11yLayer::runCommand(const Common::String &cmd) {
+// Returns true when this command ended the chapter (a `walk` through a
+// chapter-ending door whose exitRoom() returned true). poll() relays that up so
+// the main-loop hook ends runCurrentChapter(), exactly as the engine's own
+// `if (verify1()) return true;` does for a real door click. Every other command
+// returns false.
+bool A11yLayer::runCommand(const Common::String &cmd) {
 	emitLine(Common::String("A11Y_CMD ") + cmd);
 
 	// Split off the first word as the verb; the remainder is the argument(s).
@@ -668,7 +738,7 @@ void A11yLayer::runCommand(const Common::String &cmd) {
 	if (verb == "state" || verb == "dump") {
 		// Backed by the same room-state code as room entry (R1.5, task 4).
 		dump();
-		return;
+		return false;
 	}
 
 	// Verb-on-object dispatch (task 8, R3.1/R3.2/R3.4): each a11y verb word maps
@@ -678,42 +748,43 @@ void A11yLayer::runCommand(const Common::String &cmd) {
 	// is the engine's kVerbPick.
 	if (verb == "look") {
 		dispatchVerb(kVerbLook, arg);
-		return;
+		return false;
 	}
 	if (verb == "take") {
 		dispatchVerb(kVerbPick, arg);
-		return;
+		return false;
 	}
 	if (verb == "open") {
 		dispatchVerb(kVerbOpen, arg);
-		return;
+		return false;
 	}
 	if (verb == "close") {
 		dispatchVerb(kVerbClose, arg);
-		return;
+		return false;
 	}
 	if (verb == "talk") {
 		dispatchVerb(kVerbTalk, arg);
-		return;
+		return false;
 	}
 	if (verb == "push") {
 		// The engine's "push/move" verb is kVerbMove.
 		dispatchVerb(kVerbMove, arg);
-		return;
+		return false;
 	}
 
 	// Doors and walking (task 9, R3.8 / R2.6). One numeric arg is an object
 	// walk (`walk 52`); two numeric args are a free-point walk (`walk 170 158`).
+	// A `walk` through a chapter-ending door returns true (see dispatchWalk /
+	// walkObject): relay it so poll() can end the chapter.
 	if (verb == "walk") {
-		dispatchWalk(arg);
-		return;
+		return dispatchWalk(arg);
 	}
 
 	// Use an inventory item on a room object (task 10, R3.4 / R3.5):
 	// `use <item> on <obj>` or `use <item> <obj>`.
 	if (verb == "use") {
 		dispatchUse(arg);
-		return;
+		return false;
 	}
 
 	// Inventory listing (task 13, R6.4). `inventory` and the short alias `inv`
@@ -721,7 +792,7 @@ void A11yLayer::runCommand(const Common::String &cmd) {
 	// text is ignored.
 	if (verb == "inventory" || verb == "inv") {
 		dispatchInventory();
-		return;
+		return false;
 	}
 
 	// Cutscene / speech skipping (task 16, R7.3 / R7.4). A `skip` that reaches
@@ -736,7 +807,7 @@ void A11yLayer::runCommand(const Common::String &cmd) {
 	// skip whether or not a cutscene is running.
 	if (verb == "skip") {
 		raiseSkip();
-		return;
+		return false;
 	}
 
 	// Conversation commands (task 15, R7.1/R7.2/R6.3). These are only meaningful
@@ -747,15 +818,16 @@ void A11yLayer::runCommand(const Common::String &cmd) {
 	// keeps the layer running (R2.5).
 	if (verb == "choices") {
 		emitLine("A11Y_ERR no conversation is open");
-		return;
+		return false;
 	}
 	if (verb == "choose") {
 		emitLine("A11Y_ERR no conversation is open");
-		return;
+		return false;
 	}
 
 	// No handler yet (lands in a later task). Report and continue (R2.5).
 	emitLine(Common::String("A11Y_ERR no handler for command: ") + cmd);
+	return false;
 }
 
 // Look up the room-object slot whose engine hotspot number is `num`. The room
@@ -1553,7 +1625,11 @@ static bool parseInt(const Common::String &s, int &out) {
 	return true;
 }
 
-void A11yLayer::dispatchWalk(const Common::String &arg) {
+// Returns true when the walk went through a door that ENDED the chapter
+// (exitRoom() returned true), so the caller can relay it up and end
+// runCurrentChapter(). Every other outcome (free-point walk, non-door object,
+// a non-chapter-ending door, or an A11Y_ERR) returns false.
+bool A11yLayer::dispatchWalk(const Common::String &arg) {
 	// Split the argument into whitespace-separated words. arg is already
 	// trimmed by runCommand(), so there is no leading/trailing space; collapse
 	// any run of spaces between words.
@@ -1575,7 +1651,7 @@ void A11yLayer::dispatchWalk(const Common::String &arg) {
 
 	if (words.empty()) {
 		emitLine("A11Y_ERR walk needs a target: `walk <object>` or `walk <x> <y>`");
-		return;
+		return false;
 	}
 
 	// One word: object walk. Resolve the slot for the engine hotspot number and
@@ -1584,16 +1660,17 @@ void A11yLayer::dispatchWalk(const Common::String &arg) {
 		int num;
 		if (!parseInt(words[0], num)) {
 			emitLine(Common::String("A11Y_ERR walk object must be a number, got: ") + words[0]);
-			return;
+			return false;
 		}
 		int slot = slotForObjectNum(num);
 		if (slot < 0) {
 			emitLine(Common::String::format(
 				"A11Y_ERR object %d is not in this room", num));
-			return;
+			return false;
 		}
-		walkObject(slot);
-		return;
+		// Relay the door's chapter-ending signal (true == exitRoom ended the
+		// chapter) up to the caller.
+		return walkObject(slot);
 	}
 
 	// Two words: free-point walk. Both must be integers (R2.5).
@@ -1603,15 +1680,16 @@ void A11yLayer::dispatchWalk(const Common::String &arg) {
 			emitLine(Common::String::format(
 				"A11Y_ERR walk point needs two integer coordinates, got: %s %s",
 				words[0].c_str(), words[1].c_str()));
-			return;
+			return false;
 		}
 		walkPoint(x, y);
-		return;
+		return false;
 	}
 
 	// Anything else is malformed (R2.5).
 	emitLine("A11Y_ERR walk takes one object number or two coordinates, "
 	         "e.g. `walk 52` or `walk 170 158`");
+	return false;
 }
 
 // Walk to / through the room object in `slot`. A door runs the engine's own
@@ -1628,7 +1706,7 @@ void A11yLayer::dispatchWalk(const Common::String &arg) {
 // when flags[0]==0) and returns false without changing room, which is the
 // correct game behaviour, not an error — poll() simply finds the room
 // unchanged and emits nothing new.
-void A11yLayer::walkObject(int slot) {
+bool A11yLayer::walkObject(int slot) {
 	DrasculaEngine *e = _engine;
 
 	if (e->isDoor[slot]) {
@@ -1637,17 +1715,29 @@ void A11yLayer::walkObject(int slot) {
 		// this is driven by a `walk` command, poll()'s A11Y_DIFF carries the
 		// resulting room/chapter change and the new room's objects (task 17), so
 		// we do not emit a room-state line here.
-		e->exitRoom(slot);
-		return;
+		//
+		// CRITICAL (chapter crossing): exitRoom() returns true for a door that
+		// ENDS the chapter — chapter 1's door 105 runs animation_2_1() and
+		// `return true` (rooms.cpp). In the real game that true flows out via
+		// verify1() (`if (exitRoom(l)) return true;`) to the main loop
+		// (`if (verify1()) return true;`), which ends runCurrentChapter() so
+		// run() advances to the next chapter. We must propagate the SAME true,
+		// or the chapter never ends and the hero walks past door 105 into
+		// invalid coordinates. Mirrors the spike's `a11yActOnObject(l)` returning
+		// the exitRoom result. The caller (dispatchWalk -> runCommand -> poll ->
+		// the main-loop hook) relays it up so runCurrentChapter() returns true.
+		return e->exitRoom(slot);
 	}
 
 	// A non-door object: just walk the hero to the object's walk-to point, the
 	// same point the engine walks to before acting on the object. Face the
 	// object afterwards, as the engine's own object-walk does (trackFinal via
-	// _walkToObject). walkToPoint() runs its own loop to completion.
+	// _walkToObject). walkToPoint() runs its own loop to completion. A plain
+	// walk never ends the chapter, so report false.
 	e->trackFinal = e->trackObj[slot];
 	e->_walkToObject = true;
 	e->walkToPoint(e->_roomObject[slot]);
+	return false;
 }
 
 // Walk the hero to a free room point using the engine's own walkToPoint(). The
@@ -2051,7 +2141,7 @@ void A11yLayer::stepClick() {
 // (R8.1, R8.2) inside the one-command-at-a-time settle model (R2.2): a command
 // that issues a click this frame does not let the next command start until the
 // click's release frame has run.
-void A11yLayer::poll() {
+bool A11yLayer::poll() {
 	// Advance any click in flight (release the button the frame after a press).
 	stepClick();
 
@@ -2060,7 +2150,7 @@ void A11yLayer::poll() {
 	// Hold the queue while a synthetic click is mid-flight: the current command
 	// has not settled until its click's release frame has run (R2.2, R8.1).
 	if (!clickSettled())
-		return;
+		return false;
 
 	bool ranCommand = false;
 	if (_queueHead < _commandQueue.size()) {
@@ -2085,7 +2175,23 @@ void A11yLayer::poll() {
 		uint32 errCountBefore = g_errCount;
 		beginSaidCapture();
 
-		runCommand(cmd);
+		bool endedChapter = runCommand(cmd);
+
+		if (endedChapter) {
+			// The command was a `walk` through a chapter-ending door: exitRoom()
+			// ran the crossing cutscene (animation_2_1) and returned true, and
+			// runCommand() relayed that up to us. We must now end the chapter so
+			// run() advances to the next one — but the NEXT chapter's first room
+			// is not set up yet, so the crossing's A11Y_DIFF cannot be built
+			// here (the after-state does not exist). Stash the before-snapshot,
+			// cmd, error baseline and the cutscene's captured `said` lines in the
+			// module-static carrier; the next chapter's onStartup() emits the one
+			// coherent diff once its room is live (R4.3, design "Settling"). Then
+			// return true so the main-loop hook ends runCurrentChapter(), exactly
+			// as `if (verify1()) return true;` does for a real door click.
+			stashCrossChapterDiff(cmd, before, errCountBefore);
+			return true;
+		}
 
 		emitDiff(cmd, before, errCountBefore);
 
@@ -2114,6 +2220,107 @@ void A11yLayer::poll() {
 		// as the original per-frame room-change watch did (R1.1).
 		emitRoomState();
 	}
+
+	// No chapter-ending command this frame, so the main loop keeps running.
+	return false;
+}
+
+// Stash the before-snapshot and captured said lines for a chapter-crossing
+// `walk` into the module-static carrier, so the NEXT chapter's onStartup() can
+// emit the one coherent A11Y_DIFF once its first room is set up. Called from
+// poll() at the instant it detects the crossing (exitRoom returned true), just
+// before poll() returns true to end the chapter. Copies the Snapshot's parts
+// (Snapshot is a private nested type, so its fields are stored individually in
+// the carrier) plus the _said buffer, then closes the said-capture window.
+void A11yLayer::stashCrossChapterDiff(const Common::String &cmd,
+                                      const Snapshot &before, uint32 errCountBefore) {
+	CrossChapterDiff &cd = g_crossDiff();
+
+	cd.pending = true;
+	cd.cmd = cmd;
+	cd.errCountBefore = errCountBefore;
+
+	cd.chapter = before.chapter;
+	cd.room = before.room;
+	cd.objNums = before.objNums;
+	cd.objVisible = before.objVisible;
+	cd.objDoor = before.objDoor;
+	cd.inventory = before.inventory;
+	for (int f = 0; f < NUM_FLAGS; f++)
+		cd.flags[f] = before.flags[f];
+
+	// Carry the said lines the crossing cutscene drew (captured by onText()
+	// while _capturingSaid was armed) so the crossing diff reports them.
+	cd.saidColor.clear();
+	cd.saidText.clear();
+	for (uint i = 0; i < _said.size(); i++) {
+		cd.saidColor.push_back(_said[i].color);
+		cd.saidText.push_back(_said[i].text);
+	}
+
+	// Close this layer's capture window; the layer is about to be destroyed.
+	_capturingSaid = false;
+	_said.clear();
+}
+
+// If a chapter-crossing diff is pending (stashed by the previous chapter's
+// layer), emit it now from THIS layer, against this layer's live (settled) room
+// — the new chapter's first room. Rebuilds the before-Snapshot from the carrier
+// and the _said buffer, then calls the normal emitDiff() so the crossing is a
+// single ordinary A11Y_DIFF (chapter [1,2], room [62,14], new-room objects,
+// said lines, changed:true). Returns true if a diff was emitted (so onStartup()
+// skips the usual plain room-state line, matching the fixture which shows the
+// crossing as one diff and no A11Y line). Clears the carrier either way.
+bool A11yLayer::emitPendingCrossChapterDiff() {
+	CrossChapterDiff &cd = g_crossDiff();
+
+	if (!cd.pending)
+		return false;
+
+	// Rebuild the before-snapshot from the carrier.
+	Snapshot before;
+	before.chapter = cd.chapter;
+	before.room = cd.room;
+	before.objNums = cd.objNums;
+	before.objVisible = cd.objVisible;
+	before.objDoor = cd.objDoor;
+	before.inventory = cd.inventory;
+	for (int f = 0; f < NUM_FLAGS; f++)
+		before.flags[f] = cd.flags[f];
+
+	// Restore the said lines the crossing cutscene drew, and arm the capture
+	// flag so emitDiff() treats them as this command's `said` and clears them.
+	_said.clear();
+	for (uint i = 0; i < cd.saidText.size(); i++) {
+		SaidLine s;
+		s.color = cd.saidColor[i];
+		s.text = cd.saidText[i];
+		_said.push_back(s);
+	}
+	_capturingSaid = true;
+
+	Common::String cmd = cd.cmd;
+	uint32 errCountBefore = cd.errCountBefore;
+
+	// Consume the carrier before emitting so a re-entrant path cannot double-emit.
+	cd.pending = false;
+	cd.cmd.clear();
+	cd.objNums.clear();
+	cd.objVisible.clear();
+	cd.objDoor.clear();
+	cd.inventory.clear();
+	cd.saidColor.clear();
+	cd.saidText.clear();
+
+	// emitDiff() takes the after-snapshot from the live engine (now the new
+	// chapter's room) and builds the one coherent crossing diff.
+	emitDiff(cmd, before, errCountBefore);
+
+	// Sync the last-room markers to the settled state so poll() does not then
+	// re-emit a plain room-state line for the same room.
+	_lastChapter = _engine->currentChapter;
+	_lastRoom = _engine->_roomNumber;
+	return true;
 }
 
 // --- Cutscene / speech skipping (task 16, R7.3 / R7.4 / gotcha 5) -----------

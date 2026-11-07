@@ -155,7 +155,15 @@ public:
 	// lines, and runs at most one queued command (emitting A11Y_CMD and, when a
 	// handler exists, A11Y_DIFF, or A11Y_ERR when it cannot run). Also re-emits
 	// the A11Y room state on a room/chapter change.
-	void poll();
+	//
+	// Returns true when the command it ran this frame ENDED the chapter — a
+	// `walk` through a chapter-ending door (chapter 1's door 105), whose
+	// exitRoom() ran the crossing cutscene and returned true. The main-loop hook
+	// relays that out as `if (_a11y.poll()) return true;`, ending
+	// runCurrentChapter() exactly as the engine's own `if (verify1()) return
+	// true;` does for a real door click, so run() advances to the next chapter.
+	// Returns false on every other frame (the main loop keeps running).
+	bool poll();
 
 	// Schedule a synthetic left click at room-coordinate (x, y). A real click
 	// is a button press on one frame and a release on a following frame, so
@@ -215,6 +223,25 @@ private:
 	// main-loop commands and from the converse hook for `choose`.
 	void emitDiff(const Common::String &cmd, const Snapshot &before,
 	              uint32 errCountBefore);
+
+	// --- Chapter-crossing diff carry (task 18, R4.3 / design "Settling") ----
+	//
+	// A `walk` through a chapter-ending door (chapter 1's door 105) runs the
+	// crossing cutscene and makes exitRoom() return true. poll() relays that out
+	// to end runCurrentChapter(), which TEARS DOWN this layer (it lives on the
+	// runCurrentChapter() stack) before the next chapter's first room exists —
+	// so the crossing's A11Y_DIFF cannot be built here. stashCrossChapterDiff()
+	// copies the before-snapshot, the cmd, the error baseline and the captured
+	// cutscene `said` lines into a module-static carrier (which survives the
+	// layer's destruction). The NEXT chapter's layer calls
+	// emitPendingCrossChapterDiff() from onStartup(), once its first room is
+	// live, to emit the single coherent crossing diff (chapter [1,2], room
+	// [62,14], new-room objects) instead of a plain room-state line — matching
+	// the leave-tavern fixture. emitPendingCrossChapterDiff() returns true when
+	// it emitted a diff (so onStartup() skips the usual room-state line).
+	void stashCrossChapterDiff(const Common::String &cmd, const Snapshot &before,
+	                           uint32 errCountBefore);
+	bool emitPendingCrossChapterDiff();
 
 	// Build the JSON object for a single room object (by slot), in the same
 	// shape buildRoomState() uses: {"num":..,"name":..,"rect":[..],"walkTo":
@@ -395,7 +422,11 @@ private:
 	// malformed coordinates) (R2.5). The engine's walk/door code runs its own
 	// loop to completion before returning, so the command settles before the
 	// next one starts (R2.2).
-	void dispatchWalk(const Common::String &arg);
+	//
+	// Returns true when the walk went through a chapter-ending door (exitRoom()
+	// returned true), so runCommand()/poll() can end the chapter; false for a
+	// free-point walk, a non-door object, a non-chapter-ending door, or an error.
+	bool dispatchWalk(const Common::String &arg);
 
 	// Walk to / through the room object in `slot`. If the object is a door,
 	// call the engine's exitRoom(slot) so the hero walks to it the game's way
@@ -403,7 +434,13 @@ private:
 	// (R3.8). Otherwise walk the hero to the object's walk-to point with the
 	// engine's own walkToPoint(). Does not teleport the hero or set the room
 	// number directly — the transition is always the engine's.
-	void walkObject(int slot);
+	//
+	// Returns the boolean exitRoom() gives for a door: true when the door ENDED
+	// the chapter (chapter 1's door 105 runs animation_2_1() and returns true),
+	// which must be relayed up so runCurrentChapter() returns and run() advances
+	// to the next chapter — mirroring the engine's own `if (exitRoom(l)) return
+	// true;` in verify1(). A non-door walk returns false.
+	bool walkObject(int slot);
 
 	// Walk the hero to a free point (x, y) in room coordinates using the
 	// engine's own walkToPoint(). The point is clipped to the room's walkable
@@ -429,7 +466,12 @@ private:
 	// Run one command string: echo it as A11Y_CMD (R2.4), then dispatch it.
 	// Dispatch for most verbs lands in later tasks (7-20); any command with no
 	// handler yet emits A11Y_ERR and the layer keeps running (R2.5).
-	void runCommand(const Common::String &cmd);
+	//
+	// Returns true when the command ended the chapter — a `walk` through a
+	// chapter-ending door whose exitRoom() returned true (relayed up from
+	// dispatchWalk/walkObject). Every other command returns false. poll() uses
+	// this to know when to end runCurrentChapter().
+	bool runCommand(const Common::String &cmd);
 
 	// --- Cutscene / speech skipping (task 16, R7.3 / R7.4 / gotcha 5) -------
 
