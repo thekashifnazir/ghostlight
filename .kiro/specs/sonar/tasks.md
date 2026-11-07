@@ -13,14 +13,14 @@ All new modules live under `src/sonar/`; tests sit flat in `test/` with the repo
   - Assert the invariants on `buildPings` output: pings are always ordered by centre x (ties by centre y); every pan is within -1..1; pan is non-decreasing as centre x increases; the set of ping numbers equals the set of visible object numbers and contains no invisible one; pan sign matches the hero side; higher things have higher `freq`; nearer things have higher `cutoff`; `text` contains the name, kind word, direction word and band word.
   - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 4.1_
 
-- [ ] 3. Build the thin audio layer
+- [x] 3. Build the thin audio layer
   - Create `src/sonar/audio.ts` with `SonarAudio`: `play(pings)` schedules each ping at `ctx.currentTime + onset` as oscillator → gain (envelope × `ping.gain`) → lowpass (`ping.cutoff`) → stereo panner (`ping.pan`), with timbre by kind (object blip, exit two rising notes, person buzzy sawtooth with vibrato); `playOne(ping)` voices a single ping now; `stop()` cancels and disconnects every scheduled node at once; `setMuted(muted)` makes `play`/`playOne` no-ops while muted.
   - Keep it free of game and DOM knowledge: finished `Ping` values and an `AudioContext` in, scheduled sound out.
   - _Requirements: 1.5, 1.6, 1.7, 5.1, 5.4_
 
-- [ ] 4. Test the audio layer headless
-  - Create `test/sonar-audio.test.ts` rendering a couple of pings through an `OfflineAudioContext` (or a mocked node graph): assert each ping is louder in the ear its pan points to, and that `stop()` disconnects scheduled nodes so a scan can be cancelled mid-flight.
-  - _Requirements: 1.3, 5.1_
+- [x] 4. Test the audio layer headless
+  - Create `test/sonar-audio.test.ts` driving a mocked Web Audio node graph (jsdom has no `OfflineAudioContext`): assert each ping's stereo panner is set to its `ping.pan` (so it is placed in the ear the pan points to), that a kind gets the expected waveform/note count (object one sine, exit two triangles, person a sawtooth plus a vibrato LFO), that `play` schedules every ping and a muted layer schedules none, and that `stop()` stops and disconnects every scheduled node so a scan can be cancelled mid-flight.
+  - _Requirements: 1.3, 1.7, 5.1, 5.4_
 
 - [ ] 5. Build the `Sonar` controller
   - Create `src/sonar/sonar.ts` with `Sonar` taking `{ live, getContext }`: `setRoom(state, list)` stores state and resets the step cursor; `scan()` builds pings, voices them (unless muted or no context) and schedules the summary line after the last onset ("N things, left to right: A people, B objects, C exits", empty room → one "nothing here" line, no pings); `next()`/`prev()` move the cursor with wrap, voice one ping and announce `text + ", N of M"` (empty room → one "nothing to step through" line); `toggleMute()` flips mute, forwards it to the audio layer and announces the new state; `stop()` stops all sonar sound and suppresses a pending summary.
