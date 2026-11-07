@@ -131,18 +131,48 @@ export async function bootEngine(
   // has not run (e.g. a test harness), start a bare object.
   const module: ScummvmBootModule = globalModule();
 
-  module.arguments = launchArguments();
+  // ScummVM's SDL/Emscripten graphics backend creates its WebGL context on the
+  // canvas with id "canvas" (the stock ScummVM shell's canvas has that id).
+  // With any other id, SDL_GL_CreateContext fails ("That operation is not
+  // supported"), the OpenGL graphics manager cannot load a mode, and the engine
+  // exits to the launcher instead of running the game. main.ts's canvas is
+  // #game-canvas, so give the Module's canvas the id SDL expects before the
+  // loader runs. This is additive (an id the rest of the page does not rely on)
+  // and keeps main.ts's own #game-canvas lookup working.
+  if (module.canvas && module.canvas.id !== "canvas") {
+    module.canvas.id = "canvas";
+  }
 
-  // Resolve wasm and data URLs to where they are actually served. The default
-  // Emscripten loader resolves relative to the page; the Worker serves the
-  // build output under baseUrl, so point locateFile there for non-absolute
-  // names (data URLs the HTTP filesystem fetches, and scummvm.wasm itself).
-  const prevLocateFile = module.locateFile;
-  module.locateFile = (path: string, prefix: string): string => {
-    if (/^(https?:)?\/\//.test(path) || path.startsWith("/")) return path;
-    if (prevLocateFile) return prevLocateFile(path, prefix);
-    return baseUrl + path;
-  };
+  const args = launchArguments();
+  module.arguments = args;
+
+  // The ScummVM build's bundled --pre-js (dists/emscripten/custom_shell-pre.js)
+  // RESETS Module.arguments to [] and repopulates it from `window.location.hash`
+  // when scummvm.js runs — so the hash, not Module.arguments, is what actually
+  // reaches the engine. Set the hash to the launch args (space-joined) before
+  // loading the loader, exactly as the spike launched the stock shell
+  // (scummvm.html#--savepath=/tmp --subtitles -p /data/games/drascula drascula).
+  // Guard for a non-browser harness that stubs loadScript.
+  if (typeof window !== "undefined" && window.location) {
+    window.location.hash = args.join(" ");
+  }
+
+  // Resolve wasm/data URLs. The stock ScummVM shell sets NO locateFile and lets
+  // Emscripten resolve names relative to scummvm.js's own URL, which works when
+  // the engine and page share an origin (our hosting serves both under the same
+  // root). So only install a locateFile when a caller explicitly overrides the
+  // base to a different root (e.g. a test serving the build elsewhere); a
+  // default/"/" base keeps the stock relative resolution the engine expects,
+  // because overriding it was observed to break the engine's own game-data
+  // path handling and send it to the launcher instead of the game.
+  if (baseUrl !== "/" && baseUrl !== "") {
+    const prevLocateFile = module.locateFile;
+    module.locateFile = (path: string, prefix: string): string => {
+      if (/^(https?:)?\/\//.test(path) || path.startsWith("/")) return path;
+      if (prevLocateFile) return prevLocateFile(path, prefix);
+      return baseUrl + path;
+    };
+  }
 
   // Install the A11Y reader on printErr BEFORE the loader runs, so the first
   // A11Y room-state line is captured (R2.2). The adapter's installReader wraps

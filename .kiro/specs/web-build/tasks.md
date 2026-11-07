@@ -40,7 +40,7 @@ Scope boundaries for every task below:
   - Document the deploy step that uploads `Packet.001` to R2 from the `vendor/` build output and ships the game readme plus a modified-data notice; commit no game data and no key, and reference Cloudflare credentials by name only.
   - _Requirements: 5.1, 5.2, 5.3, 5.4, 5.5, 5.6, 5.7_
 
-- [ ] 6. Playwright check: boot the live build and reach room 62
+- [x] 6. Playwright check: boot the live build and reach room 62
   - Add a Playwright spec in its own project/file (separate from the replay-based player tests) that serves `vendor/scummvm-web/build-emscripten/` (wasm + `/data`) locally, loads the page with `?live`, passes the start gate by keyboard, waits for boot, and asserts an `A11Y` room state for room 62.
   - Skip with a clear message naming `scripts/build-web.sh` and `scripts/fetch.sh` when `scummvm.wasm` or the game data is absent under `vendor/scummvm-web/build-emscripten/`, so the player's replay suite stays green on machines with no build.
   - Drive by keyboard and read A11Y lines (console or live region) only — never canvas pixels.

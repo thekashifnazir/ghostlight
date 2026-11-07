@@ -7,6 +7,10 @@ import { defineConfig, devices } from "@playwright/test";
 export default defineConfig({
   testDir: "test",
   testMatch: /.*\.spec\.ts$/,
+  // The live wasm check (test/live/) is a separate project with its own config
+  // (test/live/playwright.live.config.ts); keep it out of the replay suite so
+  // the player tests run green on a machine with no wasm build.
+  testIgnore: /live\//,
   fullyParallel: true,
   reporter: "list",
   use: {
