@@ -9,6 +9,7 @@
 
 import type { Command, EngineAdapter } from "../engine/adapter.js";
 import type { Hotspot } from "../model/hotspot-list.js";
+import type { Sonar } from "../sonar/sonar.js";
 import type { Inventory } from "./inventory.js";
 import type { ListMode } from "./list-mode.js";
 import type { LiveRegion } from "./live-region.js";
@@ -40,6 +41,8 @@ export interface ControllerDeps {
   stopAudio: () => void;
   /** Ask the ghost for a hint (hints-and-ghost R7.2). */
   askHint: () => void;
+  /** Room sonar: scan, step, mute (sonar spec R2, R3, R5, R6). */
+  sonar: Sonar;
 }
 
 export class Controller {
@@ -105,6 +108,28 @@ export class Controller {
         return true;
       case "F1":
         this.d.readHelp();
+        return true;
+      case "s":
+      case "S":
+        // Sonar scan: one ping per thing, then a summary line (sonar R2).
+        // stopAudio() already ran at the top of handleKey, so any scan in
+        // progress is stopped before this new one starts (sonar R6.4).
+        this.d.sonar.scan();
+        return true;
+      case "n":
+      case "N":
+        // Step to the next thing: one ping and its name/direction/distance.
+        this.d.sonar.next();
+        return true;
+      case "p":
+      case "P":
+        // Step to the previous thing.
+        this.d.sonar.prev();
+        return true;
+      case "m":
+      case "M":
+        // Toggle sonar sound; the text equivalents keep working when muted.
+        this.d.sonar.toggleMute();
         return true;
       case "Escape":
         this.d.adapter.send({ verb: "skip" });

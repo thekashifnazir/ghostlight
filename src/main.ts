@@ -19,6 +19,7 @@ import { GhostAudio } from "./hints/audio.js";
 import { HintEngine } from "./hints/engine.js";
 import { foldDiff, type EngineHintState } from "./hints/fold.js";
 import { ProgressTracker } from "./hints/progress.js";
+import { Sonar } from "./sonar/sonar.js";
 // The hint core imports the pack tools' types; the player loads the same pack.
 import type { Pack as HintPack } from "../packs/tools/src/types.js";
 // The pack is imported read-only as a bundled JSON module, so the player never
@@ -39,7 +40,10 @@ const HELP_TEXT =
   "Tab opens your inventory; choose an item to make it active, then interact " +
   "with a thing to use it. Backspace cancels. R repeats the last line. " +
   "L reads the whole room. H asks the ghost for a hint. " +
-  "F1 reads this help. Escape skips.";
+  "F1 reads this help. Escape skips. " +
+  "S scans the room as sound, left to right, then counts what is here. " +
+  "N and P step to the next and previous thing, playing its place. " +
+  "M mutes the sonar sound; the text keeps working.";
 
 /** Spoken when the player asks for a hint but nothing is offered yet. */
 const NO_HINT_TEXT = "There is nothing to hint at right now.";
@@ -58,6 +62,9 @@ declare global {
 interface PlayerState {
   chapter: number;
   room: number;
+  /** Hero foot/centre point, seeded from each full room state so diff-rebuilt
+   *  states pass the real hero to sonar instead of (0, 0) (sonar R1.3). */
+  hero: { x: number; y: number };
   objects: RoomState["objects"];
   inventory: number[];
 }
@@ -110,7 +117,13 @@ export async function boot(): Promise<void> {
   const live = new LiveRegion(liveEl, transcriptEl);
   const highlight = new Highlight(highlightEl, canvas);
 
-  const state: PlayerState = { chapter: 1, room: 0, objects: [], inventory: [] };
+  const state: PlayerState = {
+    chapter: 1,
+    room: 0,
+    hero: { x: 0, y: 0 },
+    objects: [],
+    inventory: [],
+  };
   let currentList: Hotspot[] = [];
 
   // Hint core (hints-and-ghost spec). The tracker and engine read the pack's
@@ -129,6 +142,16 @@ export async function boot(): Promise<void> {
   // The ghost whisper player, created once the audio context exists (start
   // gate). Until then it is undefined and the stop/play hooks are no-ops.
   let ghostAudio: GhostAudio | undefined;
+  // The start-gate audio context, set when the player starts (user gesture).
+  // Sonar reads it through getContext and stays text-only until it exists.
+  let audioContext: AudioContext | undefined;
+
+  // Room sonar: builds pings from the current room state and hotspot list and
+  // voices them, writing every line to the same live region (sonar spec).
+  const sonar = new Sonar({
+    live,
+    getContext: () => audioContext,
+  });
 
   const showHighlight = (h: Hotspot | undefined): void => {
     if (h) highlight.show(h.rect);
@@ -142,6 +165,8 @@ export async function boot(): Promise<void> {
   // or focus change interrupts a playing whisper.
   const stopAudio = (): void => {
     ghostAudio?.stop();
+    // Any key press also stops a sonar scan in progress (sonar R5.1, R6.4).
+    sonar.stop();
   };
 
   // Ask the ghost for a hint (hints-and-ghost R5, R6.1). Text to the live
@@ -201,6 +226,7 @@ export async function boot(): Promise<void> {
     readHelp: () => live.announce(HELP_TEXT),
     stopAudio,
     askHint,
+    sonar,
   });
 
   // Route adapter events to the model and UI.
@@ -240,6 +266,7 @@ export async function boot(): Promise<void> {
   function applyRoom(s: RoomState): void {
     state.chapter = s.chapter;
     state.room = s.room;
+    state.hero = s.hero;
     state.objects = s.objects;
     state.inventory = s.inventory;
     currentList = buildHotspotList(s, pack);
@@ -247,6 +274,8 @@ export async function boot(): Promise<void> {
     inventory.setItems(s.inventory);
     readRoom();
     showHighlight(list.current());
+    // Feed sonar the full room (with the real hero) and reset its step cursor.
+    sonar.setRoom(s, currentList);
 
     // Re-sync the running hint state to this room's full flags and inventory
     // (hints-and-ghost R11.6), then let the tracker latch any reached milestone.
@@ -266,6 +295,12 @@ export async function boot(): Promise<void> {
     hintState = foldDiff(hintState, diff);
     hintEngine.onEngineState(hintState);
 
+    // If a diff carries a hero position, adopt it before rebuilding so sonar
+    // pans from the current hero (the engine chat adds an optional A11Y_DIFF
+    // `hero`; until then this is absent and sonar keeps the last room's hero).
+    const diffHero = (diff as { hero?: { x: number; y: number } }).hero;
+    if (diffHero) state.hero = diffHero;
+
     // A room or chapter change rebuilds from the diff's new objects.
     if (diff.room || diff.chapter) {
       if (diff.chapter) state.chapter = diff.chapter[1];
@@ -276,7 +311,7 @@ export async function boot(): Promise<void> {
           {
             chapter: state.chapter,
             room: state.room,
-            hero: { x: 0, y: 0 },
+            hero: state.hero,
             objects: diff.objects,
             inventory: state.inventory,
             flags: [],
@@ -284,6 +319,18 @@ export async function boot(): Promise<void> {
           pack,
         );
         list.rebuild(currentList);
+        // Refresh sonar with the rebuilt room and the (possibly new) hero.
+        sonar.setRoom(
+          {
+            chapter: state.chapter,
+            room: state.room,
+            hero: state.hero,
+            objects: state.objects,
+            inventory: state.inventory,
+            flags: [],
+          },
+          currentList,
+        );
       }
       announceSaid(diff);
       readRoom();
@@ -297,18 +344,18 @@ export async function boot(): Promise<void> {
       for (const o of diff.disappeared ?? []) present.delete(o.num);
       for (const o of diff.appeared ?? []) present.set(o.num, o);
       state.objects = [...present.values()];
-      currentList = buildHotspotList(
-        {
-          chapter: state.chapter,
-          room: state.room,
-          hero: { x: 0, y: 0 },
-          objects: state.objects,
-          inventory: state.inventory,
-          flags: [],
-        },
-        pack,
-      );
+      const sameRoomState: RoomState = {
+        chapter: state.chapter,
+        room: state.room,
+        hero: state.hero,
+        objects: state.objects,
+        inventory: state.inventory,
+        flags: [],
+      };
+      currentList = buildHotspotList(sameRoomState, pack);
       list.update(currentList);
+      // Keep sonar in step with the updated visible things (sonar R2.6, R3.6).
+      sonar.setRoom(sameRoomState, currentList);
     }
 
     // Announce the engine's own reply first, then the inventory changes, so
