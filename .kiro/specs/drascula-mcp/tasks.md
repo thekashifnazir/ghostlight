@@ -37,7 +37,7 @@ These tasks build the server incrementally, replay-first so everything is runnab
   - Verify: unit test that a game tool before `start` returns the start-first error; after `start`, `state` returns the current room.
   - _Requirements: 2.1, 2.2, 2.3, 2.5, 2.6, 2.8, 4.1, 4.3, 4.4_
 
-- [ ] 7. Target validation before send (Req 8)
+- [x] 7. Target validation before send (Req 8)
   - In `tools.ts`, before building any command: reject a target-verb `target` not in `session.currentRoom`; reject a `use` `target` that is not an in-room hotspot, a held item id, or `50` (self). Rejections are MCP errors and send nothing to the transport. Judge validity against the current room only.
   - Verify: covered by the property test in task 11; add a focused unit case here (look at an absent number rejects; look at a present number passes validation).
   - _Requirements: 8.2, 8.3, 8.4, 8.5, 2.4_

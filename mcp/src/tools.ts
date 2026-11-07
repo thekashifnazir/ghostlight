@@ -20,7 +20,22 @@ import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 
 import { Session } from "./session.js";
-import type { RoomState, Transport } from "./transport.js";
+import type { Command, RoomState, Transport } from "./transport.js";
+
+/** The engine target verbs that act on a single hotspot number (Req 2.3). */
+export const TARGET_VERBS = [
+  "look",
+  "take",
+  "open",
+  "close",
+  "talk",
+  "push",
+  "walk",
+] as const;
+export type TargetVerb = (typeof TARGET_VERBS)[number];
+
+/** The hero object number: `use <item> 50` and acting on self (Req 2.4). */
+const HERO = 50;
 
 /** A plain tool reply: JSON payload plus an error flag the MCP layer maps. */
 export interface ToolReply {
@@ -91,9 +106,81 @@ export class Tools {
     return ok(room satisfies RoomState);
   }
 
-  // Command tools (the verbs that send) are wired to the session in task 8;
-  // task 7 inserts target validation ahead of that send. requireSession() is
-  // the single guard every game tool runs first.
+  // --- target validation before send (Req 8) --------------------------------
+
+  /**
+   * Reject a target that is not present in the current room, BEFORE any command
+   * reaches the transport (Req 8.2). Validity is judged against the current
+   * room only, so a target valid in a previous room is rejected after a room
+   * change (Req 8.4). Returns an error reply to send back, or null when valid.
+   *
+   * The session guard runs first, so by the time validation is reached a room
+   * is known (Req 8.5); the defensive `room == null` branch keeps this total.
+   */
+  private rejectBadTarget(target: number): ToolReply | null {
+    if (this.session.isTargetInRoom(target)) return null;
+    const room = this.session.room;
+    const present = (room?.objects ?? []).map((o) => o.num);
+    return err(
+      `target ${target} is not a hotspot in the current room ` +
+        `(chapter ${room?.chapter ?? "?"}, room ${room?.room ?? "?"}).`,
+      { room: room?.room, validTargets: present },
+    );
+  }
+
+  /**
+   * A `use` target is valid if it is an in-room hotspot, the id of a currently
+   * held item, or the hero (50, "use item on self") — Req 8.3, 2.4.
+   */
+  private rejectBadUseTarget(target: number): ToolReply | null {
+    if (target === HERO) return null;
+    if (this.session.isTargetInRoom(target)) return null;
+    if (this.session.heldItemIds().includes(target)) return null;
+    const room = this.session.room;
+    return err(
+      `use target ${target} is neither a hotspot in the current room, a held ` +
+        `item, nor the hero (50).`,
+      {
+        room: room?.room,
+        validTargets: (room?.objects ?? []).map((o) => o.num),
+        heldItems: this.session.heldItemIds(),
+      },
+    );
+  }
+
+  // --- command verbs: guard, validate, then send ----------------------------
+  // Task 7 establishes guard+validate+send. Task 8 adds the per-tool JSON
+  // shaping (inventory items, choices, saved slot) and registers these on the
+  // McpServer. Here they return the raw CommandResult so validation is testable.
+
+  /** A target verb (look/take/open/close/talk/push/walk) on a hotspot number. */
+  async targetVerb(verb: TargetVerb, target: number): Promise<ToolReply> {
+    const guard = this.requireSession();
+    if (guard) return guard;
+    const bad = this.rejectBadTarget(target);
+    if (bad) return bad;
+    return this.dispatch({ verb, target });
+  }
+
+  /** `use <item> <target>` — target is a hotspot, a held item, or 50 (self). */
+  async use(item: number, target: number): Promise<ToolReply> {
+    const guard = this.requireSession();
+    if (guard) return guard;
+    const bad = this.rejectBadUseTarget(target);
+    if (bad) return bad;
+    return this.dispatch({ verb: "use", item, target });
+  }
+
+  /**
+   * Send a validated command and return its result. Task 8 replaces this body
+   * with per-tool JSON shaping; for now it carries the CommandResult through so
+   * the task-7 validation boundary is exercised end to end.
+   */
+  protected async dispatch(cmd: Command): Promise<ToolReply> {
+    const result = await this.session.send(cmd);
+    if (result.error) return err(result.error, { events: result.events });
+    return ok(result);
+  }
 }
 
 /** Narrow an unknown thrown value to a message string. */
