@@ -2,10 +2,39 @@
   "mcpServers": {
     "drascula": {
       "command": "mcp/node_modules/.bin/tsx",
-      "args": ["mcp/src/server.ts"],
-      "env": { "DRASCULA_MCP_TRANSPORT": "replay", "DRASCULA_MCP_FIXTURE": "tavern" },
+      "args": [
+        "mcp/src/server.ts"
+      ],
+      "env": {
+        "DRASCULA_MCP_TRANSPORT": "replay",
+        "DRASCULA_MCP_FIXTURE": "tavern"
+      },
       "disabled": false,
-      "autoApprove": ["start", "stop", "state", "inventory", "choices"]
+      "autoApprove": [
+        "start",
+        "stop",
+        "state",
+        "inventory",
+        "choices"
+      ]
+    },
+    "drascula-live": {
+      "command": "mcp/node_modules/.bin/tsx",
+      "args": [
+        "mcp/src/server.ts"
+      ],
+      "env": {
+        "DRASCULA_MCP_TRANSPORT": "native",
+        "DRASCULA_MCP_SAVEPATH": "/tmp/ghostlight-mcp-live"
+      },
+      "disabled": false,
+      "autoApprove": [
+        "start",
+        "stop",
+        "state",
+        "inventory",
+        "choices"
+      ]
     }
   }
 }
