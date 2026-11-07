@@ -46,6 +46,8 @@ export interface ControllerDeps {
   stopAudio: () => void;
   /** Ask the ghost for a hint (hints-and-ghost R7.2). */
   askHint: () => void;
+  /** Toggle the ghost voice on/off; text hints keep working (R6.2). */
+  toggleGhostVoice: () => void;
   /** Room sonar: scan, step, mute (sonar spec R2, R3, R5, R6). */
   sonar: Sonar;
 }
@@ -110,6 +112,13 @@ export class Controller {
         // Ask the ghost for a hint. stopAudio() already ran at the top of
         // handleKey, so any playing whisper is stopped first (R7.3).
         this.d.askHint();
+        return true;
+      case "g":
+      case "G":
+        // Toggle the ghost voice. Text hints keep working either way; this
+        // only turns the optional whisper on or off and announces the new
+        // state (R6.2).
+        this.d.toggleGhostVoice();
         return true;
       case "F1":
         this.d.readHelp();

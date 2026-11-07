@@ -40,6 +40,7 @@ const HELP_TEXT =
   "Tab opens your inventory; choose an item to make it active, then interact " +
   "with a thing to use it. Backspace cancels. R repeats the last line. " +
   "L reads the whole room. H asks the ghost for a hint. " +
+  "G turns the ghost voice on or off; text hints keep working either way. " +
   "F1 reads this help. Escape skips. " +
   "S scans the room as sound, left to right, then counts what is here. " +
   "N and P step to the next and previous thing, playing its place. " +
@@ -182,6 +183,20 @@ export async function boot(): Promise<void> {
     });
   };
 
+  // Toggle the ghost voice on or off (hints-and-ghost R6.2). The text hints are
+  // untouched — askHint always announces to the live region — so this only
+  // flips the optional whisper. Turning it off also stops any whisper playing
+  // now (GhostAudio.setEnabled(false) calls stop). Before the start gate
+  // ghostAudio is undefined; the toggle still reports the intended state so the
+  // key is never silent. The announced line is functional text in the live
+  // region, so a screen-reader user hears the result.
+  let ghostVoiceOn = true;
+  const toggleGhostVoice = (): void => {
+    ghostVoiceOn = !ghostVoiceOn;
+    ghostAudio?.setEnabled(ghostVoiceOn);
+    live.announce(ghostVoiceOn ? "Ghost voice on." : "Ghost voice off.");
+  };
+
   // Decide the adapter: ?replay=<fixture> loads that fixture; else LiveAdapter.
   const params = new URLSearchParams(location.search);
   const replayName = params.get("replay");
@@ -232,6 +247,7 @@ export async function boot(): Promise<void> {
     readHelp: () => live.announce(HELP_TEXT),
     stopAudio,
     askHint,
+    toggleGhostVoice,
     sonar,
   });
 
@@ -423,6 +439,8 @@ export async function boot(): Promise<void> {
     try {
       const ctx = new (window.AudioContext ?? (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
       ghostAudio = new GhostAudio(ctx);
+      // Honour a toggle the player flipped before the start gate.
+      ghostAudio.setEnabled(ghostVoiceOn);
     } catch {
       /* audio not available; the player is still fully usable as text. */
     }

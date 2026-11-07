@@ -97,6 +97,7 @@ function harness(focused: Hotspot) {
     readHelp: () => {},
     stopAudio: () => {},
     askHint: () => {},
+    toggleGhostVoice: () => {},
     sonar: { stop: () => {} } as unknown as Sonar,
   });
 
