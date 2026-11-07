@@ -10,6 +10,10 @@ test-results/
 # web/public is the hosting build output + game data, assembled at deploy time
 # from vendor/. Never committed (see web/DEPLOY.md).
 web/public/
+# Wrangler's local state (Miniflare cache, local R2/KV, logs). Build-time only.
+web/.wrangler/
+# Raw screen-capture footage for the demo video — large binaries, not source.
+docs/video-raw/
 # Player replay fixtures are committed test data, not logs. The global
 # gitignore has *.log; un-ignore these so they are tracked.
 !src/fixtures/*.a11y.log

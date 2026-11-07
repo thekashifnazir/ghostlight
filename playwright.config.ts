@@ -12,6 +12,7 @@ export default defineConfig({
   // the player tests run green on a machine with no wasm build.
   testIgnore: /live\//,
   fullyParallel: true,
+  workers: 2,
   reporter: "list",
   use: {
     baseURL: "http://localhost:5173",
