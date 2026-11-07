@@ -140,7 +140,7 @@ These tasks implement the design. Each cites the requirements it covers. Our eng
   - Done: agent at `.kiro/agents/engine-a11y-verifier.md`; report at `.kiro/specs/engine-a11y-layer/verification.md`; fixture suite ran 26/26 pass; live native ch2-handbag spot-check run; two gaps filed as tasks 26 and 27 below.
   - _Requirements: all_
 
-- [ ] 26. Follow-up (from task 25): live native ch2-handbag `open 22` returns A11Y_ERR (R3.6)
+- [-] 26. Follow-up (from task 25): live native ch2-handbag `open 22` returns A11Y_ERR (R3.6)
   - Loading the chapter-2 save (slot 9) and running the ch2-handbag script live, `open 183` sets flags 19/20 but adds no handbag (item 22), so `open 22` emits `A11Y_ERR object 22 is not in this room or inventory` instead of the golden diff (money + two coins, flag 23). This is a live-vs-golden divergence surfaced during task 19 and reconfirmed by the verifier (`verification.md`, Gap 1).
   - Separate the two possible causes: (a) the live slot-9 save is stale/drifted (its room-14 object and flag set differs from the save the golden transcript was recorded against), versus (b) a genuine inventory-screen dispatch bug where `open 183` fails to grant item 22 on the live engine. Regenerate the chapter-2 save with `scripts/make-ch2-save.sh` and re-run; if `open 183` still grants no handbag, fix the dispatch so R3.6 holds live and re-record the golden fixture from the real engine.
   - _Requirements: 3.6; gotcha 6_
@@ -148,3 +148,18 @@ These tasks implement the design. Each cites the requirements it covers. Our eng
 - [ ] 27. Follow-up (from task 25): register task 22 property tests for PBT status tracking
   - Task 22's fast-check property tests run and pass, but task 22 is a normal task in `tasks.meta.json`, so `pbtResults` stays `{}` and `update_pbt_status` never applies. Register the property-test task as a PBT task (or mark it so the PBT tooling records a status) so the property run is tracked. Tooling/registration loose end, no behavioural impact (`verification.md`, Gap 2).
   - _Requirements: 2.2, 2.5, 4.1, 4.5, 4.8, 5.*_
+
+- [ ] 28. Re-record `tavern.json` so the inventory step uses `inventory`, not `inv`
+  - The tavern fixture recorded the inventory command as `inv`, but the shared serialiser `serializeCommand({verb:"inventory"})` (`src/engine/adapter.ts`) emits `inventory`. That mismatch forced a test-only escape hatch in the drascula-mcp replay transport (`mcp/src/replay.ts`, the `omitSteps:["inv"]` seam used by `mcp/test/*`). Re-record so the inventory step's `A11Y_CMD` is `inventory` — the engine's command reader accepts both spellings (`verb == "inventory" || verb == "inv"`) — aligning the fixture with what the serialiser sends.
+  - Re-record `tests/engine/fixtures/tavern.json` from the real native engine (`drive.sh`, real window, gotcha 12) with the inventory step issued as `inventory`; update the expected command sequence in `tests/engine/replay.test.ts` (currently asserts `"inv"`). Remove the now-unnecessary `omitSteps:["inv"]` escape hatch in the drascula-mcp replay transport and its tests, and confirm both the engine suite and the mcp suite pass. The drascula-mcp spec owns `mcp/`, so coordinate the cross-spec change.
+  - _Requirements: 2.6, 6.4_
+
+- [ ] 29. Emit a conversation's opening `A11Y_DIFF` when the choices appear, not after it ends
+  - Today a `talk <npc>` that opens a conversation produces its `A11Y_DIFF` only once the whole conversation loop ends (the "Settling" model), so the player hears nothing back until they have finished talking. Instead, when `talk` opens a conversation and the choices are first laid out — the same point `A11Y_CHOICES` is emitted — emit the `talk` command's `A11Y_DIFF` then.
+  - Preserve the one-diff-per-command invariant (R4.1): the `talk` that opened the conversation produces exactly one `A11Y_DIFF`, emitted at choices-open, and does NOT also emit a second diff when the conversation later ends. Each subsequent `choose <n>` keeps its own diff. Update/re-record the tavern fixture and the replay/property tests to match the new ordering.
+  - _Requirements: 4.1, 7.1, 6.3_
+
+- [ ] 30. Add an optional hero `{x,y}` to `A11Y_DIFF` when the hero moved
+  - Sonar pans object pings relative to where the hero stands (R5), so it needs the hero's new position after a command that moved them. Add an optional `"hero":{"x":..,"y":..}` field to `A11Y_DIFF`, present only when the hero's position changed (e.g. a `walk`), using the same hero point as the room state (`curX + curWidth/2`, `curY + curHeight`, R5.2) in the same coordinate space (R5.3).
+  - The field is optional and omitted when the hero did not move, so existing diffs are unchanged except where movement occurred. A hero move alone does not flip `changed` unless an existing rule already would. Update the design's `A11Y_DIFF` section to document the field, and update/re-record fixtures and tests to assert the hero field on movement commands.
+  - _Requirements: 5.1, 5.2, 5.3, 4.1_
