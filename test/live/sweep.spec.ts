@@ -52,10 +52,13 @@ const BOX = "#command-box";
 const INPUT = "#command-box-input";
 
 // The readiness signal the player publishes on window.__ghostlight
-// (src/engine/status.ts). The live specs wait on its phase instead of fixed
-// sleeps: 'ready' means the engine has settled after the last command and
-// accepts keys; 'conversation' means dialogue lines are still arriving. This is
-// the same deterministic signal a screen-reader harness uses.
+// (src/engine/status.ts), now driven by the engine's own `A11Y_PHASE` line
+// rather than inferred from pauses between text lines. The live specs wait on
+// its phase instead of fixed sleeps: 'ready' means the engine reported it can
+// take a command again (A11Y_PHASE control); 'busy'/'conversation' means a
+// command is still running; 'choice' means a conversation menu is open and
+// waiting (A11Y_PHASE choice). This is the same deterministic signal a
+// screen-reader harness uses.
 type GlPhase =
   | "gate"
   | "booting"
@@ -254,17 +257,14 @@ test.describe("live sweep (Chrome + WebKit)", () => {
     // hands over the room, which leaves flag 0 unset so the doorway answers
     // "I DON'T HAVE A ROOM YET".
     //
-    // Wait on the readiness signal, not a fixed sleep: `talk 52` moves the
-    // phase to 'conversation' while the bartender's dialogue lines keep
-    // arriving, and the phase only leaves 'conversation' (to 'ready', on the
-    // settling diff) once the conversation has finished and the room is handed
-    // over. Wait for the phase to leave 'conversation', capped at ~4 min so a
-    // wedged engine fails rather than hanging.
+    // Wait on the engine-truth readiness signal, not a fixed sleep and not a
+    // pause between lines: `talk 52` moves the phase to 'conversation'/'busy'
+    // while the bartender's dialogue plays, and the ENGINE emits
+    // `A11Y_PHASE control` (mapped to 'ready') the instant the conversation
+    // ends and it can take a command again. So wait for phase 'ready', capped
+    // at ~4 min so a wedged engine fails rather than hanging.
     await page.waitForFunction(
-      () => {
-        const p = window.__ghostlight?.phase;
-        return p !== undefined && p !== "conversation" && p !== "busy";
-      },
+      () => window.__ghostlight?.phase === "ready",
       undefined,
       { timeout: 240_000 },
     );
@@ -284,7 +284,7 @@ test.describe("live sweep (Chrome + WebKit)", () => {
     }
     expect(
       handedOver,
-      "bartender never handed over the room (no ch1.bed curtained-doorway hint after the conversation left the 'conversation' phase)",
+      "bartender never handed over the room (no ch1.bed curtained-doorway hint after the engine reported the conversation settled to 'ready')",
     ).toBe(true);
 
     // 2. Walk through the curtained doorway (exit 105). Step to it and Enter

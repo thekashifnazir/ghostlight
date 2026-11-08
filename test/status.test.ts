@@ -333,3 +333,190 @@ describe("StatusTracker phase transitions (replay adapter)", () => {
     await expect(left).resolves.toBeUndefined();
   });
 });
+
+// Engine-truth phase mapping: once the engine emits A11Y_PHASE, those lines are
+// authoritative and the quiet-period inference is no longer used. These feed
+// synthetic events (as the parser would produce them from A11Y_PHASE lines) and
+// assert the mapping, plus that the quiet period never fires once engine truth
+// is established.
+describe("StatusTracker engine-truth phase (A11Y_PHASE)", () => {
+  /** A fresh tracker with injected time; no adapter needed. */
+  function tracker() {
+    const c = clock();
+    const status = new StatusTracker({
+      settleQuietMs: QUIET_MS,
+      now: c.now,
+      setTimeout: c.setTimeout,
+      clearTimeout: c.clearTimeout,
+    });
+    const room = (): void =>
+      status.onEvent({
+        type: "room",
+        state: {
+          chapter: 1,
+          room: 62,
+          hero: { x: 0, y: 0 },
+          objects: [],
+          inventory: [],
+          flags: [],
+        },
+      });
+    return { status, clock: c, room };
+  }
+
+  it("maps A11Y_PHASE control -> ready and busy -> busy", () => {
+    const { status, room } = tracker();
+    status.onStart(false);
+    room();
+    expect(status.phase).toBe("ready");
+
+    status.onSend(false); // player sent a command -> busy
+    expect(status.phase).toBe("busy");
+
+    status.onEvent({ type: "phase", phase: "busy" }); // engine confirms busy
+    expect(status.phase).toBe("busy");
+
+    status.onEvent({ type: "phase", phase: "control" }); // engine: back in control
+    expect(status.phase).toBe("ready");
+  });
+
+  it("A11Y_PHASE busy keeps 'conversation' while dialogue text is arriving", () => {
+    const { status, room } = tracker();
+    status.onStart(false);
+    room();
+
+    status.onSend(false);
+    status.onEvent({ type: "phase", phase: "busy" });
+    status.onEvent({ type: "text", line: "WHO ARE YOU LOOKING FOR?" });
+    // A text line during a busy command is dialogue: conversation.
+    expect(status.phase).toBe("conversation");
+    // A further engine 'busy' must NOT downgrade it out of conversation.
+    status.onEvent({ type: "phase", phase: "busy" });
+    expect(status.phase).toBe("conversation");
+    // The engine says it is back in control: the conversation ended.
+    status.onEvent({ type: "phase", phase: "control" });
+    expect(status.phase).toBe("ready");
+  });
+
+  it("A11Y_PHASE choice opens 'choice'; a diff alongside it does not clobber it", () => {
+    const { status, room } = tracker();
+    status.onStart(false);
+    room();
+
+    // talk that opens a conversation: busy, dialogue, then the engine opens the
+    // menu. The talk's own diff lands at choices-open (engine order: choices,
+    // diff), and under engine truth that diff must not reset the choice phase.
+    status.onSend(false);
+    status.onEvent({ type: "phase", phase: "busy" });
+    status.onEvent({ type: "text", line: "THE DRUNK MUMBLES." });
+    status.onEvent({
+      type: "choices",
+      choices: [
+        { n: 1, text: "Ask about the gate" },
+        { n: 4, text: "Goodbye", ends: true },
+      ],
+    });
+    status.onEvent({ type: "phase", phase: "choice" });
+    expect(status.phase).toBe("choice");
+
+    // The talk's deferred diff arrives at choices-open — must stay 'choice'.
+    status.onEvent({ type: "diff", diff: { cmd: "talk 53", changed: true } });
+    expect(status.phase).toBe("choice");
+
+    // Choosing resolves it: a command out, then the engine returns to control.
+    status.onSend(false);
+    status.onEvent({ type: "phase", phase: "control" });
+    expect(status.phase).toBe("ready");
+  });
+
+  it("once engine truth is established the quiet period never settles a command", () => {
+    const { status, clock: c, room } = tracker();
+    status.onStart(false);
+    room();
+
+    // First real phase line switches the tracker to engine truth.
+    status.onSend(false);
+    status.onEvent({ type: "phase", phase: "busy" });
+    expect(status.phase).toBe("busy");
+
+    // No further output. In the OLD behaviour the quiet period would settle to
+    // ready; under engine truth it must NOT — only an A11Y_PHASE control does.
+    c.advance(QUIET_MS * 100);
+    expect(status.phase).toBe("busy");
+
+    status.onEvent({ type: "phase", phase: "control" });
+    expect(status.phase).toBe("ready");
+  });
+
+  it("a scripted-exit crossing stays 'cutscene' through an engine busy, then ready on control", () => {
+    const { status, room } = tracker();
+    status.onStart(false);
+    room();
+
+    status.onSend(true); // cutscene trigger
+    expect(status.phase).toBe("cutscene");
+    // The engine emits busy for the crossing walk; the cutscene phase is kept.
+    status.onEvent({ type: "phase", phase: "busy" });
+    expect(status.phase).toBe("cutscene");
+    // Chapter 2's first room arrives (settled), then control.
+    status.onEvent({
+      type: "room",
+      state: {
+        chapter: 2,
+        room: 14,
+        hero: { x: 0, y: 0 },
+        objects: [],
+        inventory: [],
+        flags: [],
+      },
+    });
+    expect(status.phase).toBe("ready");
+    expect(status.status.chapter).toBe(2);
+    expect(status.status.room).toBe(14);
+  });
+});
+
+// Replay fallback: the committed fixtures predate A11Y_PHASE, so a replay of
+// them carries no phase lines and the tracker must fall back to the earlier
+// quiet-period / text-conversation behaviour. These re-run against the REAL
+// ReplayAdapter and assert engine truth is NEVER triggered (no phase event is
+// ever emitted) yet the phases still settle as before.
+describe("StatusTracker replay fallback (no A11Y_PHASE in old fixtures)", () => {
+  it("the tavern fixture emits no phase event (fallback stays in effect)", async () => {
+    const h = harness("tavern.a11y.log");
+    await h.start();
+    expect(h.events.some((e) => e.type === "phase")).toBe(false);
+  });
+
+  it("a plain command still settles to ready via the fallback diff", async () => {
+    const h = harness("tavern.a11y.log");
+    await h.start();
+    h.send({ verb: "look", target: 52 });
+    // No phase lines in the fixture, so this is the quiet-period fallback; the
+    // diff settles it to ready exactly as before.
+    expect(h.status.phase).toBe("ready");
+    expect(h.events.some((e) => e.type === "phase")).toBe(false);
+  });
+
+  it("a conversation with no diff still settles via the quiet period (fallback)", () => {
+    const h = harness("tavern.a11y.log");
+    h.status.onStart(false);
+    h.status.onEvent({
+      type: "room",
+      state: {
+        chapter: 1,
+        room: 62,
+        hero: { x: 0, y: 0 },
+        objects: [],
+        inventory: [],
+        flags: [],
+      },
+    });
+    h.status.onSend(false);
+    h.status.onEvent({ type: "text", line: "A LINE OF DIALOGUE." });
+    expect(h.status.phase).toBe("conversation");
+    // The fallback quiet period still settles a conversation that goes quiet.
+    h.clock.advance(QUIET_MS);
+    expect(h.status.phase).toBe("ready");
+  });
+});

@@ -84,7 +84,7 @@ export class CommandBox {
     this.input.value = "";
     this.input.focus();
     this.cb.announce(
-      "Command. Type what to do, for example use coins on machine, then press Enter. Escape closes.",
+      "Command. Type what to do, for example talk to drunk, then press Enter. Escape closes.",
     );
   }
 

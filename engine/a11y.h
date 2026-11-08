@@ -40,6 +40,47 @@
 namespace Drascula {
 
 class DrasculaEngine;
+class A11yLayer;
+
+// --- Generic "player in control" probe --------------------------------------
+//
+// The A11Y_PHASE signal (control/busy/choice) needs to know whether the engine
+// is at the player's command or still working. There is NO reliable engine-wide
+// API for this: Engine::canSaveGameStateCurrently() is NOT a "player in control"
+// test (Queen and Lure return true during dialogue, Sky during cutscenes), and
+// in Drascula the engine's own _canSaveLoad is true only inside two narrow
+// event-pump windows of the main loop (drascula.cpp:630-633 and 704-707), so
+// read from our poll hook at drascula.cpp:588 it reads false even in free play.
+//
+// So the test is per-engine. A11yControlProbe is the small interface the a11y
+// layer reads instead of any shared API; each game supplies one concrete
+// implementation. The layer stays game-agnostic: it only knows the two boolean
+// signals below and maps them to phases. To port the layer to another ScummVM
+// game, implement this interface for that game and nothing in the layer's phase
+// logic changes.
+//
+//   playerInControl() — true when the engine is idle in free play and able to
+//                        take a command this frame (no cutscene, no modal menu,
+//                        no a11y command mid-flight).
+//   awaitingChoice()  — true when a conversation choice menu is open and waiting
+//                        for the player to pick an option.
+//
+// Per-engine signals, for when the layer is ported (control / choice):
+//   Drascula — implemented below (DrasculaControlProbe): main-loop poll hook
+//              reached this frame or the previous one AND !_menuScreen AND no
+//              a11y command executing; choice from the onConverseBegin/
+//              onConverseEnd window (converse.cpp:223, 328).
+//   Queen    — !cutawayRunning and not in Talk; choice from a new hook at
+//              talk.cpp:1265.
+//   Lure     — talkState == TALK_NONE && cursorState == CS_NONE; choice from
+//              TALK_SELECT.
+//   Sky      — the mouse-control bits (mouse.cpp:252, 261-264); choice from
+//              SF_CHOOSING.
+struct A11yControlProbe {
+	virtual ~A11yControlProbe() {}
+	virtual bool playerInControl() = 0;
+	virtual bool awaitingChoice() = 0;
+};
 
 // The a11y layer. Observes room/inventory/flag state, translates text commands
 // from <savepath>/a11y-cmd.txt into the engine's own action calls, and emits
@@ -767,6 +808,83 @@ private:
 		kClickPressed
 	};
 	ClickState _clickState;
+
+	// --- Engine-truth control phase (A11Y_PHASE) ----------------------------
+	//
+	// A single line, `A11Y_PHASE <control|busy|choice>`, tells an external
+	// reader whether the engine is at the player's command or still working,
+	// straight from the engine rather than inferred from the gaps between text
+	// lines. The player's readiness signal (src/engine/status.ts) is driven by
+	// this instead of guessing a conversation has ended from a pause.
+	//
+	//   control — the engine is idle in free play and able to take a command
+	//             this frame: the control probe's playerInControl() is true (see
+	//             A11yControlProbe / _probe). There is no reliable engine-wide
+	//             API for this, so the test is per-engine behind the probe
+	//             interface, keeping the phase logic here game-agnostic.
+	//   busy    — a command is running, a cutscene/speech loop has taken over the
+	//             main loop (so poll stops being reached), or the engine is
+	//             otherwise not ready.
+	//   choice  — a conversation choice menu is open and waiting for the player.
+	//             Emitted from the converse path (emitChoices), because the
+	//             conversation runs its own modal loop and poll() does not run
+	//             while it is open (gotcha 4).
+	//
+	// The phase is emitted only when it CHANGES (plus once after boot), so a
+	// per-frame poll() adds at most one cheap probe call and a compare, never a
+	// line per frame. _lastPhase is the last value emitted; kPhaseNone (the
+	// initial value) forces the first real phase to be emitted so a reader
+	// always sees an initial A11Y_PHASE.
+	enum Phase {
+		kPhaseNone = 0,
+		kPhaseControl,
+		kPhaseBusy,
+		kPhaseChoice
+	};
+	Phase _lastPhase;
+
+	// The per-engine "player in control" probe the phase logic reads (see
+	// A11yControlProbe). Owned by the layer; constructed in the constructor as
+	// the Drascula implementation. Stored by base pointer so the layer never
+	// names a game-specific type here.
+	A11yControlProbe *_probe;
+
+	// Milliseconds (g_system->getMillis()) at the top of the last poll() call.
+	// poll() is the main loop's per-frame a11y hook; a talk/cutscene/room-
+	// transition loop runs the engine's OWN frame pump and never returns to the
+	// main loop, so poll() (and this stamp) stop advancing for the whole of that
+	// loop. The Drascula probe's playerInControl() compares this against the
+	// current time: a poll within the last frame or two means the main loop is
+	// live (free play); a stale stamp means a nested loop has taken over, so the
+	// phase reads `busy`. 0 means poll() has not run yet.
+	uint32 _lastPollMs;
+
+	// Emit `A11Y_PHASE <name>` if `phase` differs from the last one emitted,
+	// and remember it. Cheap: a compare and, on a change only, one emitLine().
+	void emitPhase(Phase phase);
+
+	// Compute and emit the control/busy phase for this frame from the control
+	// probe: control when _probe->playerInControl() is true, busy otherwise.
+	// Called once per poll() frame (and once at boot). Not called while a
+	// conversation is open — that path emits `choice`.
+	void updateControlPhase();
+
+	// The Drascula implementation of A11yControlProbe. Nested so it can read the
+	// layer's private signals (the poll stamp, _inRunCommand) and the engine's
+	// own state (_menuScreen); holds only a back-pointer to the owning layer.
+	// playerInControl() is true when the main-loop poll hook was reached this
+	// frame or the previous one AND the engine is not in a modal menu
+	// (!_menuScreen) AND no a11y command is executing (!_inRunCommand).
+	// awaitingChoice() is true between onConverseBegin() and onConverseEnd()
+	// (_converseActive), the engine's converse() window.
+	class DrasculaControlProbe : public A11yControlProbe {
+	public:
+		explicit DrasculaControlProbe(A11yLayer *layer) : _layer(layer) {}
+		bool playerInControl() override;
+		bool awaitingChoice() override;
+	private:
+		A11yLayer *_layer;
+	};
 };
 
 } // namespace Drascula

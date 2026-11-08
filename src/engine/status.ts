@@ -33,19 +33,28 @@
 //   cutscene        a skippable scene is playing (e.g. the chapter 1->2 crossing)
 //   error          the engine reported an error on the last command
 //
-// Settling (reused transport-settle quiet-period logic)
-// -----------------------------------------------------
-// A command does not settle on a single marker; like the native transport
-// (`mcp/src/native.ts`, the transport-settle bugfix), it settles on a QUIET
-// PERIOD. Sending a command moves the phase to `busy` and arms an inactivity
-// timer; every engine line (`recordLine`) and every typed event (`onEvent`)
-// bumps it. When no engine output has arrived for `settleQuietMs`, the command
-// is deemed settled and the phase returns to `ready` — unless a `choices`
-// event has meanwhile opened a `choice` menu, dialogue is still arriving
-// (`conversation`), or a cutscene is playing, which are their own waited-on
-// phases. This mirrors the transport's "reset on every A11Y line" rule, so a
-// slow-but-progressing command (a multi-second conversation reply, a paced
-// cutscene) is never prematurely marked ready.
+// Settling: engine truth first, quiet-period fallback
+// ----------------------------------------------------
+// The engine a11y layer emits an `A11Y_PHASE` line straight from engine truth:
+// `control` when the engine can take a command (`canSaveGameStateCurrently()`
+// is true and nothing is running), `busy` while a command runs, and `choice`
+// while a conversation menu is open. When these arrive (the live engine, and
+// any recording made with the A11Y_PHASE-emitting build) they are AUTHORITATIVE:
+// `control` -> `ready`, `busy` -> `busy` (or `conversation` while dialogue text
+// is still arriving), `choice` -> `choice`. No pause between lines is used to
+// guess that a conversation has ended; the engine says so.
+//
+// FALLBACK (old recordings with no A11Y_PHASE). A recording made before the
+// engine emitted A11Y_PHASE carries none, so the tracker falls back to the
+// earlier behaviour for that session only: a command moves to `busy` and arms
+// a QUIET-PERIOD inactivity timer (like the native transport,
+// `mcp/src/native.ts`); every engine line (`recordLine`) and typed event
+// (`onEvent`) bumps it; after `settleQuietMs` with no output the command is
+// deemed settled and returns to `ready` — unless a `choices` event opened a
+// `choice` menu or dialogue is still arriving (`conversation`). The moment the
+// first `A11Y_PHASE` of a session is seen, the tracker switches to engine truth
+// and the quiet-period timer is no longer armed. This keeps the replay tests
+// (whose fixtures predate A11Y_PHASE) passing unchanged.
 
 import type { EngineEvent } from "./adapter.js";
 
@@ -155,6 +164,15 @@ export class StatusTracker {
   private settleTimer: unknown;
   private readonly waiters = new Set<Waiter>();
 
+  /**
+   * True once the first `A11Y_PHASE` event of the session has been seen. From
+   * then on the engine's own phase is authoritative and the quiet-period settle
+   * timer is never armed (it is cancelled on the switch). An old recording with
+   * no A11Y_PHASE leaves this false, so the quiet-period fallback drives the
+   * phase for that session — which is what keeps the replay fixtures passing.
+   */
+  private engineTruth = false;
+
   /** The frozen read-only view published on `window.__ghostlight`. */
   readonly status: GhostlightStatus;
 
@@ -228,59 +246,99 @@ export class StatusTracker {
   }
 
   /**
-   * A command was sent to the engine. Moves to `busy` and arms the quiet-period
-   * settle timer, unless the player is already in a waited-on phase that the
-   * engine's own events (not a quiet period) resolve: a `choice` menu (resolved
-   * by the player choosing, which sends `choose` and is itself a command), or a
-   * `cutscene` (resolved by the crossing skip's diff). `isCutsceneTrigger` is
-   * set by the scripted-exit crossing walk, which starts a `cutscene` phase
-   * that the subsequent chapter-change diff ends.
+   * A command was sent to the engine. Moves to `busy` (or `cutscene` for a
+   * scripted-exit crossing walk) for immediate feedback. In the fallback (no
+   * A11Y_PHASE yet) it also arms the quiet-period settle timer; once engine
+   * truth is established the engine's own `A11Y_PHASE control` returns it to
+   * ready, so no timer is armed (a long command would otherwise settle early
+   * before the next phase line arrives). `isCutsceneTrigger` is set by the
+   * scripted-exit crossing walk, which starts a `cutscene` phase that the
+   * subsequent chapter-change room/diff and `A11Y_PHASE control` end.
    */
   onSend(isCutsceneTrigger = false): void {
-    if (isCutsceneTrigger) {
-      this.setPhase("cutscene");
-      this.armSettle();
-      return;
-    }
-    this.setPhase("busy");
-    this.armSettle();
+    this.setPhase(isCutsceneTrigger ? "cutscene" : "busy");
+    if (!this.engineTruth) this.armSettle();
   }
 
   /**
-   * Route one typed engine event. This is the authoritative phase driver: a
-   * `room` settles to `ready`, a `choices` opens a `choice` menu, a `diff`
-   * settles (ending any conversation/cutscene), an `error` moves to `error`,
-   * and a `text` line during a command marks `conversation` (dialogue still
-   * arriving). Every event bumps the quiet-period timer.
+   * Route one typed engine event. Under engine truth (any session that emits
+   * `A11Y_PHASE`) the phase is driven by the `phase` events alone — `control`
+   * -> `ready`, `busy` -> `busy`/`conversation`/`cutscene`, `choice` ->
+   * `choice` — while `room`/`diff` only update the room/chapter. In the
+   * fallback (old recordings with no phase lines) the earlier behaviour drives
+   * it: a `room` and a `diff` settle to `ready`, a `choices` opens `choice`, a
+   * `text` line during a command marks `conversation`, and a quiet period
+   * settles a command that goes silent. A `text` line marks `conversation` and
+   * an `error` moves to `error` in both modes. Every event bumps the fallback
+   * quiet-period timer (a no-op once it is cancelled under engine truth).
    */
   onEvent(e: EngineEvent): void {
     this.bumpSettle();
     switch (e.type) {
+      case "phase":
+        // Engine truth. From the first phase line on, the engine's own control
+        // state drives the readiness phase and the quiet-period timer is no
+        // longer used (cancel any in flight).
+        this.engineTruth = true;
+        this.cancelSettle();
+        switch (e.phase) {
+          case "control":
+            // The engine can take a command again: settled -> ready.
+            this.setPhase("ready");
+            break;
+          case "busy":
+            // A command is running. Map to 'busy' normally, but keep a
+            // waited-on sub-phase the player set for this command — a
+            // 'conversation' (dialogue still arriving) or a 'cutscene' (a
+            // scripted-exit crossing in progress) — so a harness can wait it
+            // out. The engine's next phase line (choice, or control at the end)
+            // moves it on.
+            if (this._phase !== "conversation" && this._phase !== "cutscene") {
+              this.setPhase("busy");
+            }
+            break;
+          case "choice":
+            // A conversation choice menu is open and waiting for the player.
+            this.setPhase("choice");
+            break;
+        }
+        break;
       case "room":
         this._room = e.state.room;
         this._chapter = e.state.chapter;
+        // A room event is unambiguously a settled state, so it resolves to
+        // ready in both modes — under engine truth the engine's own
+        // `A11Y_PHASE control` confirms it on the same idle frame.
         this.cancelSettle();
         this.setPhase("ready");
         break;
       case "diff":
         if (e.diff.room) this._room = e.diff.room[1];
         if (e.diff.chapter) this._chapter = e.diff.chapter[1];
-        // A diff is the engine's settled response: it ends a conversation, a
-        // cutscene, or a plain busy command. Settle to ready at once.
-        this.cancelSettle();
-        this.setPhase("ready");
+        // Under engine truth the phase is driven by `A11Y_PHASE` alone: a diff
+        // only carries room/chapter, and must NOT clobber a 'choice' menu that
+        // a talk's diff is emitted alongside (the diff lands at choices-open).
+        // In the fallback (no phase lines) a diff is the engine's settled
+        // response and returns to ready at once.
+        if (!this.engineTruth) {
+          this.cancelSettle();
+          this.setPhase("ready");
+        }
         break;
       case "choices":
         // A choice menu is open and waiting for the player; not a quiet-period
-        // settle — it is resolved by the player choosing.
+        // settle — it is resolved by the player choosing. Under engine truth
+        // the following `A11Y_PHASE choice` confirms it; setting it here too is
+        // harmless (same phase) and keeps the fallback working.
         this.cancelSettle();
         this.setPhase("choice");
         break;
       case "text":
         // Dialogue (or any drawn line) is still arriving: a conversation is in
-        // progress. Keep bumping the quiet period so the conversation is not
-        // mistaken for a settled command; the diff (or choices) that follows
-        // moves it on.
+        // progress. In both modes a text line during a busy/conversation
+        // command marks 'conversation'. Under engine truth the next
+        // `A11Y_PHASE` (choice, or control at the end) moves it on; in the
+        // fallback the bumped quiet period or the following diff/choices does.
         if (this._phase === "busy" || this._phase === "conversation") {
           this.setPhase("conversation");
         }
@@ -293,7 +351,7 @@ export class StatusTracker {
       case "cmd":
       case "saved":
         // Not phase-changing on their own; the bump above keeps the quiet
-        // period alive so the following diff settles the command.
+        // period alive (fallback) so the following diff settles the command.
         break;
     }
   }

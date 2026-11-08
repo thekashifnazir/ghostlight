@@ -100,6 +100,17 @@ export interface InvItem {
   look?: string;
 }
 
+/**
+ * The engine's own control phase (the `A11Y_PHASE` line). Emitted by the engine
+ * a11y layer straight from engine truth, not inferred by the player:
+ *   - `control` — the engine is idle and able to take a command this frame
+ *     (`canSaveGameStateCurrently()` is true and no command is running).
+ *   - `busy`    — a command is running / the engine is not ready.
+ *   - `choice`  — a conversation choice menu is open and waiting.
+ * The player maps these onto its readiness phase (see src/engine/status.ts).
+ */
+export type EnginePhase = "control" | "busy" | "choice";
+
 /** A typed event produced by parsing one A11Y line. */
 export type EngineEvent =
   | { type: "room"; state: RoomState }
@@ -109,7 +120,8 @@ export type EngineEvent =
   | { type: "inv"; items: InvItem[] }
   | { type: "cmd"; cmd: string }
   | { type: "error"; message: string }
-  | { type: "saved"; slot: number };
+  | { type: "saved"; slot: number }
+  | { type: "phase"; phase: EnginePhase };
 
 /** The engine verbs that target a single hotspot number. */
 export type TargetVerb =

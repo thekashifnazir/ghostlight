@@ -73,6 +73,35 @@ describe("parseA11yLine", () => {
     });
   });
 
+  it("parses the engine's A11Y_PHASE control/busy/choice lines", () => {
+    expect(parseA11yLine("A11Y_PHASE control")).toEqual({
+      type: "phase",
+      phase: "control",
+    });
+    expect(parseA11yLine("A11Y_PHASE busy")).toEqual({
+      type: "phase",
+      phase: "busy",
+    });
+    expect(parseA11yLine("A11Y_PHASE choice")).toEqual({
+      type: "phase",
+      phase: "choice",
+    });
+  });
+
+  it("still parses A11Y_PHASE after a WARNING: wrap", () => {
+    expect(parseA11yLine("WARNING: A11Y_PHASE control!")).toEqual({
+      type: "phase",
+      phase: "control",
+    });
+  });
+
+  it("returns null for an unknown or empty A11Y_PHASE word", () => {
+    expect(parseA11yLine("A11Y_PHASE")).toBeNull();
+    expect(parseA11yLine("A11Y_PHASE ")).toBeNull();
+    expect(parseA11yLine("A11Y_PHASE paused")).toBeNull();
+    expect(parseA11yLine("A11Y_PHASE CONTROL")).toBeNull(); // case-sensitive
+  });
+
   it("parses an A11Y_ERR line", () => {
     expect(parseA11yLine("A11Y_ERR no handler for command: fly")).toEqual({
       type: "error",

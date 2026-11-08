@@ -13,6 +13,7 @@ import type {
   Choice,
   Diff,
   EngineEvent,
+  EnginePhase,
   InvItem,
   RoomState,
 } from "./adapter.js";
@@ -89,6 +90,17 @@ export function parseA11yLine(line: string): EngineEvent | null {
 
     case "A11Y_CMD": {
       return rest.length > 0 ? { type: "cmd", cmd: rest } : null;
+    }
+
+    case "A11Y_PHASE": {
+      // Engine-truth control phase: `A11Y_PHASE control|busy|choice`. The
+      // payload is a single bare word, not JSON. An unknown word is treated as
+      // not-an-event (null) so a future phase name never mis-maps.
+      const word = rest.trim();
+      if (word === "control" || word === "busy" || word === "choice") {
+        return { type: "phase", phase: word as EnginePhase };
+      }
+      return null;
     }
 
     case "A11Y_ERR": {

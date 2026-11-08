@@ -53,8 +53,8 @@ const HELP_TEXT =
   "Press V for more actions: open, close, talk, push. " +
   "Tab opens your inventory; choose an item to make it active, then interact " +
   "with a thing to use it. Backspace cancels. " +
-  "Slash opens a command box: type a plain command such as use coins on " +
-  "machine, press Enter to send it, or Escape to close. " +
+  "Slash opens a command box: type a plain command such as talk to " +
+  "drunk, press Enter to send it, or Escape to close. " +
   "R repeats the last line; Shift plus R steps back through earlier lines. " +
   "L reads the whole room. H asks the ghost for a hint. " +
   "G turns the ghost voice on or off; text hints keep working either way. " +
@@ -653,6 +653,13 @@ export async function boot(): Promise<void> {
         break;
       case "cmd":
         // Command echo; nothing to announce (the diff carries the result).
+        break;
+      case "phase":
+        // Engine-truth control phase (A11Y_PHASE). It drives the readiness
+        // signal via status.onEvent(e) above and is internal diagnostics, not
+        // player output, so nothing is announced here
+        // (screen-reader-output.md: raw engine lines never reach the live
+        // region).
         break;
     }
   }

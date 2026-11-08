@@ -158,9 +158,15 @@ A11yLayer::A11yLayer(DrasculaEngine *engine)
 	  _choiceDiffPending(false), _choiceErrCount(0),
 	  _mainCmdDiffPending(false), _mainCmdOpenedConverse(false), _mainCmdErrCount(0),
 	  _queueHead(0), _inRunCommand(false), _lastSkipPollMs(0),
-	  _clickState(kClickIdle) {
+	  _clickState(kClickIdle), _lastPhase(kPhaseNone), _probe(nullptr),
+	  _lastPollMs(0) {
 	for (int i = 0; i < 4; i++)
 		_choiceBottom[i] = 0;
+	// The per-engine "player in control" probe the phase logic reads. This is
+	// the Drascula implementation; porting the layer to another game swaps only
+	// this line (and the probe class), not any phase logic. Owned by the layer;
+	// freed in the destructor.
+	_probe = new DrasculaControlProbe(this);
 	// Register as the engine's current a11y layer so the centerText() hook in
 	// graphics.cpp can reach us (the hook has only the DrasculaEngine `this`,
 	// not this stack-local layer). _lastText default-constructs empty, so the
@@ -177,6 +183,8 @@ A11yLayer::A11yLayer(DrasculaEngine *engine)
 A11yLayer::~A11yLayer() {
 	if (_engine->_a11y == this)
 		_engine->_a11y = nullptr;
+	delete _probe;
+	_probe = nullptr;
 }
 
 // Capture one whole on-screen text line (R6.2). Called from the centerText()
@@ -1973,7 +1981,15 @@ void A11yLayer::emitChoices(const char *p1, const char *p2, const char *p3, cons
 	}
 	json += "]}";
 	emitLine(json);
-}
+
+	// Engine-truth phase: a choice menu is now open and waiting for the player.
+	// The conversation runs its own modal loop (gotcha 4), so poll() — which
+	// emits control/busy — does not run while it is open; this is the only
+	// place the `choice` phase can be raised. Emitted after the A11Y_CHOICES
+	// line so a reader sees the choices first, then the phase that says they
+	// are waiting. emitPhase only writes on a change, so a re-emit after a
+	// non-ending choice (the menu re-opens) does not repeat the phase line.
+	emitPhase(kPhaseChoice);
 
 // Apply `choose <n>` (n in 1..4) inside a conversation by reproducing a real
 // click on that option line (R7.1): warp the cursor to the vertical middle of
@@ -2278,7 +2294,85 @@ void A11yLayer::stepClick() {
 // (R8.1, R8.2) inside the one-command-at-a-time settle model (R2.2): a command
 // that issues a click this frame does not let the next command start until the
 // click's release frame has run.
+
+// Emit `A11Y_PHASE <name>` only when the phase changes (kPhaseNone forces the
+// first real phase out, so a reader always sees an initial phase). Cheap: a
+// compare, and on a change only, one emitLine().
+void A11yLayer::emitPhase(Phase phase) {
+	if (phase == _lastPhase)
+		return;
+	_lastPhase = phase;
+	const char *name =
+		phase == kPhaseControl ? "control" :
+		phase == kPhaseChoice  ? "choice"  : "busy";
+	emitLine(Common::String("A11Y_PHASE ") + name);
+}
+
+// Control/busy phase for this frame, read from the per-engine control probe.
+// There is no reliable engine-wide "player in control" API
+// (canSaveGameStateCurrently() does NOT mean this — see A11yControlProbe), so
+// the test lives behind the probe interface and this function stays
+// game-agnostic: it asks the probe and maps the answer to a phase. Called once
+// per poll() frame; emits only on a change, so in the steady state it is one
+// virtual call plus a compare per frame.
+void A11yLayer::updateControlPhase() {
+	emitPhase(_probe->playerInControl() ? kPhaseControl : kPhaseBusy);
+}
+
+// --- DrasculaControlProbe: the Drascula "player in control" test -------------
+//
+// playerInControl() is true when the engine is idle in free play and ready for
+// a command this frame. In Drascula that is three things together:
+//   1. The main-loop poll hook (drascula.cpp:588) was reached this frame or the
+//      previous one. A talk, cutscene or room-transition loop runs the engine's
+//      OWN frame pump and never returns to the main loop, so poll() (and the
+//      _lastPollMs stamp) stops advancing for the whole of that loop; a stale
+//      stamp therefore means a nested loop has taken over and the player is not
+//      in control. We treat "this frame or the previous one" as a stamp no more
+//      than ~1-2 frames old (kPollFreshMs below), which tolerates the normal
+//      per-frame cadence while still going stale the moment a nested loop runs.
+//   2. The engine is not in a modal verb/inventory menu (!_menuScreen).
+//   3. No a11y command is executing (!_inRunCommand) — a command in flight is
+//      driving the engine, so the player is not at the controls until it
+//      settles.
+// NB: the engine's own _canSaveLoad is deliberately NOT used: it is set true
+// only inside two narrow event-pump windows of the main loop
+// (drascula.cpp:630-633 and 704-707), so read from our poll hook it is false
+// even in free play.
+//
+// awaitingChoice() is true for the whole converse() window — between
+// onConverseBegin() (converse.cpp:223) and onConverseEnd() (converse.cpp:328) —
+// tracked by the layer's _converseActive flag. The `choice` phase itself is
+// still raised from emitChoices() (the modal loop means poll() cannot), so this
+// signal is exposed for completeness and for ports that drive the phase from
+// the probe alone.
+bool A11yLayer::DrasculaControlProbe::playerInControl() {
+	// How recent the last poll() stamp must be to count as "this frame or the
+	// previous one". The engine caps itself near 25-60 fps (frames are tens of
+	// ms apart), so ~120 ms comfortably spans one or two frames of jitter while
+	// still reading stale within a frame or two of a nested loop taking over.
+	static const uint32 kPollFreshMs = 120;
+	DrasculaEngine *e = _layer->_engine;
+	uint32 last = _layer->_lastPollMs;
+	bool pollFresh = last != 0 && g_system &&
+	                 (g_system->getMillis() - last) <= kPollFreshMs;
+	return pollFresh && !e->_menuScreen && !_layer->_inRunCommand;
+}
+
+bool A11yLayer::DrasculaControlProbe::awaitingChoice() {
+	return _layer->_converseActive;
+}
+
 bool A11yLayer::poll() {
+	// Stamp that the main loop reached our per-frame poll hook this frame. The
+	// control probe reads this: a nested talk/cutscene/transition loop runs the
+	// engine's own pump and never returns here, so the stamp goes stale and the
+	// probe reports the player is no longer in control (phase `busy`). Stamped
+	// first thing, before any early return below, so even the click-settle hold
+	// frames still count as the main loop being live.
+	if (g_system)
+		_lastPollMs = g_system->getMillis();
+
 	// Advance any click in flight (release the button the frame after a press).
 	stepClick();
 
@@ -2333,6 +2427,13 @@ bool A11yLayer::poll() {
 		// emits no diff of its own (this command's diff covers it); a `skip` it
 		// drains with this clear has nothing to skip and emits the no-op diff.
 		_inRunCommand = true;
+		// Engine-truth phase: a command is now in flight, so the engine is busy
+		// until it settles. Emit `busy` BEFORE runCommand() — which blocks the
+		// main loop for the whole command (walk/speech/cutscene) — so a reader
+		// sees the busy edge even for a command that settles within one frame
+		// (the tail of poll() re-emits `control` once it has). A `talk` that
+		// opens a conversation instead reaches `choice` from the converse path.
+		emitPhase(kPhaseBusy);
 		bool endedChapter = runCommand(cmd);
 		_inRunCommand = false;
 
@@ -2405,6 +2506,16 @@ bool A11yLayer::poll() {
 		// as the original per-frame room-change watch did (R1.1).
 		emitRoomState();
 	}
+
+	// Engine-truth control phase for this frame: after any command this frame
+	// has run and settled (_inRunCommand is false again), emit `control` when
+	// the engine can take a command, `busy` otherwise — but only on a change,
+	// so the steady-state idle frame emits nothing. This is the edge that moves
+	// the player's readiness signal back to 'ready' straight from the engine,
+	// with no pause-based guessing. Not reached while a conversation is open
+	// (converse() runs its own loop and poll() does not run); that path emits
+	// `choice` instead.
+	updateControlPhase();
 
 	// No chapter-ending command this frame, so the main loop keeps running.
 	return false;
