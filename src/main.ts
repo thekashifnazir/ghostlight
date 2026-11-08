@@ -144,9 +144,12 @@ const GHOSTLIGHT_TITLE = "Ghostlight: Drascula";
  * launch --music-volume, and our sonar/earcons/ghost use the page's own Web
  * Audio graph, none of which touch Web MIDI. Returning a rejecting promise
  * (not deleting the property) keeps any feature-detect-then-call path happy: it
- * simply fails to get a MIDI port, with no UI. Reversible — a later build flag
- * could replace this. Must run before scummvm.js loads, so boot() calls it
- * first.
+ * simply fails to get a MIDI port, with no UI. The rejection is a standard
+ * `DOMException` with name `NotSupportedError` — the exact "this browser has no
+ * Web MIDI" signal ScummVM's backend already handles — so the stub never
+ * throws synchronously and never surfaces as an unhandled pageerror the way a
+ * plain `Error` did inside scummvm.js. Reversible — a later build flag could
+ * replace this. Must run before scummvm.js loads, so boot() calls it first.
  */
 function suppressMidiProbe(): void {
   try {
@@ -155,7 +158,7 @@ function suppressMidiProbe(): void {
       Object.defineProperty(nav, "requestMIDIAccess", {
         configurable: true,
         value: () =>
-          Promise.reject(new Error("Web MIDI disabled by Ghostlight")),
+          Promise.reject(new DOMException("disabled", "NotSupportedError")),
       });
     }
   } catch {
@@ -301,12 +304,20 @@ export async function boot(): Promise<void> {
   // region first (always, complete on its own), then the optional whisper.
   const askHint = (): void => {
     void hintEngine.ask(state.room).then((r) => {
-      // Every outcome's text goes to the live region, complete on its own: a
-      // tier hint (the answer repeats on every further ask) or the "nothing to
-      // hint at" line. The whisper is optional; GhostAudio is a silent no-op
-      // when no cached file matches the key.
+      // Announce the text FIRST, always: a tier hint (the answer repeats on
+      // every further ask) or the "nothing to hint at" line. The hint is the
+      // text and must reach the player even when the optional whisper cannot
+      // (R5.1, R5.2). Only then attempt the whisper, guarded so a key or
+      // playback failure can never swallow the spoken hint — GhostAudio is a
+      // silent no-op for an empty/missing key anyway (R6.5).
       live.announce(r.kind === "none" ? NO_HINT_TEXT : r.text);
-      if (r.kind !== "none") ghostAudio?.play(r.audioKey);
+      if (r.kind !== "none") {
+        try {
+          void ghostAudio?.play(r.audioKey);
+        } catch {
+          /* text is already spoken; the whisper is flavour only (R6.5). */
+        }
+      }
     });
   };
 

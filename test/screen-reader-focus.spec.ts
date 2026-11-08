@@ -66,6 +66,13 @@ test.describe("no MIDI permission prompt (R7.3)", () => {
   test("the page's Web MIDI suppression leaves no callable live API at boot", async ({
     page,
   }) => {
+    // Capture any unhandled page error. The suppression must NOT surface as a
+    // pageerror the way the old `new Error("Web MIDI disabled…")` stub did when
+    // scummvm.js called it; the rejection is now a DOMException the engine
+    // swallows, so nothing should reach here.
+    const pageErrors: string[] = [];
+    page.on("pageerror", (err) => pageErrors.push(err.message));
+
     // A permission prompt can only arise from a real navigator.requestMIDIAccess
     // call. Install a spy BEFORE any page script runs: it records a call and,
     // if the page later overrides the property, the override wins. After boot we
@@ -96,22 +103,40 @@ test.describe("no MIDI permission prompt (R7.3)", () => {
         navigator: Navigator & { requestMIDIAccess?: () => Promise<unknown> };
       };
       // The page replaced the property with a rejecting stub, so calling it now
-      // must reject and must NOT trip the original spy.
+      // must reject and must NOT trip the original spy. Record the rejection's
+      // shape too: it should be a DOMException named NotSupportedError, the
+      // standard "no Web MIDI" signal the engine handles without throwing.
       let rejected = false;
+      let rejectionName = "";
+      let isDomException = false;
       const fn = w.navigator.requestMIDIAccess;
       if (typeof fn === "function") {
         try {
           await fn();
-        } catch {
+        } catch (e) {
           rejected = true;
+          rejectionName = (e as { name?: string })?.name ?? "";
+          isDomException =
+            typeof DOMException !== "undefined" && e instanceof DOMException;
         }
       }
-      return { called: w.__midiCalled === true, rejected };
+      return {
+        called: w.__midiCalled === true,
+        rejected,
+        rejectionName,
+        isDomException,
+      };
     });
 
     // The real API was never called by the engine, and what remains is the
     // page's rejecting stub — so Chrome had nothing to prompt about.
     expect(result.called).toBe(false);
     expect(result.rejected).toBe(true);
+    // The rejection is a NotSupportedError DOMException, not a plain Error, so
+    // it never surfaces synchronously as an unhandled pageerror.
+    expect(result.isDomException).toBe(true);
+    expect(result.rejectionName).toBe("NotSupportedError");
+    // And no MIDI-related pageerror fired during load and boot.
+    expect(pageErrors.filter((m) => /MIDI/i.test(m))).toEqual([]);
   });
 });

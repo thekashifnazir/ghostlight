@@ -76,7 +76,19 @@ export class HintEngine {
 
   private async result(target: Milestone, tier: Tier): Promise<HintResult> {
     const text = target.hints[tier];
-    const audioKey = await cacheKey(text, GHOST_VOICE_ID, GHOST_MODEL_ID);
+    // The text is the hint and must always reach the player (R5.1, R5.2). The
+    // audio key is only needed for the optional whisper, so a failure computing
+    // it must never cost the text. `cacheKey` can reject when neither crypto
+    // path is available — notably on a non-secure origin, where `crypto.subtle`
+    // is absent and the Node `crypto` fallback cannot resolve in the browser.
+    // Swallow that here and return an empty key; `GhostAudio.play("")` is a
+    // silent no-op, so playback falls back to text-only (R6.5).
+    let audioKey = "";
+    try {
+      audioKey = await cacheKey(text, GHOST_VOICE_ID, GHOST_MODEL_ID);
+    } catch {
+      /* no key: the whisper is skipped, the text still speaks. */
+    }
     return {
       kind: "hint",
       milestoneId: target.id,
