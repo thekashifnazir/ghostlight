@@ -35,8 +35,23 @@ import type {
   Transport,
 } from "./transport.js";
 
-/** Hard cap on any single wait (start or a command). No run can hang (Req 6.6). */
-const HARD_CAP_MS = 60_000;
+/**
+ * Hard cap on the START wait only. Booting the engine (load game data, reach
+ * the first room) legitimately takes a couple of seconds and, on a cold cache,
+ * longer; a generous cap here guards only against a broken build that never
+ * reaches a room.
+ */
+const START_CAP_MS = 60_000;
+
+/**
+ * Settle cap for a single command. A command that truly does not settle returns
+ * a clear error after this, carrying the last A11Y line seen, rather than
+ * leaving the caller in 60 s of silence (transport-settle bugfix). This is well
+ * above the slowest real settle observed (a conversation `choose` whose reply
+ * animation runs ~4 s), so a healthy command always settles first; it only
+ * fires when the engine genuinely never emits the command's terminal marker.
+ */
+const COMMAND_CAP_MS = 10_000;
 
 /** The command file name the engine reads under the save path. */
 const COMMAND_FILE = "a11y-cmd.txt";
@@ -71,6 +86,10 @@ interface PendingSend {
   echoed: boolean;
   /** Events collected from the echo up to (and including) the diff/error. */
   events: EngineEvent[];
+  /** Reset the quiet-period timer; called on every A11Y line while in flight. */
+  bump: () => void;
+  /** Cancel the quiet-period timer; called when the command settles. */
+  clear: () => void;
   /**
    * When set, this is a `state`/`dump` snapshot wait: settle on the FRESH
    * room-state (`A11Y { ... }`) line the command emits rather than on its diff,
@@ -80,7 +99,6 @@ interface PendingSend {
    */
   resolveRoom?: (room: RoomState) => void;
   resolve: (r: CommandResult) => void;
-  timer: NodeJS.Timeout;
 }
 
 /** The engine's own full-snapshot command (A11Y line: emits the room state). */
@@ -94,8 +112,26 @@ export class NativeTransport implements Transport {
   private child: ChildProcess | undefined;
   private pid: number | undefined;
 
-  /** Carry of a partial final line across stream chunks. */
-  private buffer = "";
+  /**
+   * Carry of a partial final line across stream chunks, kept SEPARATELY per
+   * stream. The engine prints A11Y lines on stderr, but the child also writes
+   * unrelated chatter on stdout (startup banner) and stderr (ScummVM
+   * "WARNING:" lines). stdout and stderr are independent event sources, so a
+   * single shared carry would splice a partial line on one stream into the next
+   * line on the other — corrupting an A11Y line so parseA11yLine drops it and
+   * the command never settles (the 60 s timeout this bugfix removes). One carry
+   * per stream means a partial line on stdout can never corrupt a line on
+   * stderr, and vice versa.
+   */
+  private stdoutBuffer = "";
+  private stderrBuffer = "";
+
+  /**
+   * The raw text of the last A11Y line parsed from either stream. Reported in a
+   * command's timeout error so the caller sees how far the engine got, instead
+   * of only "no diff within N s".
+   */
+  private lastA11yLine = "";
 
   /** One-shot resolver for the first room state during start(). */
   private awaitingRoom: ((room: RoomState) => void) | undefined;
@@ -145,10 +181,13 @@ export class NativeTransport implements Transport {
     this.pid = child.pid;
     process.once("exit", this.exitHandler);
 
-    // A11Y lines arrive on stdout or stderr (the engine logs via printErr; some
-    // backends split them), so pump both through the same line reader.
-    child.stdout?.on("data", (d: Buffer) => this.onChunk(d));
-    child.stderr?.on("data", (d: Buffer) => this.onChunk(d));
+    // A11Y lines arrive on stderr (the engine logs via logMessage(kError));
+    // some backends or wrappers put a line on stdout, and both streams also
+    // carry unrelated chatter. Pump each stream with its OWN line carry so a
+    // partial line on one can never corrupt a line on the other (the stream-
+    // split hang this bugfix fixes).
+    child.stdout?.on("data", (d: Buffer) => this.onChunk("stdout", d));
+    child.stderr?.on("data", (d: Buffer) => this.onChunk("stderr", d));
 
     return new Promise<RoomState>((resolve, reject) => {
       const timer = setTimeout(() => {
@@ -158,11 +197,11 @@ export class NativeTransport implements Transport {
         reject(
           new Error(
             `native transport: the engine did not reach a room state within ` +
-              `${HARD_CAP_MS / 1000}s. Check the build and game data ` +
+              `${START_CAP_MS / 1000}s. Check the build and game data ` +
               `(scripts/build-engine.sh, scripts/fetch.sh).`,
           ),
         );
-      }, HARD_CAP_MS);
+      }, START_CAP_MS);
 
       this.awaitingRoom = (room) => {
         clearTimeout(timer);
@@ -216,23 +255,47 @@ export class NativeTransport implements Transport {
     writeFileSync(this.commandFile, expected + "\n");
 
     return new Promise<CommandResult>((resolve) => {
-      const timer = setTimeout(() => {
-        // Hard cap: return a timeout error and leave the session usable (R6.6).
+      // A QUIET-PERIOD cap, not an absolute one: it fires only after
+      // COMMAND_CAP_MS with NO A11Y output at all for this command. Any A11Y
+      // line (an echo, a drawn text line, a choices refresh) resets it via
+      // bump(), so a long-but-progressing command (a cutscene the caller is
+      // paced-skipping, a multi-second conversation reply) is never cut off,
+      // while a genuine stall returns a clear error in ~10 s instead of 60 s of
+      // silence (transport-settle bugfix).
+      const onTimeout = () => {
         const p = this.pending;
         this.pending = undefined;
-        if (p) {
-          this.log(`timeout "${expected}" after ${HARD_CAP_MS / 1000}s`);
-          resolve({
-            events: p.events,
-            error:
-              `native transport: command "${expected}" did not settle within ` +
-              `${HARD_CAP_MS / 1000}s (no A11Y_DIFF/A11Y_ERR). The session is ` +
-              `still up; call stop to tear it down.`,
-          });
-        }
-      }, HARD_CAP_MS);
+        if (!p) return;
+        this.log(
+          `timeout "${expected}" after ${COMMAND_CAP_MS / 1000}s quiet; ` +
+            `last A11Y line: ${this.lastA11yLine || "(none)"}`,
+        );
+        resolve({
+          events: p.events,
+          error:
+            `native transport: command "${expected}" did not settle within ` +
+            `${COMMAND_CAP_MS / 1000}s of engine silence (no A11Y_DIFF/A11Y_ERR` +
+            `/A11Y_CHOICES). Last A11Y line seen: ` +
+            `${this.lastA11yLine || "(none)"}. The session is still up; call ` +
+            `stop to tear it down.`,
+        });
+      };
 
-      this.pending = { expected, echoed: false, events: [], resolve, timer };
+      let timer = setTimeout(onTimeout, COMMAND_CAP_MS);
+      const bump = () => {
+        clearTimeout(timer);
+        timer = setTimeout(onTimeout, COMMAND_CAP_MS);
+      };
+      const clear = () => clearTimeout(timer);
+
+      this.pending = {
+        expected,
+        echoed: false,
+        events: [],
+        bump,
+        clear,
+        resolve,
+      };
     });
   }
 
@@ -255,30 +318,45 @@ export class NativeTransport implements Transport {
     writeFileSync(this.commandFile, STATE_COMMAND + "\n");
 
     return new Promise<RoomState>((resolve, reject) => {
-      const timer = setTimeout(() => {
+      // Same quiet-period cap as send(): the snapshot settles on the fresh
+      // room-state line the `state` command emits, which arrives at once on a
+      // healthy engine; the inactivity cap only fires on a genuine stall.
+      const onTimeout = () => {
         const p = this.pending;
         this.pending = undefined;
-        if (p) {
-          this.log(`timeout "${STATE_COMMAND}" after ${HARD_CAP_MS / 1000}s`);
-          reject(
-            new Error(
-              `native transport: snapshot "${STATE_COMMAND}" did not settle ` +
-                `within ${HARD_CAP_MS / 1000}s (no A11Y room-state line). The ` +
-                `session is still up; call stop to tear it down.`,
-            ),
-          );
-        }
-      }, HARD_CAP_MS);
+        if (!p) return;
+        this.log(
+          `timeout "${STATE_COMMAND}" after ${COMMAND_CAP_MS / 1000}s quiet; ` +
+            `last A11Y line: ${this.lastA11yLine || "(none)"}`,
+        );
+        reject(
+          new Error(
+            `native transport: snapshot "${STATE_COMMAND}" did not settle ` +
+              `within ${COMMAND_CAP_MS / 1000}s of engine silence (no A11Y ` +
+              `room-state line). Last A11Y line seen: ` +
+              `${this.lastA11yLine || "(none)"}. The session is still up; call ` +
+              `stop to tear it down.`,
+          ),
+        );
+      };
+
+      let timer = setTimeout(onTimeout, COMMAND_CAP_MS);
+      const bump = () => {
+        clearTimeout(timer);
+        timer = setTimeout(onTimeout, COMMAND_CAP_MS);
+      };
+      const clear = () => clearTimeout(timer);
 
       this.pending = {
         expected: STATE_COMMAND,
         echoed: false,
         events: [],
+        bump,
+        clear,
         resolveRoom: resolve,
         // Unused for a snapshot wait (resolveRoom settles it), but the shape
         // requires a resolver; a no-op keeps the slot total.
         resolve: () => {},
-        timer,
       };
     });
   }
@@ -317,21 +395,38 @@ export class NativeTransport implements Transport {
 
   // --- line pump ------------------------------------------------------------
 
-  /** Split a stream chunk into lines, carrying a partial line across chunks. */
-  private onChunk(data: Buffer): void {
-    this.buffer += data.toString("utf8");
+  /**
+   * Split a stream chunk into lines, carrying a partial final line across
+   * chunks WITHIN that stream only. Each stream keeps its own carry so a
+   * partial line on stdout cannot splice into an A11Y line on stderr (the
+   * stream-split corruption that caused the settle hang).
+   */
+  private onChunk(stream: "stdout" | "stderr", data: Buffer): void {
+    let buffer =
+      (stream === "stdout" ? this.stdoutBuffer : this.stderrBuffer) +
+      data.toString("utf8");
     let nl: number;
-    while ((nl = this.buffer.indexOf("\n")) !== -1) {
-      const line = this.buffer.slice(0, nl);
-      this.buffer = this.buffer.slice(nl + 1);
+    while ((nl = buffer.indexOf("\n")) !== -1) {
+      const line = buffer.slice(0, nl);
+      buffer = buffer.slice(nl + 1);
       this.onLine(line);
     }
+    if (stream === "stdout") this.stdoutBuffer = buffer;
+    else this.stderrBuffer = buffer;
   }
 
   /** Parse one line and route the resulting event to start() or the pending send. */
   private onLine(line: string): void {
     const event = parseA11yLine(line);
     if (!event) return;
+
+    // Record the last recognised A11Y line (trimmed of the WARNING wrapper is
+    // not needed — the raw line is what a reader would want to see) and, while
+    // a command is in flight, reset its quiet-period timer: any A11Y output
+    // means the engine is still working on the command, so the inactivity cap
+    // only fires after a genuine stall (transport-settle bugfix).
+    this.lastA11yLine = line.trim();
+    this.pending?.bump();
 
     // During start(), the first room state resolves the boot promise. A pre-room
     // subtitles error (A11Y_ERR mentioning subtitles) fails the boot (R6.7).
@@ -408,18 +503,41 @@ export class NativeTransport implements Transport {
       this.settle({ events: p.events, diff: event.diff });
     } else if (event.type === "error") {
       this.settle({ events: p.events, error: event.message });
-    } else if (event.type === "choices") {
-      // Conversation opened/refreshed: this command has settled (its own diff,
-      // if any, is deferred until the conversation ends).
+    } else if (event.type === "choices" && this.choicesSettles(p.expected)) {
+      // A `talk`/`choices` settles when the option list appears: a `talk` that
+      // opens a conversation defers its own diff until the conversation ends
+      // (out of order, after a later choose), so waiting for that diff would
+      // deadlock; `choices` just re-lists and emits no diff. For those, the
+      // choices line IS the settle.
       this.settle({ events: p.events });
     }
+    // For a `choose`, the re-presented A11Y_CHOICES is NOT the settle: the
+    // engine emits it just BEFORE the choose's own deferred A11Y_DIFF on the
+    // frame the reply finishes (recorded order in tavern.json: A11Y_CHOICES
+    // then A11Y_DIFF for a non-ending choose). Settling on the choices would
+    // drop that diff — and with it the flag changes a choose commits — forcing
+    // the caller to run `state` to see a flag like 40 (transport-settle
+    // bugfix). So a choose collects the choices into `events` and waits for its
+    // diff (or error). An ending choose (option 4) emits no re-presented
+    // choices and settles on its diff from onConverseEnd().
+  }
+
+  /**
+   * Whether an A11Y_CHOICES line settles the given command. True for `talk`
+   * (opens a conversation; its diff is deferred and arrives out of order) and
+   * for `choices` (re-lists, emits no diff). False for `choose`, which must
+   * wait for its own A11Y_DIFF so the caller sees the flags the choice
+   * committed without a follow-up `state` (transport-settle bugfix).
+   */
+  private choicesSettles(expected: string): boolean {
+    return !expected.startsWith("choose");
   }
 
   /** Resolve the in-flight command with its result and clear the slot. */
   private settle(result: CommandResult): void {
     const p = this.pending;
     if (!p) return;
-    clearTimeout(p.timer);
+    p.clear();
     this.pending = undefined;
     const outcome = result.error
       ? `error (${result.error})`
@@ -434,7 +552,7 @@ export class NativeTransport implements Transport {
   private settleRoom(room: RoomState): void {
     const p = this.pending;
     if (!p || !p.resolveRoom) return;
-    clearTimeout(p.timer);
+    p.clear();
     this.pending = undefined;
     this.log(`settled "${p.expected}": room (chapter ${room.chapter}, room ${room.room})`);
     p.resolveRoom(room);
