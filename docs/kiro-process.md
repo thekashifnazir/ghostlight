@@ -1610,3 +1610,22 @@ What went wrong or surprised you: two snags. First, the PreToolUse guardrail hoo
 A coordination note (left for you, not fixed): `src/main.ts`'s `askHint` has a stale comment mentioning "the exhausted line once the answer has been given twice." The code there is correct and type-correct without change (the result is now only `none | hint`), so removing exhaustion needed no `main.ts` edit — but that one comment is now inaccurate. I did not touch `main.ts` per the instruction; flag it to whoever next edits that file.
 
 What was learned: a guardrail that greps for key shapes will catch your own test fixtures and even your prose about them, so write "not-a-key" placeholders deliberately. And an invariant worth knowing about this pack: because `offeredMilestones` plus `selectTarget` never drop a `when: undefined` milestone, the ghost always has something to point at within the current chapter — the "nothing to hint at" line is really an end-of-content state, reached only past the authored chapters.
+
+## 121 · save-progress · screen-reader-focus · 2026-11-08 · Attribution note: shared files in 3fc4ede carry both specs
+
+What was asked: record that the three shared player files committed in `3fc4ede` carry work from two specs, because that commit's message named only save-progress.
+
+What Kiro did:
+- Confirmed `src/main.ts`, `src/index.html` and `src/ui/controller.ts` as committed in `3fc4ede` hold BOTH specs' edits and compile/pass together:
+  - **save-progress** (this chat): the C (save) / O (load) keys in `controller.ts`, the `SaveManager` wiring and `case "saved"` + room-change autosave in `main.ts`, and the Continue/New-game `#resume-choice` onboarding markup in `index.html`.
+  - **screen-reader-focus** (the other chat, spec `.kiro/specs/screen-reader-focus/`): the `role="application"` game element and focus-mode handling, the Web MIDI suppression, and the `pinTitle()` tab-title guard in `main.ts`/`index.html`.
+- Because two chats share one working tree and a single file cannot be split across commits, these three files landed in one commit (`3fc4ede`) whose message named only save-progress. This note is the missing attribution; `3fc4ede` is already pushed, so it is recorded here append-only rather than by rewriting the pushed commit.
+- Verified on the committed state before writing this note: full vitest 253/253 green; the replay Playwright suite 25/25 green, including all three screen-reader-focus checks — focus mode on start (R7.1), focus returns after a transient overlay (R7.2), and no MIDI permission prompt (R7.3).
+
+Files changed: `docs/kiro-process.md` (this entry only).
+
+Time taken: a few minutes.
+
+What went wrong or surprised you: nothing — the code and tests were already correct and pushed; only the earlier commit message under-named the work, which an append-only log note fixes without touching shared history.
+
+What was learned: when a shared file carries two specs' edits in one unavoidable commit, name both specs in that commit's message at the time; when it is already pushed, a dated process-log note is the clean way to restore the attribution.
