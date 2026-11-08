@@ -40,6 +40,57 @@ The command:
 
 Exit code is `0` only if every step passed.
 
+## The readiness signal (`window.__ghostlight`)
+
+The player publishes a tiny, read-only status object on `window.__ghostlight`
+so a test or screen-reader harness can wait on **real engine state** instead of
+a fixed sleep. It is observer-only: it never writes to the live region, binds no
+keys and renders nothing, so it cannot change what a player hears or does. The
+source and the full phase list are in
+[`src/engine/status.ts`](../../src/engine/status.ts).
+
+What it exposes:
+
+| Field | Meaning |
+|---|---|
+| `phase` | the readiness phase (below) |
+| `room` / `chapter` | the engine's current room and chapter numbers |
+| `lineSeq` | increments on every functional live-region line |
+| `lastLine` | the most recent live-region line's text |
+| `lines` | the last 200 lines as `{ seq, t (ms since boot), text }` |
+| `waitFor(phase, timeoutMs?)` | a Promise that resolves when the phase is reached |
+| `waitWhile(pred, timeoutMs?)` | a Promise that resolves when `pred(phase)` first goes false (wait until a phase is *left*) |
+
+Phases: `gate` (start gate up), `booting` (fresh boot), `loading` (save-slot
+boot), `ready` (engine settled after the last command, keys accepted), `busy`
+(a sent command has not settled), `conversation` (dialogue still arriving),
+`choice` (a choice menu waits for the player), `cutscene` (a skippable scene),
+`error` (the engine reported an error).
+
+The current phase is also mirrored on
+`document.documentElement.dataset.glPhase`, so a Playwright test gets built-in
+auto-waiting:
+
+```ts
+// wait until the engine accepts keys again after an action
+await page.waitForFunction(() => window.__ghostlight?.phase === "ready");
+// or, equivalently, on the mirrored attribute:
+await expect(page.locator("html")).toHaveAttribute("data-gl-phase", "ready");
+
+// wait until a bartender conversation finishes (the phase leaves 'conversation')
+await page.waitForFunction(
+  () => window.__ghostlight?.phase !== "conversation",
+);
+```
+
+Settling reuses the transport-settle **quiet-period** rule (see
+`mcp/src/native.ts`): a sent command moves the phase to `busy` and arms an
+inactivity timer that every engine line and event resets, so a slow-but-still-
+talking command (a multi-second conversation reply, a paced cutscene) is never
+prematurely called ready; a definitive `room`/`diff`/`choices`/`error` event
+settles it at once. Prefer waiting on this signal over `page.waitForTimeout(...)`
+in the live Playwright specs.
+
 ### Requirements
 
 - A Mac with `prlctl` and the "Ghostlight Win11" VM on snapshot 3. This cannot

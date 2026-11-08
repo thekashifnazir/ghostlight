@@ -14,6 +14,7 @@ import type {
 } from "./engine/adapter.js";
 import { LiveAdapter } from "./engine/live-adapter.js";
 import { ReplayAdapter } from "./engine/replay-adapter.js";
+import { StatusTracker } from "./engine/status.js";
 import { Persistence, probeSaves } from "./engine/persistence.js";
 import { SaveManager } from "./engine/save-manager.js";
 import { setLoadIntent, takeLoadIntent } from "./engine/load-intent.js";
@@ -222,6 +223,25 @@ export async function boot(): Promise<void> {
   const live = new LiveRegion(liveEl, transcriptEl);
   const highlight = new Highlight(highlightEl, canvas);
 
+  // The readiness signal (window.__ghostlight). It observes boot, engine events
+  // and sends to expose a deterministic phase plus a line log, so tests and
+  // screen-reader harnesses can wait on real state instead of fixed sleeps. It
+  // is observer-only: it never writes to the live region, binds no keys and
+  // renders nothing. See engine/status.ts.
+  const status = new StatusTracker();
+  status.publish();
+
+  // Tap the live region so every functional line that reaches it is recorded in
+  // the status log (lineSeq, lastLine, lines) and bumps the settle quiet period.
+  // Wrapping the instance's announce captures every path — the narrator, the
+  // menus, the inventory, hints — because they all call live.announce. The tap
+  // only observes; it forwards the exact text unchanged.
+  const liveAnnounce = live.announce.bind(live);
+  live.announce = (text: string): void => {
+    liveAnnounce(text);
+    status.recordLine(text);
+  };
+
   const state: PlayerState = {
     chapter: 1,
     room: 0,
@@ -396,11 +416,14 @@ export async function boot(): Promise<void> {
   // command-file poll throttle so the skip lands inside animation_2_1's loop.
   const CROSSING_SKIP_DELAY_MS = 400;
   const sendCommand = (cmd: Command): void => {
+    const crossing =
+      cmd.verb === "walk" && pack.isScriptedExit(state.room, cmd.target);
+    // Tell the readiness signal a command is in flight: a scripted-crossing
+    // walk runs the blocking cutscene (phase 'cutscene'), every other command
+    // is a plain 'busy' that settles on its quiet period / diff.
+    status.onSend(crossing);
     adapter.send(cmd);
-    if (
-      cmd.verb === "walk" &&
-      pack.isScriptedExit(state.room, cmd.target)
-    ) {
+    if (crossing) {
       const chapterAtWalk = state.chapter;
       setTimeout(() => {
         // Only advance the cutscene if the crossing has not already settled
@@ -500,10 +523,10 @@ export async function boot(): Promise<void> {
           inventory.openMenu();
           break;
         case "skip":
-          adapter.send({ verb: "skip" });
+          sendCommand({ verb: "skip" });
           break;
         case "choices":
-          adapter.send({ verb: "choices" });
+          sendCommand({ verb: "choices" });
           break;
         case "cancel":
           // Nothing to cancel once the box has closed; re-read the focus so the
@@ -537,7 +560,10 @@ export async function boot(): Promise<void> {
   // load path records a "continue from slot" intent and reloads the page (the
   // engine loads only at launch), so Continue on the next load boots the slot.
   const saveManager = new SaveManager({
-    send: (cmd) => adapter.send(cmd),
+    send: (cmd) => {
+      status.onSend();
+      adapter.send(cmd);
+    },
     persistence,
     announce: (t) => live.announce(t),
     roomName: (room) => pack.roomName(room),
@@ -590,6 +616,11 @@ export async function boot(): Promise<void> {
   adapter.onEvent((e: EngineEvent) => handleEvent(e));
 
   function handleEvent(e: EngineEvent): void {
+    // Drive the readiness signal from the authoritative event stream first, so
+    // window.__ghostlight.phase and the data-gl-phase mirror reflect this event
+    // before any UI narration runs (a harness waiting on the phase then sees a
+    // consistent state). Observer-only; it never alters the event.
+    status.onEvent(e);
     switch (e.type) {
       case "room":
         applyRoom(e.state);
@@ -879,6 +910,10 @@ export async function boot(): Promise<void> {
     if (started) return;
     started = true;
     startGate.hidden = true;
+    // Tell the readiness signal the engine is booting: 'loading' for a Continue
+    // / load boot (bootedIntoSlot), 'booting' for a fresh start. The first room
+    // event moves the phase to 'ready'.
+    status.onStart(bootedIntoSlot);
     // Move focus to the game's role="application" element now that the gate is
     // gone, so NVDA and JAWS switch to focus mode and game keys reach the page
     // instead of browse-mode quick-nav (screen-reader-focus R1.2, R2.3).

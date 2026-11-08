@@ -51,6 +51,49 @@ const LIVE = "#live-region";
 const BOX = "#command-box";
 const INPUT = "#command-box-input";
 
+// The readiness signal the player publishes on window.__ghostlight
+// (src/engine/status.ts). The live specs wait on its phase instead of fixed
+// sleeps: 'ready' means the engine has settled after the last command and
+// accepts keys; 'conversation' means dialogue lines are still arriving. This is
+// the same deterministic signal a screen-reader harness uses.
+type GlPhase =
+  | "gate"
+  | "booting"
+  | "ready"
+  | "busy"
+  | "conversation"
+  | "choice"
+  | "cutscene"
+  | "loading"
+  | "error";
+
+declare global {
+  interface Window {
+    __ghostlight?: {
+      phase: GlPhase;
+      room: number;
+      chapter: number;
+      lineSeq: number;
+      lastLine: string;
+      lines: { seq: number; t: number; text: string }[];
+    };
+  }
+}
+
+/** Wait until the engine has settled after the last command (phase 'ready'). */
+async function waitReady(page: Page, timeout = 90_000): Promise<void> {
+  await page.waitForFunction(
+    () => window.__ghostlight?.phase === "ready",
+    undefined,
+    { timeout },
+  );
+}
+
+/** The current readiness phase (or "gate" before the signal is published). */
+async function phase(page: Page): Promise<GlPhase> {
+  return page.evaluate(() => window.__ghostlight?.phase ?? "gate");
+}
+
 /** Boot the live engine by keyboard and wait until the tavern is read. */
 async function bootToTavern(page: Page): Promise<void> {
   await page.goto("/index.html?live");
@@ -60,6 +103,9 @@ async function bootToTavern(page: Page): Promise<void> {
   await expect(page.locator(LIVE)).toContainText(ROOM_62_SHORT, {
     timeout: 90_000,
   });
+  // The first room read means the engine has settled into 'ready': from here
+  // every action can be awaited on the readiness signal rather than a sleep.
+  await waitReady(page);
 }
 
 /** Read the current live-region text (the screen reader's surface). */
@@ -114,6 +160,12 @@ test.describe("live sweep (Chrome + WebKit)", () => {
     ];
     for (const key of keys) {
       await page.keyboard.press(key);
+      // Wait on the readiness signal rather than a fixed sleep: a key that
+      // sends a command (ArrowDown examines, ArrowUp interacts) leaves the
+      // phase 'busy' until the engine settles back to 'ready'; a pure
+      // read/navigation key keeps it 'ready', so this resolves at once. Either
+      // way the next key is pressed only once the engine accepts keys again.
+      await waitReady(page);
       // Each key yields a line; the region is never blank and the page never
       // navigated away (a stray reload would drop #live-region).
       await expect(live).toBeVisible();
@@ -200,23 +252,39 @@ test.describe("live sweep (Chrome + WebKit)", () => {
     // Let the conversation play out completely WITHOUT pressing any keys that
     // advance it. Escaping here skips the conversation before the bartender
     // hands over the room, which leaves flag 0 unset so the doorway answers
-    // "I DON'T HAVE A ROOM YET". Instead, poll with H (hint) every ~10 s: once
-    // the bartender has finished and handed over the room, ch1.room is reached
-    // and the ch1.bed hint ("… curtained doorway …") becomes available. Press H
-    // to escalate the tier until the live region names the curtained doorway.
-    // Cap the wait at ~4 min so a wedged engine fails rather than hanging.
+    // "I DON'T HAVE A ROOM YET".
+    //
+    // Wait on the readiness signal, not a fixed sleep: `talk 52` moves the
+    // phase to 'conversation' while the bartender's dialogue lines keep
+    // arriving, and the phase only leaves 'conversation' (to 'ready', on the
+    // settling diff) once the conversation has finished and the room is handed
+    // over. Wait for the phase to leave 'conversation', capped at ~4 min so a
+    // wedged engine fails rather than hanging.
+    await page.waitForFunction(
+      () => {
+        const p = window.__ghostlight?.phase;
+        return p !== undefined && p !== "conversation" && p !== "busy";
+      },
+      undefined,
+      { timeout: 240_000 },
+    );
+
+    // Second assertion that the room was actually handed over (not merely that
+    // the conversation ended): once ch1.room is reached the ch1.bed hint ("…
+    // curtained doorway …") becomes available, so a single H must now name the
+    // curtained doorway. This is the behavioural check the phase wait cannot
+    // make on its own.
     let handedOver = false;
-    for (let i = 0; i < 24 && !handedOver; i++) {
+    for (let i = 0; i < 6 && !handedOver; i++) {
       await page.keyboard.press("h"); // ask the ghost for a hint (safe; no skip)
+      await waitReady(page, 30_000);
       if ((await liveText(page)).toLowerCase().includes("curtained doorway")) {
         handedOver = true;
-        break;
       }
-      await page.waitForTimeout(10_000);
     }
     expect(
       handedOver,
-      "bartender never handed over the room (no ch1.bed curtained-doorway hint within ~4 min)",
+      "bartender never handed over the room (no ch1.bed curtained-doorway hint after the conversation left the 'conversation' phase)",
     ).toBe(true);
 
     // 2. Walk through the curtained doorway (exit 105). Step to it and Enter
@@ -310,5 +378,90 @@ test.describe("live sweep (Chrome + WebKit)", () => {
     // Read the room (L) and confirm we resumed in the saved tavern (room 62).
     await page.keyboard.press("l");
     await expect(live).toContainText(ROOM_62_SHORT, { timeout: 30_000 });
+  });
+
+  test("typed 'talk to drunk' behaves exactly like Enter on the drunk", async ({
+    page,
+  }) => {
+    // The regression guard for the typed-conversation bug: an earlier build had
+    // typed "talk to drunk" leave the engine in a conversation state WITHOUT
+    // showing the choices ("Nothing happened.", then "Progress can't be saved
+    // right now."), whereas Enter on the drunk in the list opened the choice
+    // menu correctly. Both routes send the same `talk 53`, so they must end in
+    // the SAME readiness phase with the SAME announced lines. The drunk opens a
+    // choice menu, so both must reach phase 'choice' and announce the numbered
+    // choices.
+    //
+    // It needs a long budget: the drunk's lead-in dialogue plays before the
+    // menu opens, on two separate boots.
+    test.setTimeout(300_000);
+
+    // Step the list focus to the drunk (NPC, hotspot 53). The room readout
+    // lists "… drunk …"; cycle Right until the focus line names it.
+    const focusDrunk = async (): Promise<void> => {
+      let onDrunk = false;
+      for (let i = 0; i < 14 && !onDrunk; i++) {
+        await page.keyboard.press("ArrowRight");
+        if ((await liveText(page)).toLowerCase().includes("drunk")) {
+          onDrunk = true;
+        }
+      }
+      expect(onDrunk, "never reached the drunk in the room list").toBe(true);
+    };
+
+    // Wait until the talk settles into the choice menu: the drunk's lead-in
+    // dialogue runs the phase through 'conversation'/'busy', then the choices
+    // open it as 'choice'. Return the announced choice line (what a screen
+    // reader hears when the menu appears). Capped generously for the dialogue.
+    const waitForChoiceMenu = async (): Promise<string> => {
+      await page.waitForFunction(
+        () => window.__ghostlight?.phase === "choice",
+        undefined,
+        { timeout: 240_000 },
+      );
+      return liveText(page);
+    };
+
+    // --- Path A: Enter on the drunk in the list (the known-good route) -------
+    await bootToTavern(page);
+    await focusDrunk();
+    await page.keyboard.press("Enter"); // talk 53
+    const enterChoiceLine = (await waitForChoiceMenu()).trim();
+    const enterPhase = await phase(page);
+
+    // The choice UI is shown (phase 'choice') and announced (the live region
+    // carries the numbered options a screen reader reads).
+    expect(enterPhase).toBe("choice");
+    expect(enterChoiceLine).toMatch(/\b1\./); // the menu enumerates options
+
+    // --- Path B: typed "talk to drunk" via the command box -------------------
+    // A fresh boot so the drunk conversation starts from the same state as Path
+    // A (the menu is state-dependent), isolating the typed route.
+    await bootToTavern(page);
+
+    // Open the box and type the command character by character, so each keydown
+    // really fires and no letter leaks to a game key.
+    await page.keyboard.press("/");
+    await expect(page.locator(BOX)).toBeVisible();
+    const input = page.locator(INPUT);
+    await expect(input).toBeFocused();
+    await input.pressSequentially("talk to drunk", { delay: 15 });
+    await expect(input).toHaveValue("talk to drunk");
+    await page.keyboard.press("Enter"); // sends talk 53, closes the box
+    await expect(page.locator(BOX)).toBeHidden();
+
+    const typedChoiceLine = (await waitForChoiceMenu()).trim();
+    const typedPhase = await phase(page);
+
+    // The typed route must NOT leave the engine stuck in conversation without a
+    // menu (the old bug). It must reach the SAME phase as Enter...
+    expect(typedPhase).toBe("choice");
+    expect(typedPhase).toBe(enterPhase);
+    // ...show the choice UI, and never surface the old bug's lines.
+    expect(typedChoiceLine).toMatch(/\b1\./);
+    expect(typedChoiceLine.toLowerCase()).not.toContain("nothing happened");
+    expect(typedChoiceLine.toLowerCase()).not.toContain("can't be saved");
+    // ...and announce the SAME choices as Enter did (same lines).
+    expect(typedChoiceLine).toBe(enterChoiceLine);
   });
 });
