@@ -15,7 +15,10 @@ import { defineConfig, devices } from "@playwright/test";
 // pointing at scripts/build-web.sh and scripts/fetch.sh.
 export default defineConfig({
   testDir: ".",
-  testMatch: /live\.spec\.ts$/,
+  // The live boot check (live.spec.ts) and the save-progress continue-after-
+  // reload check (save-continue.spec.ts). Both need the real wasm build and
+  // skip with a clear message when it is absent.
+  testMatch: /(live|save-continue)\.spec\.ts$/,
   fullyParallel: false,
   reporter: "list",
   // A cold wasm instantiation plus the game-data fetch can take well over the

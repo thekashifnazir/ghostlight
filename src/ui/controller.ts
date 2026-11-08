@@ -79,6 +79,17 @@ export interface ControllerDeps {
   toggleGhostVoice: () => void;
   /** Room sonar: scan, step, mute (sonar spec R2, R3, R5, R6). */
   sonar: Sonar;
+  /**
+   * Save progress to the manual slot (save-progress R2.2). Optional so
+   * controller unit tests that predate the feature need not wire it; when
+   * absent, the save key does nothing. Bound to C.
+   */
+  save?: () => void;
+  /**
+   * Load the most recent save (save-progress R2.4). Optional like `save`.
+   * Bound to O.
+   */
+  load?: () => void;
 }
 
 export class Controller {
@@ -207,6 +218,22 @@ export class Controller {
       case "M":
         // Toggle sonar sound; the text equivalents keep working when muted.
         this.d.sonar.toggleMute();
+        return true;
+      case "c":
+      case "C":
+        // Save progress to the manual slot (save-progress R2.2). "C" for
+        // checkpoint — S is taken by sonar scan. Announces through the save
+        // manager's single-update path ("Saved." or a failure line).
+        if (!this.d.save) return false;
+        this.d.save();
+        return true;
+      case "o":
+      case "O":
+        // Load the most recent save (save-progress R2.4). "O" for "open my
+        // saved game" — R (repeat) and L (read room) are taken. Triggers a
+        // reload into the saved slot (the engine loads only at launch).
+        if (!this.d.load) return false;
+        this.d.load();
         return true;
       case "Escape":
         this.d.adapter.send({ verb: "skip" });

@@ -76,15 +76,29 @@ export interface BootOptions {
    * Defaults to appending a classic <script> tag for `${baseUrl}scummvm.js`.
    */
   loadScript?: (url: string) => Promise<void>;
+  /**
+   * Load a saved game at launch (save-progress R5.1). When set, the launch
+   * arguments gain `--save-slot=<n>` so the engine loads that slot as it boots
+   * — the engine's only load path (there is no in-session load command). When
+   * omitted, a fresh game starts and the arguments are byte-identical to the
+   * pre-feature launch.
+   */
+  saveSlot?: number;
 }
 
 /** The ScummVM launch arguments the spike proved (03-web-build.md). */
-function launchArguments(): string[] {
-  // --savepath=/tmp keeps the command file in in-memory MEMFS. It must NOT be
-  // /home/web_user: Emscripten mounts $HOME as auto-persisting IndexedDB, so a
-  // save path there would write every command to IndexedDB (R2.4).
+function launchArguments(saveSlot?: number): string[] {
+  // --savepath=/saves is the IDBFS mount persistence.ts creates, so save files
+  // survive a reload (save-progress R1). The engine reads BOTH the save files
+  // and the command file from <savepath> (a11y.cpp commandFileNode resolves
+  // "<savepath>/a11y-cmd.txt"), so the command file now lives at
+  // /saves/a11y-cmd.txt too — but persistence.commit() only ever syncs the
+  // mount on a save (and empties the command file first), so no queued command
+  // is ever persisted (R1.4). The save path must NOT be /home/web_user, which
+  // Emscripten auto-persists wholesale; /saves is mounted and synced
+  // deliberately by persistence.ts instead.
   // --subtitles is mandatory or the game draws no text. The game lives under
-  // /data/games/drascula and drascula.dat is in /data, so no --extrapath (R2.5).
+  // /data/games/drascula and drascula.dat is in /data, so no --extrapath.
   //
   // --music-volume=102 launches the game's music at about 40% of ScummVM's
   // default (255). The ghost whisper and sonar pings play through the page's own
@@ -92,14 +106,19 @@ function launchArguments(): string[] {
   // clearly over the music. ScummVM exposes no runtime music-volume command to
   // the a11y layer, so the music level is fixed at launch, not ducked further
   // live per-cue (see audio.ts comments).
-  return [
-    "--savepath=/tmp",
+  const args = [
+    "--savepath=/saves",
     "--subtitles",
     "--music-volume=102",
-    "-p",
-    "/data/games/drascula",
-    "drascula",
   ];
+  // --save-slot=<n> is the engine's launch-time load (save-progress R5.1). It
+  // is appended only when a slot is requested, so a fresh start keeps the exact
+  // argument list the pre-feature build used (minus the save-path move).
+  if (saveSlot !== undefined) {
+    args.push(`--save-slot=${saveSlot}`);
+  }
+  args.push("-p", "/data/games/drascula", "drascula");
+  return args;
 }
 
 /** Default script loader: a classic <script> tag that resolves on load. */
@@ -138,6 +157,7 @@ export async function bootEngine(
     baseUrl = "/",
     timeoutMs = DEFAULT_TIMEOUT_MS,
     loadScript = loadScriptTag,
+    saveSlot,
   } = options;
 
   // Augment the Module main.ts already created (keep its canvas). If main.ts
@@ -156,7 +176,7 @@ export async function bootEngine(
     module.canvas.id = "canvas";
   }
 
-  const args = launchArguments();
+  const args = launchArguments(saveSlot);
   module.arguments = args;
 
   // The ScummVM build's bundled --pre-js (dists/emscripten/custom_shell-pre.js)

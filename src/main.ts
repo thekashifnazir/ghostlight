@@ -13,6 +13,9 @@ import type {
 } from "./engine/adapter.js";
 import { LiveAdapter } from "./engine/live-adapter.js";
 import { ReplayAdapter } from "./engine/replay-adapter.js";
+import { Persistence, probeSaves } from "./engine/persistence.js";
+import { SaveManager } from "./engine/save-manager.js";
+import { setLoadIntent, takeLoadIntent } from "./engine/load-intent.js";
 import { buildHotspotList, type Hotspot } from "./model/hotspot-list.js";
 import { loadPack, type Pack, type PackData } from "./model/pack.js";
 import { GhostAudio } from "./hints/audio.js";
@@ -57,6 +60,9 @@ const HELP_TEXT =
   "S scans the room as sound, left to right, then counts what is here. " +
   "N and P step to the next and previous thing, playing its place. " +
   "M mutes the sonar sound; the text keeps working. " +
+  "C saves your progress. O loads your most recent save. " +
+  "Your progress also saves by itself whenever you move to a new room. " +
+  "If keys don't work, press NVDA+Space, or JAWS Insert+Z. " +
   BUILD_LINE;
 
 /** Spoken when the player asks for a hint but nothing is offered yet. */
@@ -70,7 +76,8 @@ const NO_HINT_TEXT = "There is nothing to hint at right now.";
  */
 const ONBOARDING_TEXT =
   "Left and Right move through the room. Enter acts, Down examines. " +
-  "Slash to type a command. H for a hint. F1 for all keys.";
+  "Slash to type a command. H for a hint. F1 for all keys. " +
+  "If keys don't work, press NVDA+Space, or JAWS Insert+Z.";
 
 /** Minimal window.Module shape ScummVM expects; set up before boot. */
 declare global {
@@ -98,7 +105,7 @@ function loadBundledPack(): Pack {
   return loadPack(packJson as unknown as PackData);
 }
 
-function chooseAdapter(log?: string): EngineAdapter {
+function chooseAdapter(log?: string, saveSlot?: number): EngineAdapter {
   const params = new URLSearchParams(location.search);
   const replay = params.get("replay");
   if (replay || log) {
@@ -106,10 +113,12 @@ function chooseAdapter(log?: string): EngineAdapter {
   }
   // ?live opts in to the real wasm engine (web-build spec). Without it, keep
   // the existing selection so the replay-based player tests are unchanged.
+  // `saveSlot`, when set, loads that save at launch (save-progress R5.1); a
+  // fresh start passes undefined and the boot args are unchanged.
   if (params.has("live")) {
-    return new LiveAdapter();
+    return new LiveAdapter(undefined, undefined, saveSlot);
   }
-  return new LiveAdapter();
+  return new LiveAdapter(undefined, undefined, saveSlot);
 }
 
 /** Load a replay fixture's text by name (dev/test path). */
@@ -120,9 +129,68 @@ async function fetchFixture(name: string): Promise<string> {
   return res.text();
 }
 
+/** The tab title the page keeps, regardless of what ScummVM sets (R5). */
+const GHOSTLIGHT_TITLE = "Ghostlight: Drascula";
+
+/**
+ * Stop ScummVM's Web MIDI probe so Chrome never pops a "Control and reprogram
+ * MIDI devices" permission prompt at boot (spike 10, screen-reader-focus R4).
+ *
+ * We hide the API on the page rather than rebuilding the wasm with a MIDI-off
+ * build flag: this is a page-only, deploy-free fix in the files this spec owns
+ * and is testable immediately, whereas a build flag would be unverifiable until
+ * the 10 MB wasm is rebuilt and redeployed (which this spec does not do). No
+ * functional audio is lost — the game's music plays through SDL audio at the
+ * launch --music-volume, and our sonar/earcons/ghost use the page's own Web
+ * Audio graph, none of which touch Web MIDI. Returning a rejecting promise
+ * (not deleting the property) keeps any feature-detect-then-call path happy: it
+ * simply fails to get a MIDI port, with no UI. Reversible — a later build flag
+ * could replace this. Must run before scummvm.js loads, so boot() calls it
+ * first.
+ */
+function suppressMidiProbe(): void {
+  try {
+    const nav = navigator as Navigator & { requestMIDIAccess?: unknown };
+    if (typeof nav.requestMIDIAccess === "function") {
+      Object.defineProperty(nav, "requestMIDIAccess", {
+        configurable: true,
+        value: () =>
+          Promise.reject(new Error("Web MIDI disabled by Ghostlight")),
+      });
+    }
+  } catch {
+    /* navigator frozen or the API absent: nothing to suppress. */
+  }
+}
+
+/**
+ * Keep the browser tab saying "Ghostlight" after ScummVM overwrites
+ * document.title with the game's DOS title at boot (spike 10, R5), so a screen
+ * reader announces the right thing when the window gains focus.
+ *
+ * A MutationObserver on <title> resets the title whenever the engine changes
+ * it: deterministic (it reacts to the engine's own write) and bounded (it does
+ * nothing until the title changes), not an open-ended polling timer. The guard
+ * prevents the observer from reacting to its own correction.
+ */
+function pinTitle(): void {
+  document.title = GHOSTLIGHT_TITLE;
+  const titleEl = document.querySelector("title");
+  if (!titleEl) return;
+  const obs = new MutationObserver(() => {
+    if (document.title !== GHOSTLIGHT_TITLE) document.title = GHOSTLIGHT_TITLE;
+  });
+  obs.observe(titleEl, { childList: true, characterData: true, subtree: true });
+}
+
 export async function boot(): Promise<void> {
+  // Kill the Web MIDI probe before anything engine-related runs, so the engine
+  // never sees the real navigator.requestMIDIAccess and Chrome never prompts.
+  suppressMidiProbe();
+
   const doc = document;
   const canvas = doc.getElementById("game-canvas") as HTMLCanvasElement;
+  const gameEl = doc.getElementById("game") as HTMLElement;
   const liveEl = doc.getElementById("live-region") as HTMLElement;
   const transcriptEl = doc.getElementById("transcript") as HTMLElement;
   const highlightEl = doc.getElementById("highlight") as HTMLElement;
@@ -134,6 +202,15 @@ export async function boot(): Promise<void> {
   ) as HTMLInputElement;
   const startGate = doc.getElementById("start-gate") as HTMLElement;
   const startButton = doc.getElementById("start-button") as HTMLButtonElement;
+  // Continue / New game onboarding (save-progress R3). Present in the markup
+  // but only revealed when a save exists in the browser store.
+  const resumeChoice = doc.getElementById("resume-choice") as HTMLElement | null;
+  const continueButton = doc.getElementById(
+    "continue-button",
+  ) as HTMLButtonElement | null;
+  const newGameButton = doc.getElementById(
+    "new-game-button",
+  ) as HTMLButtonElement | null;
 
   // Set up window.Module before anything engine-related (the live adapter and
   // the real wasm build read it).
@@ -251,14 +328,57 @@ export async function boot(): Promise<void> {
   const params = new URLSearchParams(location.search);
   const replayName = params.get("replay");
   const log = replayName ? await fetchFixture(replayName) : undefined;
-  const adapter = chooseAdapter(log);
 
-  // Returning focus to the list after a menu closes is silent: the list stays
-  // the active mode once the menu is hidden, and the last spoken line should be
-  // the engine's result (after a choose) or the menu's own "Cancelled" line
-  // (after a cancel), not a re-announced focus line that would clobber it.
+  // Save persistence (save-progress R1). The IDBFS mount is registered on
+  // Module.preRun below so it is in place before the engine's main() reads the
+  // save path; `persistence` also serves hasSave()/latestSlot() after boot. In
+  // the replay path there is no wasm FS, so persistence stays unavailable and
+  // every save/load path is a graceful no-op.
+  const persistence = new Persistence();
+
+  // Resolve the slot to boot into: a load-key reload left a "continue from slot"
+  // intent in session storage; the Continue onboarding sets `loadSlot` directly.
+  // Undefined means a fresh game.
+  let loadSlot: number | undefined = takeLoadIntent();
+  // `true` once we booted into a slot, so the first room after boot is
+  // announced as "Loaded: <room>" rather than a plain room entry.
+  let bootedIntoSlot = loadSlot !== undefined;
+
+  // Register the IDBFS mount + populate inside Emscripten's preRun, so the
+  // saved files are visible at /saves before the engine's launch reads
+  // --save-slot. Only for the live path (the replay path has no Module.preRun
+  // the engine runs). Errors are swallowed by init() itself (R1.5).
+  if (!replayName && !log) {
+    const w = window as unknown as {
+      Module?: { preRun?: Array<() => void>; [k: string]: unknown };
+    };
+    w.Module = w.Module ?? {};
+    const preRun = (w.Module.preRun as Array<() => void> | undefined) ?? [];
+    preRun.push(() => {
+      // Runs with the real FS global available; init() resolves it internally.
+      void persistence.init();
+    });
+    w.Module.preRun = preRun;
+  }
+
+  const adapter = chooseAdapter(log, loadSlot);
+
+  // Move keyboard focus to the game's role="application" element, silently
+  // (screen-reader-focus R1, R2). preventScroll keeps focusing from scrolling
+  // the page or disturbing the live-region line being read (R1.5). No
+  // live-region write here: focus changes must not add a line (R2.6).
+  const focusGame = (): void => {
+    gameEl.focus({ preventScroll: true });
+  };
+
+  // Returning focus to the list after a menu or the command box closes keeps
+  // the screen reader in focus mode: focus goes back to the game element so the
+  // next key still reaches the page (R2.1, R2.2, R2.4). It is silent — the list
+  // stays the active mode and the last spoken line should be the engine's
+  // result (after a choose) or the menu's own "Cancelled" line (after a
+  // cancel), not a re-announced focus line that would clobber it (R2.6).
   const returnToList = (): void => {
-    /* list is active again once the menu is closed; no re-announce. */
+    focusGame();
   };
 
   const verbMenu = new VerbMenu(verbMenuEl, {
@@ -340,6 +460,21 @@ export async function boot(): Promise<void> {
     live.announce(suffix ? `${room} ${suffix}` : room);
   };
 
+  // Save / load / autosave manager (save-progress R2, R4). It drives the engine
+  // only through the adapter seam and announces through the one live region. The
+  // load path records a "continue from slot" intent and reloads the page (the
+  // engine loads only at launch), so Continue on the next load boots the slot.
+  const saveManager = new SaveManager({
+    send: (cmd) => adapter.send(cmd),
+    persistence,
+    announce: (t) => live.announce(t),
+    roomName: (room) => pack.roomName(room),
+    requestReloadInto: (slot) => {
+      setLoadIntent(slot);
+      location.reload();
+    },
+  });
+
   const controller = new Controller({
     adapter,
     pack,
@@ -362,6 +497,9 @@ export async function boot(): Promise<void> {
     askHint,
     toggleGhostVoice,
     sonar,
+    // Save (C) and load (O) keys (save-progress R2.2, R2.4).
+    save: () => saveManager.save(),
+    load: () => saveManager.load(),
   });
 
   // Route adapter events to the model and UI.
@@ -388,7 +526,10 @@ export async function boot(): Promise<void> {
         say(e.message);
         break;
       case "saved":
-        say(`Saved in slot ${e.slot}.`);
+        // The save manager decides what to announce: "Saved." for a manual
+        // save that committed, a failure line if the commit did not stick, and
+        // nothing for a quiet autosave (save-progress R2.3, R4.3, R4.4).
+        void saveManager.onSaved(e.slot);
         break;
       case "cmd":
         // Command echo; nothing to announce (the diff carries the result).
@@ -415,12 +556,26 @@ export async function boot(): Promise<void> {
     // room reading so both are spoken together as the single newest live-region
     // line (the region holds only the newest line, so a separate announce would
     // clobber the room). Later rooms arrive as diffs and never repeat it.
+    //
+    // When this first room is the result of a Continue / load boot, the one
+    // update is instead "Loaded: <room>" (save-progress R2.4): the player asked
+    // to resume and the confirmation names where they landed. The full room can
+    // be re-read with L. A fresh start keeps the normal room + onboarding line.
     if (!onboardingDone) {
       onboardingDone = true;
-      readRoom(ONBOARDING_TEXT);
+      if (bootedIntoSlot) {
+        bootedIntoSlot = false;
+        saveManager.announceLoaded(s.room);
+      } else {
+        readRoom(ONBOARDING_TEXT);
+      }
     } else {
       readRoom();
     }
+    // Let the autosave manager see this room entry. The manager gates the very
+    // first room (a loaded slot must not be overwritten) and autosaves into the
+    // reserved slot on later room changes (save-progress R2.5).
+    saveManager.onRoomChange();
     showHighlight(list.current());
     // Feed sonar the full room (with the real hero) and reset its step cursor.
     sonar.setRoom(s, currentList);
@@ -492,6 +647,10 @@ export async function boot(): Promise<void> {
       }
       announceSaid(diff);
       readRoom();
+      // Autosave on moving to a new room (save-progress R2.5). The manager's
+      // first-room gate was already spent by applyRoom's initial entry, so a
+      // room change via a door always autosaves.
+      saveManager.onRoomChange();
       showHighlight(list.current());
       return;
     }
@@ -590,6 +749,13 @@ export async function boot(): Promise<void> {
     if (started) return;
     started = true;
     startGate.hidden = true;
+    // Move focus to the game's role="application" element now that the gate is
+    // gone, so NVDA and JAWS switch to focus mode and game keys reach the page
+    // instead of browse-mode quick-nav (screen-reader-focus R1.2, R2.3).
+    focusGame();
+    // Pin the tab title before the engine boots, so ScummVM's title change at
+    // boot is reverted to "Ghostlight: Drascula" (R5).
+    pinTitle();
     // Create the audio context now that we have a user gesture, and build the
     // ghost whisper player on it (hints-and-ghost R6). If audio is unavailable
     // the player stays fully usable as text and hints remain text-only.
@@ -605,21 +771,77 @@ export async function boot(): Promise<void> {
   };
 
   startButton.addEventListener("click", startPlaying);
+
+  // Onboarding Continue / New game (save-progress R3). A returning player's
+  // page loads fresh (no slot in the adapter yet), so Continue reuses the load
+  // path: record a "continue from slot" intent and reload; the reloaded page
+  // reads that intent, boots --save-slot, and announces "Loaded: <room>". New
+  // game starts fresh through the normal gate, leaving the save in place.
+  //
+  // When a load intent is already pending at this load (loadSlot set), we are
+  // the continue reload itself: skip the choice and start straight into the
+  // slot. Otherwise probe the browser store; only when a save exists do we show
+  // the choice. The probe is read-only and falls through to a plain new game on
+  // any error or when there is no save (R3.6).
+  let gateHandlesAnyKey = true; // the "press any key to begin" default
+  const showResumeChoice =
+    !replayName && !log && loadSlot === undefined && resumeChoice &&
+    continueButton && newGameButton;
+
+  if (showResumeChoice) {
+    // Probe IndexedDB directly for an existing save (no wasm FS exists yet).
+    const result = await probeSaves().catch(
+      (): import("./engine/persistence.js").ProbeResult => ({ hasSave: false }),
+    );
+    if (result.hasSave && resumeChoice && continueButton && newGameButton) {
+      // Reveal the choice, suppress the "any key starts" default so an arrow or
+      // stray key does not start a fresh game before the player chooses, and
+      // move focus to Continue.
+      resumeChoice.hidden = false;
+      startButton.hidden = true;
+      gateHandlesAnyKey = false;
+      const resumeSlot = result.latestSlot;
+      continueButton.addEventListener("click", () => {
+        if (resumeSlot === undefined) {
+          void startPlaying();
+          return;
+        }
+        // Reuse the load path: record the slot and reload into the continue
+        // boot. The reloaded page announces "Loaded: <room>".
+        setLoadIntent(resumeSlot);
+        location.reload();
+      });
+      newGameButton.addEventListener("click", () => void startPlaying());
+      // Announce the choice as functional text (R3.3).
+      live.announce(
+        "You have a saved game. Press Continue to resume, or New game to start over.",
+      );
+      continueButton.focus();
+    }
+  }
+
+  // The gate's "any key begins" shortcut, kept for a fresh start. Suppressed
+  // when the Continue / New game choice is showing (the buttons own the keys).
   startGate.addEventListener(
     "keydown",
     (ev) => {
+      if (!gateHandlesAnyKey) return; // let the resume-choice buttons handle it
       ev.preventDefault();
       void startPlaying();
     },
     { once: true },
   );
-  startButton.focus();
+
+  if (gateHandlesAnyKey) startButton.focus();
 
   // Announce the start gate's instruction in the live region, so a screen
   // reader conveys it as text like every other functional line, not only as
-  // static markup (web-build R4.1).
-  const gateText = startGate.querySelector("p")?.textContent?.trim();
-  if (gateText) live.announce(gateText);
+  // static markup (web-build R4.1). When the resume choice is showing, its own
+  // announcement above is the functional line instead.
+  if (gateHandlesAnyKey) {
+    const gateText = startGate.querySelector("p")?.textContent?.trim();
+    if (gateText) live.announce(gateText);
+  }
 }
 
 // Auto-boot in the browser (not under a test import).

@@ -43,8 +43,13 @@ export interface ScummvmModule extends ScummvmBootModule {
   FS?: ScummvmFS;
 }
 
-/** Where the engine reads commands from (launch with --savepath=/tmp). */
-const COMMAND_FILE = "/tmp/a11y-cmd.txt";
+// Where the engine reads commands from. The engine resolves the command file
+// as <savepath>/a11y-cmd.txt (a11y.cpp commandFileNode), and boot launches with
+// --savepath=/saves (the IDBFS mount), so the command file lives there too.
+// persistence.commit() empties this file before every store sync, so a queued
+// command is never persisted to IndexedDB (save-progress R1.4).
+import { COMMAND_FILE_NAME, SAVE_DIR } from "./persistence.js";
+const COMMAND_FILE = `${SAVE_DIR}/${COMMAND_FILE_NAME}`;
 
 /**
  * Resolve the Emscripten MEMFS. ScummVM's build exposes `FS` as a global rather
@@ -63,16 +68,22 @@ export class LiveAdapter implements EngineAdapter {
   private module: ScummvmModule | undefined;
   /** The base URL the wasm and /data are served from (Worker root by default). */
   private readonly baseUrl: string | undefined;
+  /** When set, boot loads this save slot at launch (--save-slot=<n>). */
+  private readonly saveSlot: number | undefined;
 
   /**
    * @param module a pre-booted Module (tests may inject one). Omitted in the
    *   browser, where `start()` boots the real wasm.
    * @param baseUrl where `scummvm.js` and `/data` are served from. The local
    *   Playwright check overrides this; in production it defaults to "/".
+   * @param saveSlot a save slot to load at launch (save-progress R5.1). When
+   *   set, `start()` boots the engine with `--save-slot=<n>`; when omitted, a
+   *   fresh game starts.
    */
-  constructor(module?: ScummvmModule, baseUrl?: string) {
+  constructor(module?: ScummvmModule, baseUrl?: string, saveSlot?: number) {
     this.module = module;
     this.baseUrl = baseUrl;
+    this.saveSlot = saveSlot;
   }
 
   onEvent(listener: (e: EngineEvent) => void): () => void {
@@ -117,6 +128,7 @@ export class LiveAdapter implements EngineAdapter {
       installReader: (m) => this.installReader(m),
       onEvent: (listener) => this.onEvent(listener),
       baseUrl: this.baseUrl,
+      saveSlot: this.saveSlot,
     })) as ScummvmModule;
   }
 
