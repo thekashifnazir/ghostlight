@@ -121,6 +121,18 @@ export class ReplayTransport implements Transport {
     return toCommandResult(events);
   }
 
+  /**
+   * The replay transport plays a fixed recorded script and has no `state` step
+   * to drive, so it cannot produce a fresh engine snapshot. Return null; the
+   * session then answers `state` from the room it already tracks (which, for a
+   * replay, is folded from the fixture's own diffs). The native transport is
+   * where `state` does a real round-trip for live, current flags/hero.
+   */
+  async snapshot(): Promise<RoomState | null> {
+    this.requireAdapter(); // keep the "call start first" guard consistent.
+    return null;
+  }
+
   async stop(): Promise<void> {
     // Nothing to release: the adapter is in-memory. Drop it so a later send
     // without a start fails loudly rather than replaying a stale cursor.

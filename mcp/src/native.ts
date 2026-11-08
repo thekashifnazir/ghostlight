@@ -71,9 +71,20 @@ interface PendingSend {
   echoed: boolean;
   /** Events collected from the echo up to (and including) the diff/error. */
   events: EngineEvent[];
+  /**
+   * When set, this is a `state`/`dump` snapshot wait: settle on the FRESH
+   * room-state (`A11Y { ... }`) line the command emits rather than on its diff,
+   * and resolve the snapshot promise with that RoomState instead of a
+   * CommandResult. The trailing `A11Y_DIFF {"cmd":"state","changed":false}` is
+   * then just a stray line between commands, harmlessly ignored.
+   */
+  resolveRoom?: (room: RoomState) => void;
   resolve: (r: CommandResult) => void;
   timer: NodeJS.Timeout;
 }
+
+/** The engine's own full-snapshot command (A11Y line: emits the room state). */
+const STATE_COMMAND = "state";
 
 export class NativeTransport implements Transport {
   private readonly config: NativeConfig;
@@ -225,6 +236,53 @@ export class NativeTransport implements Transport {
     });
   }
 
+  // --- snapshot -------------------------------------------------------------
+
+  async snapshot(): Promise<RoomState> {
+    if (!this.child || !this.pid) {
+      throw new Error("native transport: not started; call start() first.");
+    }
+    if (this.pending) {
+      throw new Error("native transport: a command is already in flight.");
+    }
+
+    // The engine's `state` command re-emits the full A11Y room-state line (and
+    // a trailing changed:false diff). Drive it directly — the player has no
+    // `state` verb, so this does not go through serializeCommand — and settle on
+    // the fresh room line, so the caller gets the engine's live state (flags,
+    // hero, inventory and all) rather than a folded approximation.
+    this.log(`snapshot "${STATE_COMMAND}"`);
+    writeFileSync(this.commandFile, STATE_COMMAND + "\n");
+
+    return new Promise<RoomState>((resolve, reject) => {
+      const timer = setTimeout(() => {
+        const p = this.pending;
+        this.pending = undefined;
+        if (p) {
+          this.log(`timeout "${STATE_COMMAND}" after ${HARD_CAP_MS / 1000}s`);
+          reject(
+            new Error(
+              `native transport: snapshot "${STATE_COMMAND}" did not settle ` +
+                `within ${HARD_CAP_MS / 1000}s (no A11Y room-state line). The ` +
+                `session is still up; call stop to tear it down.`,
+            ),
+          );
+        }
+      }, HARD_CAP_MS);
+
+      this.pending = {
+        expected: STATE_COMMAND,
+        echoed: false,
+        events: [],
+        resolveRoom: resolve,
+        // Unused for a snapshot wait (resolveRoom settles it), but the shape
+        // requires a resolver; a no-op keeps the slot total.
+        resolve: () => {},
+        timer,
+      };
+    });
+  }
+
   // --- stop -----------------------------------------------------------------
 
   async stop(): Promise<void> {
@@ -332,6 +390,20 @@ export class NativeTransport implements Transport {
 
     p.events.push(event);
 
+    // A snapshot wait (`state`/`dump`) settles on the fresh room-state line the
+    // command emits, resolving the snapshot promise with that RoomState; the
+    // trailing changed:false diff is left to be ignored between commands.
+    if (p.resolveRoom) {
+      if (event.type === "room") {
+        this.settleRoom(event.state);
+      } else if (event.type === "error") {
+        // A snapshot that erred has no room line to return: surface it as a
+        // normal settle so the caller's await rejects via the error path.
+        this.settle({ events: p.events, error: event.message });
+      }
+      return;
+    }
+
     if (event.type === "diff") {
       this.settle({ events: p.events, diff: event.diff });
     } else if (event.type === "error") {
@@ -356,5 +428,15 @@ export class NativeTransport implements Transport {
         : "choices";
     this.log(`settled "${p.expected}": ${outcome}`);
     p.resolve(result);
+  }
+
+  /** Resolve an in-flight snapshot wait with the fresh room and clear the slot. */
+  private settleRoom(room: RoomState): void {
+    const p = this.pending;
+    if (!p || !p.resolveRoom) return;
+    clearTimeout(p.timer);
+    this.pending = undefined;
+    this.log(`settled "${p.expected}": room (chapter ${room.chapter}, room ${room.room})`);
+    p.resolveRoom(room);
   }
 }

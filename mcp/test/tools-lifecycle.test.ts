@@ -22,6 +22,10 @@ class FakeTransport implements Transport {
   async send(_cmd: Command): Promise<CommandResult> {
     return { events: [] };
   }
+  async snapshot(): Promise<RoomState | null> {
+    // The `state` tool takes a fresh snapshot; return the live room state.
+    return room62;
+  }
   async stop(): Promise<void> {}
 }
 
@@ -30,19 +34,19 @@ function makeTools(): Tools {
 }
 
 describe("Tools lifecycle (task 6)", () => {
-  it("state before start returns the start-first error", () => {
-    const reply = makeTools().state();
+  it("state before start returns the start-first error", async () => {
+    const reply = await makeTools().state();
     expect(reply.isError).toBe(true);
     expect((reply.data as { error: string }).error).toMatch(/start tool first/);
   });
 
-  it("start returns the first room state; state then returns it", async () => {
+  it("start returns the first room state; state then returns a fresh snapshot", async () => {
     const tools = makeTools();
     const started = await tools.start();
     expect(started.isError).toBe(false);
     expect((started.data as RoomState).room).toBe(62);
 
-    const state = tools.state();
+    const state = await tools.state();
     expect(state.isError).toBe(false);
     expect((state.data as RoomState).room).toBe(62);
     expect((state.data as RoomState).chapter).toBe(1);

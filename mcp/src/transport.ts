@@ -51,6 +51,20 @@ export interface Transport {
    * carries every event the command produced, so no engine output is lost.
    */
   send(cmd: Command): Promise<CommandResult>;
+  /**
+   * Ask the engine for a FRESH full room-state snapshot — the `state`/`dump`
+   * command — and resolve with it. Unlike send(), this does not go through the
+   * Command union (the player has no `state` verb); it drives the engine's own
+   * snapshot command directly and returns the `A11Y { ... }` room-state line it
+   * emits. The snapshot reflects the engine's live chapter, room, hero point,
+   * objects, inventory and all flags at the moment it is taken, so a reader gets
+   * current state rather than a session's folded approximation.
+   *
+   * Returns null when the transport cannot produce a fresh snapshot (the replay
+   * transport replays a fixed script with no `state` step), so the caller falls
+   * back to the room it already tracks.
+   */
+  snapshot(): Promise<RoomState | null>;
   /** End the session and release resources. Safe to call with no session (Req 4.4). */
   stop(): Promise<void>;
 }

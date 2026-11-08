@@ -27,6 +27,9 @@ class RecordingTransport implements Transport {
     this.sent.push(cmd);
     return { events: [{ type: "diff", diff: { cmd: "x", changed: false } }], diff: { cmd: "x", changed: false } };
   }
+  async snapshot(): Promise<RoomState | null> {
+    return room62;
+  }
   async stop(): Promise<void> {}
 }
 

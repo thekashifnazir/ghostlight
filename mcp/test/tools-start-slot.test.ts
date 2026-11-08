@@ -27,6 +27,9 @@ class FakeTransport implements Transport {
   async send(_cmd: Command): Promise<CommandResult> {
     return { events: [] };
   }
+  async snapshot(): Promise<RoomState | null> {
+    return room62;
+  }
   async stop(): Promise<void> {}
 }
 

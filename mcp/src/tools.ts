@@ -110,20 +110,28 @@ export class Tools {
     return null;
   }
 
-  // --- state (Req 3.5): answered locally from the tracked room --------------
+  // --- state (Req 3.5): a fresh snapshot from the engine --------------------
 
   /**
-   * Return the current room state. The engine's snapshot command is `dump`/
-   * `state`; the server answers it from the session's tracked room rather than
-   * sending a command, so it is cheap and always current (alias documented on
-   * the tool).
+   * Return the current room state by taking a FRESH snapshot from the engine —
+   * the engine's own `state`/`dump` command, which re-emits the full room state
+   * (chapter, room, hero, objects, inventory and all flags). The session's
+   * tracked room folds room/inventory diffs but never re-reads the engine's
+   * flags or hero point, so after a command that only flipped a flag or moved
+   * the hero the tracked flags would be stale; driving the engine's snapshot
+   * returns the live state instead. On the replay transport (no `state` step to
+   * drive) the session falls back to the tracked room, so `state` still answers.
    */
-  state(): ToolReply {
+  async state(): Promise<ToolReply> {
     const guard = this.requireSession();
     if (guard) return guard;
-    const room = this.session.room;
-    if (!room) return err("no room state is known yet.");
-    return ok(room satisfies RoomState);
+    try {
+      const room = await this.session.snapshot();
+      if (!room) return err("no room state is known yet.");
+      return ok(room satisfies RoomState);
+    } catch (e) {
+      return err(`state failed: ${messageOf(e)}`);
+    }
   }
 
   // --- target validation before send (Req 8) --------------------------------
@@ -322,10 +330,10 @@ export function registerTools(
     {
       description:
         "Return the current room state as JSON (chapter, room, hero, objects, inventory, flags). " +
-        "Answered from the tracked room; the engine's own snapshot command is `dump`/`state`.",
+        "Takes a fresh snapshot from the engine's own `dump`/`state` command, so flags and hero are live.",
       inputSchema: schemas.empty,
     },
-    async () => reply(tools.state()),
+    async () => reply(await tools.state()),
   );
 
   // Target verbs: one tool each, same { target } schema (Req 2.1, 2.3).

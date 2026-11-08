@@ -88,7 +88,9 @@ describe("tavern replay regression", () => {
     expect(cd?.objects?.some((o) => o.num === 162 && o.toRoom === 16)).toBe(true);
 
     // The session's tracked room followed the crossing into chapter 2 / room 14.
-    const state = tools.state();
+    // On the replay transport `state` falls back to the tracked room (no live
+    // snapshot step), so this is the folded room the crossing diff produced.
+    const state = await tools.state();
     expect((state.data as { chapter: number; room: number }).chapter).toBe(2);
     expect((state.data as { room: number }).room).toBe(14);
   });
@@ -110,14 +112,16 @@ describe("inventory folded from diffs (open 183 then open 22)", () => {
     // Walk into room 16, where the trunk (183) lives.
     const walk = await tools.targetVerb("walk", 162);
     expect(walk.isError).toBe(false);
-    expect((tools.state().data as { room: number }).room).toBe(16);
+    expect(((await tools.state()).data as { room: number }).room).toBe(16);
 
     // Open the trunk: the diff's invAdded gains the handbag (22).
     const openTrunk = await tools.targetVerb("open", 183);
     expect(openTrunk.isError).toBe(false);
     expect(diffOf(openTrunk)?.invAdded).toEqual([{ id: 22, name: "handbag" }]);
     // The handbag is now tracked as held.
-    expect((tools.state().data as { inventory: number[] }).inventory).toContain(22);
+    expect(
+      ((await tools.state()).data as { inventory: number[] }).inventory,
+    ).toContain(22);
 
     // Open the now-held handbag (22): this is the bug. It must be ACCEPTED
     // (reach the transport and return the recorded diff), not rejected.
@@ -125,7 +129,7 @@ describe("inventory folded from diffs (open 183 then open 22)", () => {
     expect(openHandbag.isError).toBe(false);
     expect(diffOf(openHandbag)?.said?.[0]?.text).toMatch(/ONE THOUSAND BILL/);
     // Its contents (money 7, two coins 18) fold into the tracked inventory too.
-    const held = (tools.state().data as { inventory: number[] }).inventory;
+    const held = ((await tools.state()).data as { inventory: number[] }).inventory;
     expect(held).toContain(7);
     expect(held).toContain(18);
   });

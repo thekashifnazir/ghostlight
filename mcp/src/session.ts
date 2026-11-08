@@ -55,6 +55,24 @@ export class Session {
   }
 
   /**
+   * Take a FRESH full snapshot from the engine (the `state`/`dump` command) and
+   * record it as the current room, then return it. This is how the `state` tool
+   * answers: the session's folded `currentRoom` tracks room/inventory deltas but
+   * never re-reads the engine's flags or hero point, so after a command that
+   * only flipped a flag or moved the hero (no room change) the tracked flags go
+   * stale. Driving the engine's own snapshot replaces them with the live state.
+   *
+   * When the transport cannot snapshot (replay), fall back to the tracked room
+   * so `state` still answers. Throws if no session is running (Req 4.3).
+   */
+  async snapshot(): Promise<RoomState | null> {
+    const transport = this.requireTransport();
+    const fresh = await transport.snapshot();
+    if (fresh) this.currentRoom = fresh;
+    return this.currentRoom;
+  }
+
+  /**
    * Send a command through the active transport and keep currentRoom in step:
    * a room-change diff (carrying the new room's `room` and `objects`) rebuilds
    * currentRoom from the diff, and every diff's inventory deltas are folded

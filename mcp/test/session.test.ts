@@ -26,6 +26,10 @@ class FakeTransport implements Transport {
     if (!next) throw new Error("FakeTransport: no queued result");
     return next;
   }
+  async snapshot(): Promise<RoomState | null> {
+    // A fresh snapshot: this hand-driven transport returns its fixed room.
+    return this.startRoom;
+  }
   async stop(): Promise<void> {
     this.stopped = true;
   }
