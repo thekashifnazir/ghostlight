@@ -59,7 +59,7 @@ Requirements use EARS (Easy Approach to Requirements Syntax). Terms:
 
 1. WHEN the player asks for a hint on a target milestone for the first time THEN the hint core SHALL give the `nudge` tier.
 2. WHEN the player asks again for the same target milestone THEN the hint core SHALL give the next tier in order: `clue` after `nudge`, then `answer` after `clue`.
-3. WHEN the player asks again after the `answer` tier for the same target milestone THEN the hint core SHALL repeat the `answer` tier rather than advancing past it.
+3. WHEN the player asks again after the `answer` tier for the same target milestone THEN the hint core SHALL repeat the `answer` tier every time, for as many further asks as the player makes, rather than advancing past it or ever withholding the answer. There is no "exhausted" or cut-off state: a player who keeps pressing the hint key keeps hearing the answer.
 4. THE hint core SHALL NOT give the `clue` or `answer` tier before the `nudge` has been given for that milestone, and SHALL NOT jump to `answer` without having given the `nudge` and `clue` first, unless the player explicitly asks for the answer (see Requirement 4).
 5. WHEN the target milestone changes between asks (because the player progressed, or the selection rule now prefers a different milestone) THEN the hint core SHALL reset the tier to `nudge` for the new target milestone.
 6. THE hint core SHALL track the tier per milestone, so returning to an earlier-hinted milestone continues from the tier already reached for it rather than from the start.
@@ -71,7 +71,7 @@ Requirements use EARS (Easy Approach to Requirements Syntax). Terms:
 #### Acceptance criteria
 
 1. WHEN the player explicitly asks for the answer THEN the hint core SHALL give the `answer` tier for the target milestone directly, without requiring the `nudge` and `clue` first.
-2. WHEN the player has been given the answer directly THEN the hint core SHALL mark that milestone's tier as `answer`, so a later plain ask repeats the answer rather than stepping back to the nudge.
+2. WHEN the player has been given the answer directly THEN the hint core SHALL mark that milestone's tier as `answer`, so a later plain ask repeats the answer rather than stepping back to the nudge. Asking for the answer again, directly or plainly, SHALL give the answer again every time; the direct-answer path has no cut-off either.
 3. THE direct-answer path SHALL still obey the no-spoiler rule: it SHALL give the answer only for a milestone in the offered set, never for a milestone ahead of the player.
 
 ### Requirement 5: Text first, in the live region

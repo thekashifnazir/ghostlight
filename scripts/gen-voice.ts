@@ -99,7 +99,7 @@ export async function generateInto(
 }
 
 /** Read one named value from .env without exposing any other value. */
-function readEnvKey(name: string): string | undefined {
+export function readEnvKey(name: string): string | undefined {
   const envPath = resolve(REPO, ".env");
   if (!existsSync(envPath)) return undefined;
   const raw = readFileSync(envPath, "utf8");
@@ -159,13 +159,27 @@ function dryRun(lines: Line[]): void {
   console.log(`Estimated cost at $0.08/1,000 chars: $${estUsd.toFixed(2)}`);
 }
 
-async function realRun(lines: Line[]): Promise<void> {
-  const apiKey = readEnvKey(KEY_NAME);
+/**
+ * Resolve the ElevenLabs key through `lookup`, or throw a clear error that
+ * names the key (never a value) when it is missing (R9.4). The lookup is
+ * injectable so this can be unit-tested with no real `.env` and no network;
+ * `realRun` passes the `.env` reader. The returned key is handed straight to
+ * the SDK and is never logged or written (R9.2, R9.3).
+ */
+export function requireApiKey(
+  lookup: (name: string) => string | undefined = readEnvKey,
+): string {
+  const apiKey = lookup(KEY_NAME);
   if (!apiKey) {
     throw new Error(
       `Missing ${KEY_NAME} in .env. Add ${KEY_NAME}=<your key> to the local .env file (gitignored). The key value is never printed.`,
     );
   }
+  return apiKey;
+}
+
+async function realRun(lines: Line[]): Promise<void> {
+  const apiKey = requireApiKey();
 
   // Import the SDK lazily and by a computed specifier so neither dry-run, the
   // test, nor the project typecheck needs the package installed. The SDK is a

@@ -38,18 +38,32 @@ test.describe("hint key: tiers in order", () => {
     await expect(live(page)).toContainText(
       "In the guest bedroom, open the trunk under the window.",
     );
-    // Asking again repeats the answer (clamped), never past it.
-    await page.keyboard.press("h");
-    await expect(live(page)).toContainText(
-      "In the guest bedroom, open the trunk under the window.",
-    );
+    // Asking again repeats the answer, every time, never cutting off (R3.3).
+    for (let i = 0; i < 3; i++) {
+      await page.keyboard.press("h");
+      await expect(live(page)).toContainText(
+        "In the guest bedroom, open the trunk under the window.",
+      );
+    }
   });
 });
 
-// The "nothing to hint at" wording (NO_HINT_TEXT) is driven by the engine
-// returning { kind: "none" }, which is unit-tested in hints-engine.test.ts; the
-// main.ts mapping of that to the live line is a one-line, reviewed branch. These
-// specs prove the live end-to-end behaviour for a real offered hint.
+test.describe("hint key: nothing to hint at", () => {
+  test("H with nothing offered speaks the 'nothing to hint at' line", async ({
+    page,
+  }) => {
+    // The ch3-no-hints fixture boots into a chapter-3 room. The pack has no
+    // chapter-3 milestones and selectTarget drops earlier-chapter ones, so the
+    // offered set is empty: pressing H returns { kind: "none" } and the player
+    // speaks NO_HINT_TEXT end to end (R2.6, R5.3).
+    await start(page, "ch3-no-hints");
+
+    await page.keyboard.press("h");
+    await expect(live(page)).toContainText(
+      "There is nothing to hint at right now.",
+    );
+  });
+});
 
 test.describe("hint key: folded flags drive the reached set", () => {
   test("a diff that sets a milestone's flag stops the ghost hinting at it", async ({ page }) => {

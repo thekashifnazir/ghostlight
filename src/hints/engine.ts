@@ -17,25 +17,11 @@ import { cacheKey } from "./cache.js";
 import type { ProgressTracker } from "./progress.js";
 import type { EngineHintState } from "./fold.js";
 import { selectTarget } from "./select.js";
-import {
-  answerTier,
-  nextTier,
-  type AnswerCount,
-  type Tier,
-  type TierOutcome,
-  type TierState,
-} from "./tiers.js";
+import { answerTier, nextTier, type Tier, type TierState } from "./tiers.js";
 
 /** The ghost voice and model the cache keys are computed against (R8.2). */
 export const GHOST_VOICE_ID = "nbk2esDn4RRk4cVDdoiE";
 export const GHOST_MODEL_ID = "eleven_v4";
-
-/**
- * Spoken once the answer tier has been given twice for a milestone, instead of
- * repeating the answer a third time. Functional text: it still goes to the live
- * region like any hint, and a cached whisper for it need not exist.
- */
-export const HINT_EXHAUSTED_TEXT = "That's all I can tell you here";
 
 export type HintResult =
   | { kind: "none" }
@@ -45,19 +31,12 @@ export type HintResult =
       tier: Tier;
       text: string;
       audioKey: string;
-    }
-  | {
-      kind: "exhausted";
-      milestoneId: string;
-      text: string;
-      audioKey: string;
     };
 
 export class HintEngine {
   private readonly pack: Pack;
   private readonly tracker: ProgressTracker;
   private readonly tiers: TierState = new Map();
-  private readonly answers: AnswerCount = new Map();
 
   constructor(pack: Pack, tracker: ProgressTracker) {
     this.pack = pack;
@@ -83,41 +62,25 @@ export class HintEngine {
   async ask(room: number): Promise<HintResult> {
     const target = selectTarget(this.pack, this.tracker.progress(), room);
     if (!target) return { kind: "none" };
-    const outcome = nextTier(this.tiers, this.answers, target.id);
-    return this.result(target, outcome);
+    const tier = nextTier(this.tiers, target.id);
+    return this.result(target, tier);
   }
 
   /** The answer directly for the current target, still only if offered (R4.3). */
   async askAnswer(room: number): Promise<HintResult> {
     const target = selectTarget(this.pack, this.tracker.progress(), room);
     if (!target) return { kind: "none" };
-    const outcome = answerTier(this.tiers, this.answers, target.id);
-    return this.result(target, outcome);
+    const tier = answerTier(this.tiers, target.id);
+    return this.result(target, tier);
   }
 
-  private async result(
-    target: Milestone,
-    outcome: TierOutcome,
-  ): Promise<HintResult> {
-    if (outcome.kind === "exhausted") {
-      const audioKey = await cacheKey(
-        HINT_EXHAUSTED_TEXT,
-        GHOST_VOICE_ID,
-        GHOST_MODEL_ID,
-      );
-      return {
-        kind: "exhausted",
-        milestoneId: target.id,
-        text: HINT_EXHAUSTED_TEXT,
-        audioKey,
-      };
-    }
-    const text = target.hints[outcome.tier];
+  private async result(target: Milestone, tier: Tier): Promise<HintResult> {
+    const text = target.hints[tier];
     const audioKey = await cacheKey(text, GHOST_VOICE_ID, GHOST_MODEL_ID);
     return {
       kind: "hint",
       milestoneId: target.id,
-      tier: outcome.tier,
+      tier,
       text,
       audioKey,
     };

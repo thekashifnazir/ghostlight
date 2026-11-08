@@ -87,27 +87,29 @@ describe("HintEngine.ask", () => {
 
     expect(await tierOf(engine.ask(14))).toBe("clue");
     expect(await tierOf(engine.ask(14))).toBe("answer"); // 1st answer
-    expect(await tierOf(engine.ask(14))).toBe("answer"); // 2nd answer
-    // After the answer has been given twice, the ghost is exhausted.
-    const r5 = await engine.ask(14);
-    expect(r5).toMatchObject({
-      kind: "exhausted",
+    // Every further ask repeats the answer; the ghost never stops repeating it.
+    expect(await tierOf(engine.ask(14))).toBe("answer");
+    expect(await tierOf(engine.ask(14))).toBe("answer");
+    const rN = await engine.ask(14);
+    expect(rN).toMatchObject({
+      kind: "hint",
       milestoneId: "ch2.handbag",
-      text: "That's all I can tell you here",
+      tier: "answer",
+      text: "Open the machine, then take the handbag.",
     });
-    expect((await engine.ask(14)).kind).toBe("exhausted");
   });
 
-  it("the exhausted outcome carries the content-hash audio key for its text", async () => {
+  it("the repeated answer carries the content-hash audio key for its text", async () => {
     const { engine } = makeEngine();
     engine.onEngineState(state());
     await engine.ask(14); // nudge
     await engine.ask(14); // clue
     await engine.ask(14); // answer 1
     await engine.ask(14); // answer 2
-    const r = await engine.ask(14); // exhausted
-    expect(r.kind).toBe("exhausted");
-    if (r.kind === "exhausted") {
+    const r = await engine.ask(14); // answer again
+    expect(r.kind).toBe("hint");
+    if (r.kind === "hint") {
+      expect(r.tier).toBe("answer");
       expect(r.audioKey).toBe(
         await cacheKey(r.text, GHOST_VOICE_ID, GHOST_MODEL_ID),
       );
@@ -150,12 +152,13 @@ describe("HintEngine.askAnswer", () => {
     expect((await engine.askAnswer(14)).kind).toBe("none");
   });
 
-  it("exhausts after the answer has been given twice", async () => {
+  it("repeats the answer on every direct ask, never cutting off", async () => {
     const { engine } = makeEngine();
     engine.onEngineState(state());
-    expect((await engine.askAnswer(14)).kind).toBe("hint"); // 1st answer
-    expect((await engine.askAnswer(14)).kind).toBe("hint"); // 2nd answer
-    expect((await engine.askAnswer(14)).kind).toBe("exhausted");
+    for (let i = 0; i < 4; i++) {
+      const r = await engine.askAnswer(14);
+      expect(r).toMatchObject({ kind: "hint", tier: "answer" });
+    }
   });
 });
 

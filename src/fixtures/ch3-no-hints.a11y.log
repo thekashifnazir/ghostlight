@@ -1,0 +1,8 @@
+# Minimal replay fixture for the "nothing to hint at" path (hints-and-ghost
+# R2.6 / R5.3). It boots directly into a chapter-3 room state. The pack has no
+# milestones for chapter 3+, and selectTarget drops offered milestones from an
+# earlier chapter (m.chapter >= progress.chapter), so the offered set is empty
+# here and pressing H must speak NO_HINT_TEXT. One object keeps the room list
+# non-empty so the page renders a normal room reading. No commands follow:
+# pressing H sends nothing to the engine, so a single room-state line suffices.
+A11Y {"chapter":3,"room":200,"hero":{"x":160,"y":150},"objects":[{"num":1,"name":"CRATE","rect":[40,120,30,40],"walkTo":[55,160],"visible":true,"door":false}],"inventory":[],"flags":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]}
