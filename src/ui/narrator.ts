@@ -5,13 +5,15 @@
 // way. main.ts owns the model and UI; the Narrator owns three cross-cutting
 // narration rules that the Crew survey of the live engine turned up:
 //
-//  1. Examine is noisy on the text path. The engine answers a look by drawing
-//     hover/examine text through centerText(), which reaches the player as
-//     A11Y_TEXT events — never as the diff's `said`. So the diff-path filter
-//     (suppressGenericLook) never sees the generic "can't see anything in
-//     particular" reply or the bare hover-name labels ("BARTENDER", the hero's
-//     "hacker") the engine draws. While an examine is in flight the Narrator
-//     drops those from the text path too, mirroring the diff-path filter.
+//  1. Hover/name labels never reach the live region. The engine draws its own
+//     name for whatever is under the (warped) cursor through centerText(),
+//     which reaches the player as A11Y_TEXT events — never as the diff's
+//     `said` — so the diff-path filter (suppressGenericLook) never sees them.
+//     The Narrator drops a hover-name label ("BARTENDER", the hero's "hacker")
+//     on EVERY text line: the list already names the focused thing, so a hover
+//     echo is never functional text. During an examine it additionally drops
+//     the generic "can't see anything in particular" reply, since examine has
+//     already announced the pack's authored description.
 //  2. "Nothing happened." is wrong after a look. A look that changes no state
 //     is the normal case; examine already announced the pack description or the
 //     engine's own look text, so the Narrator never says it for a look diff.
@@ -24,6 +26,7 @@ import type { Diff } from "../engine/adapter.js";
 import type { Hotspot } from "../model/hotspot-list.js";
 import {
   isExamineNoiseLine,
+  isHoverNameLine,
   labelKey,
   suppressGenericLook,
 } from "./controller.js";
@@ -75,13 +78,24 @@ export class Narrator {
   }
 
   /**
-   * Route one A11Y_TEXT line. During an examine, drop the generic look reply
-   * and bare hover-name echoes; otherwise announce it. Real text the engine
-   * adds beyond a hover name (dialogue, narration, "HE WINKS AT YOU.") is never
-   * a label match and is always announced.
+   * Route one A11Y_TEXT line.
+   *
+   * Hover/name labels are dropped on EVERY line — the engine draws its own
+   * name for whatever is under the warped cursor ("BARTENDER", or the hero's
+   * "hacker" over a doorway), and that leaked into the live region even after
+   * an examine had closed. The list already names the focused thing, so a
+   * hover echo is never functional text. During an examine the generic
+   * "can't see anything in particular" reply is dropped too, since examine
+   * already announced the pack's authored description. Real text the engine
+   * composes beyond a hover name (dialogue, narration, "HE WINKS AT YOU.") is
+   * multi-word, never a label match, and is always announced.
    */
   text(line: string): void {
-    if (this.examining && isExamineNoiseLine(line, this.roomLabels)) return;
+    if (this.examining) {
+      if (isExamineNoiseLine(line, this.roomLabels)) return;
+    } else if (isHoverNameLine(line, this.roomLabels)) {
+      return;
+    }
     this.announce(line);
   }
 

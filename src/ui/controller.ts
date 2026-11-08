@@ -322,37 +322,53 @@ function normalizeLabel(text: string): string {
 }
 
 /**
- * Decide whether one A11Y_TEXT line drawn during an examine should be dropped.
+ * Decide whether one A11Y_TEXT line is a bare hover / name label the engine
+ * draws for whatever is under the (warped) cursor — never a functional line.
  *
- * The engine answers an examine by drawing hover/examine text that reaches the
- * player as A11Y_TEXT events, not through the diff's `said`, so the diff-path
- * suppressGenericLook never sees them. Two kinds are noise during an examine
- * and are dropped here:
- *  - the engine's generic "I can't see anything in particular" reply, and
- *  - a bare hover-name label — the engine's own name for a hotspot under the
- *    cursor (e.g. "BARTENDER", or the hero's "hacker"), which is an exact,
- *    case-insensitive match for one of the room's known hotspot names.
+ * The engine draws these through centerText(), so they reach the player as
+ * A11Y_TEXT events, not through the diff's `said`; the diff-path
+ * suppressGenericLook never sees them. Two shapes are a hover echo:
+ *  - a label that exactly matches one of the room's known hotspot names
+ *    (case-insensitive), e.g. "BARTENDER" against npc 52, and
+ *  - a bare single-word name-like token (letters, optional internal hyphen),
+ *    which catches the hero's own drawn name ("hacker", kept in the engine's
+ *    _textmisc character-name table) under the cursor on a doorway — a name
+ *    that is NOT a current-room hotspot and so slips past a room-only match.
  *
  * `roomLabels` is the set of known hotspot names for the current room
- * (normalised): the pack's spoken names and the engine's raw names. A hover
- * name that is NOT a current room hotspot — the hero's own drawn name, which
- * the engine keeps in its character-name table (_textmisc: "hacker", "yoda",
- * "igor") and draws under the cursor — would slip past a room-only match, so a
- * bare single-word token is also treated as a hover echo during an examine.
- * Anything the engine adds beyond a hover name or the stock line — a real
- * sentence like "HE WINKS AT YOU." — is multi-word and is kept.
+ * (normalised): the pack's spoken names and the engine's raw names. Anything
+ * the engine composes beyond a hover name — a real sentence like "HE WINKS AT
+ * YOU." — is multi-word and never matches, so it is kept.
+ *
+ * This is the blanket rule: hover/name labels are dropped on EVERY text line,
+ * not only during an examine (the live survey saw "BARTENDER" and the hero's
+ * "hacker" leak after an examine had already closed). The list already names
+ * the focused thing, so a hover echo is never needed as functional text.
+ */
+export function isHoverNameLine(
+  text: string,
+  roomLabels: ReadonlySet<string>,
+): boolean {
+  const label = normalizeLabel(text);
+  if (roomLabels.has(label)) return true;
+  return isBareHoverName(label);
+}
+
+/**
+ * Decide whether one A11Y_TEXT line drawn during an examine should be dropped.
+ *
+ * On top of the always-dropped hover/name labels (isHoverNameLine), an examine
+ * also suppresses the engine's generic "I can't see anything in particular"
+ * reply — examine already announced the pack's authored description, so the
+ * stock no-info line is pure noise here. That generic line is suppressed only
+ * during an examine; outside one it is left alone.
  */
 export function isExamineNoiseLine(
   text: string,
   roomLabels: ReadonlySet<string>,
 ): boolean {
   if (isGenericLookLine(text)) return true;
-  const label = normalizeLabel(text);
-  if (roomLabels.has(label)) return true;
-  // A bare one-word name-like token (letters only, no spaces) drawn during an
-  // examine is a hover name, not a reply the engine composed for the look. This
-  // catches the hero's own hover name ("hacker"), which is not a room hotspot.
-  return isBareHoverName(label);
+  return isHoverNameLine(text, roomLabels);
 }
 
 /**

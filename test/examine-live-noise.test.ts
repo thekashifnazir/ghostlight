@@ -221,6 +221,41 @@ describe("examine on the live engine drops text-path noise", () => {
   });
 });
 
+describe("hover/name labels never reach the live region, even outside an examine", () => {
+  // The live survey saw "BARTENDER" (on the bartender) and "hacker" (on
+  // doorway 105, the hero John Hacker under the warped cursor) reach the live
+  // region AFTER the examine window had already closed — the engine keeps
+  // drawing its hover label for whatever is under the cursor. These feed the
+  // exact leaked lines with NO examine in flight and assert nothing is spoken.
+
+  it("drops the 'BARTENDER' hover label with no examine armed", () => {
+    const { live, feed } = harness(52);
+
+    // No controller.handleKey("ArrowDown"): the examine window is closed.
+    feed("A11Y_TEXT BARTENDER");
+
+    expect(live.lines).toEqual([]);
+  });
+
+  it("drops the hero's 'hacker' hover label over doorway 105 with no examine armed", () => {
+    const { live, feed } = harness(105);
+
+    feed("A11Y_TEXT hacker");
+
+    expect(live.lines).toEqual([]);
+    expect(live.lines).not.toContain("hacker");
+  });
+
+  it("still announces real engine text outside an examine", () => {
+    const { live, feed } = harness(52);
+
+    // A multi-word line the engine composed is not a hover name and is kept.
+    feed("A11Y_TEXT HE WINKS AT YOU.");
+
+    expect(live.lines).toEqual(["HE WINKS AT YOU."]);
+  });
+});
+
 describe("a conversation line reported as both text and said is spoken once", () => {
   it("de-duplicates the A11Y_TEXT event against the diff's said", () => {
     const { live, feed } = harness(52);
