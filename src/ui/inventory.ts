@@ -6,6 +6,13 @@
 // sends `use item item2`. Backspace clears the active item if set, else closes
 // the inventory, announcing the cancel. invAdded announces "Received X";
 // invRemoved announces the item is no longer carried, both by pack name.
+//
+// Menu navigation is silent in the live region (screen-reader-focus R6): the
+// open line gives the menu name and count only, and Left/Right move roving
+// focus without a live-region write. Each role=menuitem button carries the
+// item name and aria-posinset/aria-setsize, so a focus-mode screen reader reads
+// "<item>, N of M" from the focused button exactly once, with no double-speak.
+// Only action results (item made active, use-on-item, cancel) are announced.
 
 import type { InvItem } from "../engine/adapter.js";
 import type { Pack } from "../model/pack.js";
@@ -73,23 +80,27 @@ export class Inventory {
     this.index = 0;
     this.el.hidden = false;
     this.render();
+    // The live line gives the menu name and count only; the focused menuitem
+    // button carries the item name (plus its aria-posinset/aria-setsize), which
+    // the screen reader reads once on focus. Announcing the item name here too
+    // would double-speak it (spike 10, screen-reader-focus R6.1).
     this.cb.announce(
-      `Inventory, ${this.items.length} item${this.items.length === 1 ? "" : "s"}. ${this.items[0].name}, 1 of ${this.items.length}.`,
+      `Inventory, ${this.items.length} item${this.items.length === 1 ? "" : "s"}.`,
     );
   }
 
   next(): void {
     if (!this.open) return;
     this.index = (this.index + 1) % this.items.length;
+    // Move roving focus only; the newly focused button is what the screen
+    // reader reads. No live-region write, to avoid double-speak (R6.2).
     this.focusCurrent();
-    this.announceCurrent();
   }
 
   prev(): void {
     if (!this.open) return;
     this.index = (this.index - 1 + this.items.length) % this.items.length;
     this.focusCurrent();
-    this.announceCurrent();
   }
 
   /**
@@ -150,18 +161,18 @@ export class Inventory {
     this.cb.announce(`You no longer have the ${this.nameOf(item.id)}.`);
   }
 
-  private announceCurrent(): void {
-    const it = this.items[this.index];
-    this.cb.announce(`${it.name}, ${this.index + 1} of ${this.items.length}`);
-  }
-
   private render(): void {
     this.el.innerHTML = "";
+    const total = this.items.length;
     this.buttons = this.items.map((it, i) => {
       const b = this.el.ownerDocument.createElement("button");
       b.type = "button";
       b.setAttribute("role", "menuitem");
       b.textContent = it.id === this.activeId ? `${it.name} (active)` : it.name;
+      // NVDA and JAWS announce "N of M" from these themselves, so the position
+      // is spoken on focus without a second live-region line (R6.3).
+      b.setAttribute("aria-setsize", String(total));
+      b.setAttribute("aria-posinset", String(i + 1));
       b.dataset.id = String(it.id);
       b.tabIndex = i === this.index ? 0 : -1;
       b.addEventListener("click", () => {

@@ -40,9 +40,15 @@ describe("Inventory", () => {
     const items = el.querySelectorAll('[role="menuitem"]');
     expect(items).toHaveLength(3);
     expect(items[0].textContent).toBe("bubble gum");
-    expect(announce).toHaveBeenCalledWith(
-      expect.stringContaining("bubble gum, 1 of 3"),
+    // The open line gives the menu name and count only; the item name and its
+    // position live on the focused menuitem button (screen-reader-focus R6.1).
+    expect(announce).toHaveBeenCalledWith("Inventory, 3 items.");
+    expect(announce).not.toHaveBeenCalledWith(
+      expect.stringContaining("1 of 3"),
     );
+    // Position is exposed via ARIA for the screen reader to read on focus.
+    expect(items[0].getAttribute("aria-posinset")).toBe("1");
+    expect(items[0].getAttribute("aria-setsize")).toBe("3");
   });
 
   it("empty inventory announces and does not open", () => {

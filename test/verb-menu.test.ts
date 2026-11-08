@@ -28,18 +28,26 @@ describe("VerbMenu", () => {
     );
     expect(tabbable).toHaveLength(1);
     expect(document.activeElement).toBe(items[0]);
+    // Each menuitem exposes its position for the screen reader to read on focus
+    // (screen-reader-focus R6.3).
+    expect(items[0].getAttribute("aria-posinset")).toBe("1");
+    expect(items[0].getAttribute("aria-setsize")).toBe("4");
+    expect(items[3].getAttribute("aria-posinset")).toBe("4");
   });
 
-  it("announces each option as focus moves and wraps", () => {
+  it("opens with the menu name only; navigation is silent in the live region", () => {
     const { menu, announce } = setup();
     menu.openOn("door");
+    // The open line names the menu target only; the focused Open button carries
+    // its label, read once by the screen reader (R6.1).
+    expect(announce).toHaveBeenLastCalledWith("Actions for door.");
     announce.mockClear();
-    menu.next(); // Close
-    expect(announce).toHaveBeenLastCalledWith("Close");
-    menu.next(); // Talk to
-    menu.next(); // Push
-    menu.next(); // wrap to Open
-    expect(announce).toHaveBeenLastCalledWith("Open");
+    // Navigation moves roving focus but writes nothing to the live region, so
+    // the item is not double-spoken (R6.2).
+    menu.next();
+    menu.next();
+    menu.prev();
+    expect(announce).not.toHaveBeenCalled();
   });
 
   it("choosing a verb sends it and returns focus to the list", () => {
