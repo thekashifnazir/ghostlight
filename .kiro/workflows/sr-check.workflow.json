@@ -1,0 +1,18 @@
+{
+  "version": "v1",
+  "name": "sr-check",
+  "description": "On-demand screen-reader check of a deployed Ghostlight build. Runs scripts/sr-check.sh against a given URL inside the Windows VM: reverts to the NVDA snapshot, drives a scenario of real key presses, and reports pass/fail per step from what NVDA actually spoke. Run it after a deploy, before testers see the build. Does not deploy and makes no code changes.",
+  "inputs": {
+    "url": "The deployed build URL to check, e.g. https://ghostlight.pages.dev/ or a local http://10.211.55.2:8000/.",
+    "scenario": "Optional scenario name under tests/sr/scenarios/ (default: tavern)."
+  },
+  "steps": [
+    {
+      "type": "step",
+      "id": "run",
+      "name": "Run the screen-reader harness",
+      "agent": "wf-coder",
+      "prompt": "Run the Ghostlight screen-reader harness against a deployed build. Make NO code changes and do not deploy; you only run the harness and report what it found.\n\nFrom the repo root /Users/kash/Code/showcase/ghostlight, run:\n\n    scripts/sr-check.sh \"{{url}}\" {{scenario}}\n\n(If {{scenario}} is empty, run with the URL alone so it defaults to the tavern scenario.) This requires the local Mac with prlctl and the \"Ghostlight Win11\" VM on snapshot \"3 NVDA logging + helpers\"; it reverts the VM to that snapshot, starts NVDA and Chrome with a fresh profile, drives the scenario with real scan-code key presses, and judges each step against what NVDA actually spoke. It leaves the VM reverted to the snapshot and exits 0 only if every step passed.\n\nWhen it finishes, report: the overall RESULT line, the per-step PASS/FAIL lines (especially any FAIL with its missing/forbidden substrings and what was actually spoken), and the path of the JSON report under tests/sr/reports/<date>/. Do NOT edit src/ or engine/, do not commit anything, and do not change the scenario files. If the harness could not reach the VM (prlctl missing, VM or snapshot absent, session not ready), say so plainly and report the harness's error rather than claiming a pass."
+    }
+  ]
+}

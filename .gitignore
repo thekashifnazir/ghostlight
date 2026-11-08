@@ -23,8 +23,10 @@ packs/survey/**/screenshot.png
 # gitignore has *.log; un-ignore these so they are tracked.
 !src/fixtures/*.a11y.log
 # sr-harness run reports (raw NVDA speech + per-run JSON) are local artifacts,
-# not source. Ignore the reports dir but keep the committed run summary.
-tests/sr/reports/
+# not source. Ignore the reports dir CONTENTS (reports/*, so git still descends
+# into the dir) but keep the committed run summary. A trailing-slash rule
+# (reports/) would stop git descending and the summary negation could not win.
+tests/sr/reports/*
 !tests/sr/reports/summary.md
 # sr-harness sample NVDA speech logs are committed test fixtures. The global
 # gitignore has *.log; un-ignore these so they are tracked.

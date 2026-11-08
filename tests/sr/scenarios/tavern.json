@@ -1,0 +1,115 @@
+{
+  "name": "tavern",
+  "fixture": "tavern",
+  "steps": [
+    {
+      "keys": "start",
+      "note": "Start — first room reading and onboarding, focus mode on its own",
+      "expectSpoken": ["Left and Right"],
+      "expectNotSpoken": [
+        "Control and reprogram MIDI devices",
+        "Drascula: The Vampire Strikes Back"
+      ],
+      "waitForSpoken": "Left and Right",
+      "waitMs": 15000
+    },
+    {
+      "keys": "right",
+      "note": "Right cycles to the next thing (focus mode, not NVDA's review cursor)",
+      "expectSpoken": ["of"],
+      "expectNotSpoken": ["no next"],
+      "waitMs": 1500
+    },
+    {
+      "keys": "down",
+      "note": "Down examines the focused thing",
+      "expectSpoken": [],
+      "expectNotSpoken": ["no next"],
+      "waitMs": 1500
+    },
+    {
+      "keys": "l",
+      "note": "L reads the room (not NVDA's next-list quick-nav)",
+      "expectSpoken": [],
+      "expectNotSpoken": ["no next list"],
+      "waitMs": 2000
+    },
+    {
+      "keys": "h",
+      "note": "H asks the ghost for a hint",
+      "expectSpoken": [],
+      "expectNotSpoken": ["no heading"],
+      "waitMs": 2000
+    },
+    {
+      "keys": "tab",
+      "note": "Tab opens the inventory menu — menu name and count, NOT the item name (double-speak guard)",
+      "expectSpoken": ["nventory"],
+      "waitMs": 1500
+    },
+    {
+      "keys": "esc",
+      "note": "Escape closes the menu, focus returns to the game (no DOS tab title re-read)",
+      "expectNotSpoken": ["Drascula: The Vampire Strikes Back"],
+      "waitMs": 1500
+    },
+    {
+      "keys": "v",
+      "note": "V opens the verb menu",
+      "expectSpoken": [],
+      "waitMs": 1500
+    },
+    {
+      "keys": "esc",
+      "note": "Escape closes the verb menu, focus returns to the game",
+      "expectNotSpoken": ["Drascula: The Vampire Strikes Back"],
+      "waitMs": 1500
+    },
+    {
+      "keys": "s",
+      "note": "S runs a sonar scan and ends with a summary line",
+      "expectSpoken": [],
+      "waitMs": 3000
+    },
+    {
+      "keys": "n",
+      "note": "N steps to the next sonar thing",
+      "expectSpoken": [],
+      "waitMs": 2000
+    },
+    {
+      "keys": "g",
+      "note": "G toggles the ghost voice and announces the new state",
+      "expectSpoken": ["ghost"],
+      "waitMs": 1500
+    },
+    {
+      "keys": "shift+r",
+      "note": "Shift+R steps back through the line history",
+      "expectSpoken": [],
+      "waitMs": 1500
+    },
+    {
+      "keys": "c",
+      "note": "C saves progress to the manual slot",
+      "expectSpoken": ["Saved"],
+      "waitMs": 2000
+    },
+    {
+      "keys": "reload",
+      "note": "Reload the page; the saved slot enables Continue",
+      "waitMs": 6000
+    },
+    {
+      "keys": "continue",
+      "note": "Continue lands back in the same room as Start",
+      "expectSpoken": ["Loaded"],
+      "expectNotSpoken": [
+        "Control and reprogram MIDI devices",
+        "Drascula: The Vampire Strikes Back"
+      ],
+      "waitForSpoken": "Loaded",
+      "waitMs": 15000
+    }
+  ]
+}
