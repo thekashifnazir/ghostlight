@@ -49,3 +49,11 @@ Claude Code, same VM (snapshot 3 state), fresh Chrome profile, NVDA in its defau
 - Reload: focus lands on Continue ("main landmark, Continue, button"); Enter: "Loaded: Inn bar", and Right works straight away.
 - No MIDI prompt; tab title "Ghostlight: Drascula".
 - Harness noise only: hidden `prlctl exec` windows briefly take focus ("terminal, blank") and SendKeys toggles Num Lock. Neither reaches players.
+
+## VoiceOver + Safari scripted run (8 Nov, about 19:30, bundle `index-BGT0xZ-l.js`)
+
+Claude Code on the Mac: VoiceOver driven by AppleScript (`content of last phrase` after each key), System Events key presses into a Safari window, with a guard that aborts unless the front window is Ghostlight. (A first attempt was stopped because focus moved to other apps while the Mac was in use; scripted keys go to whatever is in front, so this only runs on an idle Mac.)
+
+- Tab: "Start button". Space starts the game and VoiceOver reads the Inn bar room. Right: "bin, 2 of 10". Down: the bin description, then "IT'S A BIN". H twice: nudge, then clue. Tab: "Inventory, 1 item." Escape: "Closed inventory." C: "Saved." All as on NVDA.
+- **Problem: reload in Safari.** VoiceOver said "Start button, main", then "You have a saved game…", then read the page from the top. Space did not resume; VoiceOver ended on the footer "Source code (GPL)" link. In Chrome (Playwright) after the same reload, Start is hidden and focus is on Continue, so this looks Safari/VoiceOver-specific: VoiceOver keeps its cursor on the initially rendered Start button and doesn't follow the programmatic `focus()` to Continue at page load. Needs a fix and a human VoiceOver check.
+- Minor: before Start, the game element is in the tab order and answers keys (Shift+Tab onto it said "Your inventory is empty.").
