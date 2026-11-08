@@ -2,7 +2,7 @@
   "name": "@ghostlight/engine-tests",
   "version": "1.0.0",
   "description": "Replay-fixture regression tests and fast-check property tests for the engine a11y layer. Fixture-backed now; wires to the real native engine later.",
-  "license": "MIT",
+  "license": "Apache-2.0",
   "type": "module",
   "scripts": {
     "typecheck": "tsc --noEmit",
