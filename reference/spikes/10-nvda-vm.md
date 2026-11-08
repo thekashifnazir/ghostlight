@@ -38,3 +38,14 @@ Claude Code served the build from the Mac to the VM (`http://10.211.55.2:5175`, 
 - H twice: nudge, then clue. C: "Saved." Reload: focus lands on Continue; Enter: "Loaded: Inn bar", and keys work straight away.
 - Still to fix (minor): "Nothing happened." is spoken just before "Saved."; the Web MIDI stub's rejection shows as an unhandled "disabled" error in the console (no effect on players).
 - Found on the way: on a plain-http origin `crypto.subtle` is missing, so before 17a6f64 H said nothing there. HTTPS (the live site) was never affected.
+
+## Live run (8 Nov, about 18:45, ghostlight.kashifnazir.com, bundle `index-CwP9MWY3.js`)
+
+Claude Code, same VM (snapshot 3 state), fresh Chrome profile, NVDA in its default state, no NVDA+Space. Passes the tester-DM checklist:
+
+- Space on the landing page starts the engine; Tab then lands on "Ghostlight game" and NVDA reads the room. Keys reach the game without NVDA+Space.
+- Right: "bin, 2 of 10". Down: the bin description plus the game's own line. H twice: nudge, then clue. Tab: "Inventory, 1 item." then "mobile phone, 1 of 1" (once each). Escape: "Closed inventory." and focus back on "Ghostlight game". L reads the room.
+- C: "Saved." only (the "Nothing happened." fix is live).
+- Reload: focus lands on Continue ("main landmark, Continue, button"); Enter: "Loaded: Inn bar", and Right works straight away.
+- No MIDI prompt; tab title "Ghostlight: Drascula".
+- Harness noise only: hidden `prlctl exec` windows briefly take focus ("terminal, blank") and SendKeys toggles Num Lock. Neither reaches players.
