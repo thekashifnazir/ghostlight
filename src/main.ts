@@ -805,6 +805,12 @@ export async function boot(): Promise<void> {
    * screen reader to land on.
    */
   const renderStartAction = (): void => {
+    // Match the gate's first sentence to this variant (web-build R4.1): a
+    // fresh Start, dismissed by the button or any key.
+    const instruction = doc.getElementById("gate-instruction");
+    if (instruction)
+      instruction.textContent = "Press the Start button, or any key, to begin.";
+
     const startButton = doc.createElement("button");
     startButton.id = "start-button";
     startButton.type = "button";
@@ -823,6 +829,13 @@ export async function boot(): Promise<void> {
    */
   const renderResumeChoice = (resumeSlot: number | undefined): void => {
     gateHandlesAnyKey = false; // the buttons own the keys now
+
+    // Match the gate's first sentence to this variant (web-build R4.1): the
+    // Continue / New game choice, not the fresh-visit "any key" wording.
+    const instruction = doc.getElementById("gate-instruction");
+    if (instruction)
+      instruction.textContent =
+        "You have a saved game. Choose Continue to resume, or New game to start over.";
 
     const resumeChoice = doc.createElement("div");
     resumeChoice.id = "resume-choice";

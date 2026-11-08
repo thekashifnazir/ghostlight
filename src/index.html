@@ -284,8 +284,12 @@
       <div id="start-gate">
         <p>
           Ghostlight makes Drascula playable with the keyboard and your screen
-          reader. Press the Start button, or any key, to begin. Press F1 at any
-          time for the list of controls.
+          reader. <!-- The first sentence is variant-specific (a fresh Start, or
+          the Continue / New game choice) and is set by boot() in
+          renderStartAction / renderResumeChoice; its default below is the
+          fresh-visit wording. --><span id="gate-instruction">Press the Start
+          button, or any key, to begin.</span> Press F1 at any time for the
+          list of controls.
         </p>
         <!-- boot() injects the gate's buttons here once the save probe resolves:
              a single Start button on a fresh visit, or Continue + New game (in

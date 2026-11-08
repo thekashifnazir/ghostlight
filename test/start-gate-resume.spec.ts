@@ -16,11 +16,14 @@ const SAVE_DIR = "/saves";
 /**
  * Seed a Drascula save into the IndexedDB database the page's probeSaves()
  * reads: a database named "/saves" with a FILE_DATA object store holding a key
- * under "/saves/" that matches drascula.NNN (IDBFS's on-disk layout). Done on a
- * blank page, before the app loads, so the probe finds it on first render.
+ * under "/saves/" that matches drascula.NNN (IDBFS's on-disk layout). Seeded on
+ * the app's OWN origin (not about:blank, where Chromium denies IndexedDB with
+ * "access to the Indexed Database API is denied in this context"): navigate to
+ * the app first, write the save, then the caller reloads so probeSaves() finds
+ * it on first render.
  */
 async function seedSave(page: Page, slot = 1): Promise<void> {
-  await page.goto("about:blank");
+  await page.goto("/?replay=tavern");
   await page.evaluate(
     ({ dir, slot }) =>
       new Promise<void>((resolve, reject) => {
