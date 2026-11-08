@@ -28,3 +28,13 @@ Written by Claude Code (co-pilot) as a spike, like the earlier ones. The scripts
 6. Dialogue lines are all capitals (it's the game's own text). NVDA reads them fine. Braille users get capitals. A sentence-case option could come later.
 
 Working fine: the live region (`role=log`, polite), hints, the inventory and verb menus, line history, sonar summary and step, the ghost toggle, and the bartender conversation, which played all lines in order.
+
+## Pre-deploy re-run (8 Nov, about 16:00, build at d6d67aa)
+
+Claude Code served the build from the Mac to the VM (`http://10.211.55.2:5175`, Chrome started with a fresh profile and `--unsafely-treat-insecure-origin-as-secure` so Web Crypto behaves as on HTTPS). NVDA in its default state, no NVDA+Space:
+
+- Start puts focus on "Ghostlight game" and NVDA switches to focus mode by itself. Right, Down, H, Tab, Escape and L all reach the game and speak once.
+- No MIDI permission prompt with a fresh profile. Tab title stays "Ghostlight: Drascula".
+- H twice: nudge, then clue. C: "Saved." Reload: focus lands on Continue; Enter: "Loaded: Inn bar", and keys work straight away.
+- Still to fix (minor): "Nothing happened." is spoken just before "Saved."; the Web MIDI stub's rejection shows as an unhandled "disabled" error in the console (no effect on players).
+- Found on the way: on a plain-http origin `crypto.subtle` is missing, so before 17a6f64 H said nothing there. HTTPS (the live site) was never affected.
