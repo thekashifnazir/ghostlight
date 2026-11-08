@@ -1990,6 +1990,7 @@ void A11yLayer::emitChoices(const char *p1, const char *p2, const char *p3, cons
 	// are waiting. emitPhase only writes on a change, so a re-emit after a
 	// non-ending choice (the menu re-opens) does not repeat the phase line.
 	emitPhase(kPhaseChoice);
+}
 
 // Apply `choose <n>` (n in 1..4) inside a conversation by reproducing a real
 // click on that option line (R7.1): warp the cursor to the vertical middle of
