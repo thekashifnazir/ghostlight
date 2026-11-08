@@ -204,16 +204,12 @@ export async function boot(): Promise<void> {
     "command-box-input",
   ) as HTMLInputElement;
   const startGate = doc.getElementById("start-gate") as HTMLElement;
-  const startButton = doc.getElementById("start-button") as HTMLButtonElement;
-  // Continue / New game onboarding (save-progress R3). Present in the markup
-  // but only revealed when a save exists in the browser store.
-  const resumeChoice = doc.getElementById("resume-choice") as HTMLElement | null;
-  const continueButton = doc.getElementById(
-    "continue-button",
-  ) as HTMLButtonElement | null;
-  const newGameButton = doc.getElementById(
-    "new-game-button",
-  ) as HTMLButtonElement | null;
+  // The gate's interactive content is injected here AFTER the save probe, so
+  // the Start button and the Continue / New game pair are never in the DOM at
+  // the same time and Safari/VoiceOver cannot latch onto a Start button that a
+  // save then makes obsolete (spike 10, "VoiceOver + Safari"). Built below in
+  // renderStartAction / renderResumeChoice.
+  const gateActions = doc.getElementById("gate-actions") as HTMLElement;
 
   // Set up window.Module before anything engine-related (the live adapter and
   // the real wasm build read it).
@@ -374,11 +370,27 @@ export async function boot(): Promise<void> {
 
   const adapter = chooseAdapter(log, loadSlot);
 
+  // Turn #game into the role="application" surface the screen reader treats as
+  // a focus-mode application. Done once, when the game starts — NOT in the
+  // static markup — so before Start the element is a plain, non-focusable
+  // <div> that a screen reader cannot land on and that is not in the Tab order
+  // (spike 10: Shift+Tab reached it and it answered a key before Start). role,
+  // the accessible name and tabindex="-1" are all added together here.
+  const activateGameSurface = (): void => {
+    if (gameEl.getAttribute("role") === "application") return;
+    gameEl.setAttribute("role", "application");
+    gameEl.setAttribute("aria-label", "Ghostlight game");
+    gameEl.tabIndex = -1;
+  };
+
   // Move keyboard focus to the game's role="application" element, silently
-  // (screen-reader-focus R1, R2). preventScroll keeps focusing from scrolling
-  // the page or disturbing the live-region line being read (R1.5). No
-  // live-region write here: focus changes must not add a line (R2.6).
+  // (screen-reader-focus R1, R2). It arms the application surface first, so the
+  // very first focus lands on a role=application element (the markup ships
+  // #game as a plain div). preventScroll keeps focusing from scrolling the page
+  // or disturbing the live-region line being read (R1.5). No live-region write
+  // here: focus changes must not add a line (R2.6).
   const focusGame = (): void => {
+    activateGameSurface();
     gameEl.focus({ preventScroll: true });
   };
 
@@ -781,69 +793,117 @@ export async function boot(): Promise<void> {
     await adapter.start();
   };
 
-  startButton.addEventListener("click", startPlaying);
+  // Whether the gate's "press any key to begin" shortcut is live. A fresh start
+  // keeps it; the Continue / New game choice turns it off so a stray arrow key
+  // cannot start a new game before the player chooses, and a pending load
+  // intent turns it off because it auto-starts.
+  let gateHandlesAnyKey = true;
 
-  // Onboarding Continue / New game (save-progress R3). When a save exists,
-  // Continue boots the saved slot on the click itself (the click is the user
-  // gesture that unlocks audio), with no page reload and no second start gate;
-  // New game starts fresh, leaving the save in place.
+  /**
+   * Render a single Start button into the gate (the fresh-visit variant) and
+   * focus it. No Continue button is in the DOM, so there is nothing else for a
+   * screen reader to land on.
+   */
+  const renderStartAction = (): void => {
+    // Match the gate's first sentence to this variant (web-build R4.1): a
+    // fresh Start, dismissed by the button or any key.
+    const instruction = doc.getElementById("gate-instruction");
+    if (instruction)
+      instruction.textContent = "Press the Start button, or any key, to begin.";
+
+    const startButton = doc.createElement("button");
+    startButton.id = "start-button";
+    startButton.type = "button";
+    startButton.textContent = "Start";
+    startButton.addEventListener("click", () => void startPlaying());
+    gateActions.replaceChildren(startButton);
+    startButton.focus();
+  };
+
+  /**
+   * Render the Continue / New game choice into the gate (the returning-visit
+   * variant) and focus Continue. Continue is FIRST in reading order (R3) and
+   * the Start button is never created, so Safari/VoiceOver can only land on
+   * Continue — the fix for the spike-10 bug where VoiceOver stayed on a Start
+   * button that a save had made obsolete.
+   */
+  const renderResumeChoice = (resumeSlot: number | undefined): void => {
+    gateHandlesAnyKey = false; // the buttons own the keys now
+
+    // Match the gate's first sentence to this variant (web-build R4.1): the
+    // Continue / New game choice, not the fresh-visit "any key" wording.
+    const instruction = doc.getElementById("gate-instruction");
+    if (instruction)
+      instruction.textContent =
+        "You have a saved game. Choose Continue to resume, or New game to start over.";
+
+    const resumeChoice = doc.createElement("div");
+    resumeChoice.id = "resume-choice";
+
+    const continueButton = doc.createElement("button");
+    continueButton.id = "continue-button";
+    continueButton.type = "button";
+    continueButton.textContent = "Continue";
+    continueButton.addEventListener("click", () => {
+      if (resumeSlot !== undefined) {
+        // The click is the user gesture that unlocks audio, so boot the loaded
+        // slot right here — no page reload, no second start gate. Setting the
+        // slot on the live adapter before start() makes boot launch with
+        // --save-slot (save-progress R3.4, R5.1), and bootedIntoSlot makes the
+        // first room read as "Loaded: <room>".
+        if (adapter instanceof LiveAdapter) adapter.setSaveSlot(resumeSlot);
+        bootedIntoSlot = true;
+      }
+      void startPlaying();
+    });
+
+    const newGameButton = doc.createElement("button");
+    newGameButton.id = "new-game-button";
+    newGameButton.type = "button";
+    newGameButton.textContent = "New game";
+    newGameButton.addEventListener("click", () => void startPlaying());
+
+    // Continue first, then New game: the reading and Tab order a returning
+    // player meets.
+    resumeChoice.append(continueButton, newGameButton);
+    gateActions.replaceChildren(resumeChoice);
+
+    // Announce the choice as functional text (R3.3).
+    live.announce(
+      "You have a saved game. Press Continue to resume, or New game to start over.",
+    );
+    continueButton.focus();
+  };
+
+  // Decide the gate BEFORE rendering any interactive content, so the Start
+  // button is never put in the DOM when a save exists. Three paths:
   //
-  // When a load intent is already pending at this load (loadSlot set, from the
-  // mid-session load key's reload), we are the continue reload itself: skip the
-  // choice and auto-start straight into the slot below. Otherwise probe the
-  // browser store; only when a save exists do we show the choice. The probe is
-  // read-only and falls through to a plain new game on any error or when there
-  // is no save (R3.6).
-  let gateHandlesAnyKey = true; // the "press any key to begin" default
-  const showResumeChoice =
-    !replayName && !log && loadSlot === undefined && resumeChoice &&
-    continueButton && newGameButton;
-
-  if (showResumeChoice) {
-    // Probe IndexedDB directly for an existing save (no wasm FS exists yet).
+  //  - A pending load intent (the mid-session load key reloaded to boot
+  //    --save-slot): the player already chose to load. Auto-start into the slot
+  //    rather than park them at a gate. No button is rendered.
+  //  - Otherwise, on the live path, probe the browser save store (read-only,
+  //    IndexedDB — no wasm FS exists yet). A save present => Continue / New game
+  //    (Continue focused). No save, or the replay/test path => a single Start.
+  //    The probe falls through to Start on any error (R3.6).
+  if (loadSlot !== undefined) {
+    // Auto-start into the loaded slot (bootedIntoSlot is already true, the
+    // adapter was built with loadSlot via chooseAdapter). Audio may start
+    // suspended on a programmatic reload; the SDL glue resumes it on the next
+    // keypress and the game is fully usable as text meanwhile.
+    gateHandlesAnyKey = false;
+    void startPlaying();
+  } else if (!replayName && !log) {
     const result = await probeSaves().catch(
       (): import("./engine/persistence.js").ProbeResult => ({ hasSave: false }),
     );
-    if (result.hasSave && resumeChoice && continueButton && newGameButton) {
-      // Reveal the choice, suppress the "any key starts" default so an arrow or
-      // stray key does not start a fresh game before the player chooses, and
-      // move focus to Continue.
-      resumeChoice.hidden = false;
-      startButton.hidden = true;
-      gateHandlesAnyKey = false;
-      const resumeSlot = result.latestSlot;
-      continueButton.addEventListener("click", () => {
-        if (resumeSlot !== undefined) {
-          // The click is the user gesture that unlocks audio, so boot the
-          // loaded slot right here — no page reload, no second start gate.
-          // Setting the slot on the live adapter before start() makes boot
-          // launch with --save-slot (save-progress R3.4, R5.1), and
-          // bootedIntoSlot makes the first room read as "Loaded: <room>".
-          if (adapter instanceof LiveAdapter) adapter.setSaveSlot(resumeSlot);
-          bootedIntoSlot = true;
-        }
-        void startPlaying();
-      });
-      newGameButton.addEventListener("click", () => void startPlaying());
-      // Announce the choice as functional text (R3.3).
-      live.announce(
-        "You have a saved game. Press Continue to resume, or New game to start over.",
-      );
-      continueButton.focus();
+    if (result.hasSave) {
+      renderResumeChoice(result.latestSlot);
+    } else {
+      renderStartAction();
     }
-  }
-
-  // A pending load intent (the mid-session load key reloaded the page to boot
-  // --save-slot) auto-starts without waiting at the gate: the player already
-  // chose to load, so make boot happen rather than silently parking them at a
-  // Start gate after the reload. The adapter was built with `loadSlot` via
-  // chooseAdapter above, and bootedIntoSlot is already true, so the first room
-  // reads as "Loaded: <room>". Audio may start suspended (no fresh gesture on a
-  // programmatic reload); the SDL glue resumes it on the next keypress and the
-  // game is fully usable as text meanwhile, so no functional content is lost.
-  if (loadSlot !== undefined) {
-    gateHandlesAnyKey = false;
-    void startPlaying();
+  } else {
+    // Replay / test path: no save store, always a single Start.
+    renderStartAction();
   }
 
   // The gate's "any key begins" shortcut, kept for a fresh start. Suppressed
@@ -858,8 +918,6 @@ export async function boot(): Promise<void> {
     },
     { once: true },
   );
-
-  if (gateHandlesAnyKey) startButton.focus();
 
   // Announce the start gate's instruction in the live region, so a screen
   // reader conveys it as text like every other functional line, not only as

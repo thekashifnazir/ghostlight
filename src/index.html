@@ -95,7 +95,15 @@
         color: var(--muted);
       }
 
-      #start-button {
+      /* The gate's injected actions: a single Start, or the Continue / New game
+         pair. Laid out in a row so Continue and New game sit side by side. */
+      #gate-actions {
+        display: flex;
+        gap: 1rem;
+      }
+
+      #start-button,
+      #resume-choice button {
         font: inherit;
         font-size: 1.2rem;
         padding: 0.75rem 2rem;
@@ -106,35 +114,21 @@
         cursor: pointer;
       }
 
-      #start-button:focus-visible {
-        outline: 3px solid var(--accent);
-        outline-offset: 3px;
-      }
-
-      /* Continue / New game buttons, shown only when a save exists. */
-      #resume-choice {
-        display: flex;
-        gap: 1rem;
-      }
-
-      #resume-choice[hidden] {
-        display: none;
-      }
-
       #resume-choice button {
-        font: inherit;
         font-size: 1.1rem;
         padding: 0.6rem 1.5rem;
-        border-radius: 0.5rem;
-        border: 2px solid var(--accent);
-        background: transparent;
-        color: var(--fg);
-        cursor: pointer;
       }
 
+      #start-button:focus-visible,
       #resume-choice button:focus-visible {
         outline: 3px solid var(--accent);
         outline-offset: 3px;
+      }
+
+      /* Continue / New game pair container. */
+      #resume-choice {
+        display: flex;
+        gap: 1rem;
       }
 
       /* The game canvas is purely visual and hidden from assistive tech
@@ -272,33 +266,48 @@
     </header>
 
     <main>
-      <!-- Start gate: focused first, dismissed on first key press, which is
-           also when the audio context and engine start (gotcha 8). -->
+      <!-- Start gate: dismissed on first key press (or a button), which is also
+           when the audio context and engine start (gotcha 8).
+
+           The interactive content (Start, or Continue / New game) is NOT in the
+           static markup. boot() decides which to render AFTER a read-only probe
+           of the browser save store, and injects exactly one variant into
+           #gate-actions before the gate becomes focusable. This is deliberate:
+           Safari/VoiceOver latches its cursor onto whatever focusable element
+           is present at first paint and does not follow a later programmatic
+           focus() move. Rendering Start on first paint and then hiding it when
+           a save turned up left VoiceOver stuck on the (now hidden) Start
+           button, so Space never resumed (spike 10, "VoiceOver + Safari"). By
+           never putting Start in the DOM when a save exists, and putting
+           Continue first in reading order, the only thing VoiceOver can land on
+           is the right control. -->
       <div id="start-gate">
         <p>
           Ghostlight makes Drascula playable with the keyboard and your screen
-          reader. Press the Start button, or any key, to begin. Press F1 at any
-          time for the list of controls.
+          reader. <!-- The first sentence is variant-specific (a fresh Start, or
+          the Continue / New game choice) and is set by boot() in
+          renderStartAction / renderResumeChoice; its default below is the
+          fresh-visit wording. --><span id="gate-instruction">Press the Start
+          button, or any key, to begin.</span> Press F1 at any time for the
+          list of controls.
         </p>
-        <button id="start-button" type="button" autofocus>Start</button>
-        <!-- Continue / New game: shown only when a save exists in the browser
-             store (save-progress R3). Keyboard-focusable; the choice is also
-             announced in the live region. Hidden by default so a first visit
-             sees only Start. -->
-        <div id="resume-choice" hidden>
-          <button id="continue-button" type="button">Continue</button>
-          <button id="new-game-button" type="button">New game</button>
-        </div>
+        <!-- boot() injects the gate's buttons here once the save probe resolves:
+             a single Start button on a fresh visit, or Continue + New game (in
+             that reading order) when a save exists. Never both. -->
+        <div id="gate-actions"></div>
       </div>
 
       <!-- The game surface. role="application" tells NVDA and JAWS to switch to
            focus mode so game keys reach the page instead of the screen reader's
-           browse-mode quick-nav (spike 10). The page keeps DOM focus here for
-           the whole session; tabindex="-1" makes it programmatically focusable
-           without adding it to the Tab order. The live region and transcript
+           browse-mode quick-nav (spike 10). The role, the accessible name and
+           the programmatic focusability (tabindex="-1") are added by boot() only
+           when the game starts, NOT in the static markup: before Start this must
+           be a plain, non-focusable <div> that a screen reader cannot land on
+           and that answers no keys (spike 10 saw Shift+Tab reach it and it
+           replied "Your inventory is empty."). The live region and transcript
            stay OUTSIDE this element so they remain an observed role=log, not
            part of the application surface. -->
-      <div id="game" role="application" aria-label="Ghostlight game" tabindex="-1">
+      <div id="game">
         <div id="stage">
           <!-- The engine renders here. aria-hidden: nothing a player must know
                exists only as pixels. -->
