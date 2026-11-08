@@ -15,10 +15,12 @@ import { defineConfig, devices } from "@playwright/test";
 // pointing at scripts/build-web.sh and scripts/fetch.sh.
 export default defineConfig({
   testDir: ".",
-  // The live boot check (live.spec.ts) and the save-progress continue-after-
-  // reload check (save-continue.spec.ts). Both need the real wasm build and
-  // skip with a clear message when it is absent.
-  testMatch: /(live|save-continue|save-key)\.spec\.ts$/,
+  // The live boot check (live.spec.ts), the save-progress continue-after-reload
+  // and save-key checks, and the broad live sweep (sweep.spec.ts: every tester
+  // key, the chapter 1 -> 2 crossing, and C/O save-load). All need the real
+  // wasm build and skip with a clear message when it is absent. Per-project
+  // testMatch below narrows WebKit to the sweep (the other specs are Chrome).
+  testMatch: /(live|save-continue|save-key|sweep)\.spec\.ts$/,
   fullyParallel: false,
   reporter: "list",
   // A cold wasm instantiation plus the game-data fetch can take well over the
@@ -33,8 +35,19 @@ export default defineConfig({
     {
       name: "live-chromium",
       // Use the locally installed Google Chrome (channel "chrome"), matching the
-      // replay config, so the run needs no Playwright browser download.
+      // replay config, so the run needs no Playwright browser download. Chrome
+      // runs all the live specs (boot, save-key, save-continue, sweep).
       use: { ...devices["Desktop Chrome"], channel: "chrome" },
+    },
+    {
+      // WebKit (Safari's engine). The sweep runs on BOTH engines so a bug that
+      // only shows under WebKit's key/focus/audio handling is caught; the other
+      // live specs stay Chrome-only (they were tuned for it), so this project is
+      // narrowed to the sweep. WebKit is the bundled Playwright browser (no
+      // system channel), so the runner needs `npx playwright install webkit`.
+      name: "live-webkit",
+      testMatch: /sweep\.spec\.ts$/,
+      use: { ...devices["Desktop Safari"] },
     },
   ],
   webServer: {

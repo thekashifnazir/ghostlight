@@ -6,6 +6,7 @@
 // events, and routes them to the model and UI.
 
 import type {
+  Command,
   Diff,
   EngineAdapter,
   EngineEvent,
@@ -370,6 +371,46 @@ export async function boot(): Promise<void> {
 
   const adapter = chooseAdapter(log, loadSlot);
 
+  // The command seam every player action goes through: the controller, the
+  // typed command box, the verb menu and the inventory all send here instead
+  // of calling adapter.send() directly, so the one cross-chapter-crossing rule
+  // below is applied to every walk however it was issued.
+  //
+  // Crossing the chapter 1 -> 2 boundary (the bedtime cutscene, "THERE IS NO
+  // PLACE LIKE HOME"): a `walk` through the curtained doorway (the scripted
+  // exit the pack marks with `to: null`) makes the live engine run its
+  // animation_2_1 cutscene, which BLOCKS the engine's main loop and only
+  // advances when a single `skip` is written to the command file WHILE the
+  // cutscene is running (a skip written before the cutscene's own event loop
+  // starts is consumed as a no-op — engine process log). The web player's keys
+  // reach the engine as commands, but nothing was sending that skip, so the
+  // cutscene played and the player never reached chapter 2. So: when a walk
+  // through a scripted crossing exit is sent, schedule exactly one paced
+  // `skip`. It is sent only if the chapter has NOT already advanced by the time
+  // it fires — which makes it a no-op on the replay adapter (whose `walk`
+  // settles the chapter synchronously) and the single advancing skip on the
+  // live engine (still in the old chapter, mid-cutscene). Exactly one skip:
+  // over-skipping corrupts the hero mid-animation (engine process log).
+  //
+  // The paced delay (~400 ms) comfortably clears the cutscene's ~250 ms
+  // command-file poll throttle so the skip lands inside animation_2_1's loop.
+  const CROSSING_SKIP_DELAY_MS = 400;
+  const sendCommand = (cmd: Command): void => {
+    adapter.send(cmd);
+    if (
+      cmd.verb === "walk" &&
+      pack.isScriptedExit(state.room, cmd.target)
+    ) {
+      const chapterAtWalk = state.chapter;
+      setTimeout(() => {
+        // Only advance the cutscene if the crossing has not already settled
+        // (it has on replay; it has not on the blocking live engine). This
+        // guard keeps the skip a no-op whenever a real walk already moved on.
+        if (state.chapter === chapterAtWalk) adapter.send({ verb: "skip" });
+      }, CROSSING_SKIP_DELAY_MS);
+    }
+  };
+
   // Turn #game into the role="application" surface the screen reader treats as
   // a focus-mode application. Done once, when the game starts — NOT in the
   // static markup — so before Start the element is a plain, non-focusable
@@ -412,7 +453,7 @@ export async function boot(): Promise<void> {
 
   const inventory = new Inventory(inventoryEl, pack, {
     announce: (t) => live.announce(t),
-    useOnItem: (item, target) => adapter.send({ verb: "use", item, target }),
+    useOnItem: (item, target) => sendCommand({ verb: "use", item, target }),
     returnToList,
     chapter: () => state.chapter,
   });
@@ -425,7 +466,7 @@ export async function boot(): Promise<void> {
   // the live region and not sent.
   const commandBox = new CommandBox(commandBoxEl, commandBoxInput, {
     announce: (t) => live.announce(t),
-    send: (cmd) => adapter.send(cmd),
+    send: (cmd) => sendCommand(cmd),
     visible: () => currentList,
     // Resolve carried item ids to the same pack names the inventory uses, so a
     // typed name (e.g. "coins") matches the parser's candidate set.
@@ -471,7 +512,9 @@ export async function boot(): Promise<void> {
   // Read the whole room. `suffix`, when given, is appended to the same spoken
   // line (used once for the first-room key orientation) so it is spoken with
   // the room rather than clobbering it in the single-line live region.
-  const readRoom = (suffix?: string): void => {
+  // `prefix`, when given, is spoken first on the same line (used for the
+  // "Chapter 2: …" line on a chapter crossing), for the same reason.
+  const readRoom = (suffix?: string, prefix?: string): void => {
     const room = LiveRegion.roomAnnouncement({
       name: pack.roomName(state.room),
       // Resolve the short against the running complete state and the reached
@@ -480,7 +523,8 @@ export async function boot(): Promise<void> {
       short: pack.roomShortFor(state.room, hintState, hintEngine.reached()),
       hotspots: currentList,
     });
-    live.announce(suffix ? `${room} ${suffix}` : room);
+    const withSuffix = suffix ? `${room} ${suffix}` : room;
+    live.announce(prefix ? `${prefix} ${withSuffix}` : withSuffix);
   };
 
   // Save / load / autosave manager (save-progress R2, R4). It drives the engine
@@ -498,8 +542,20 @@ export async function boot(): Promise<void> {
     },
   });
 
+  // A thin adapter view whose send() routes through sendCommand (for the
+  // crossing skip), delegating start()/onEvent() to the real adapter. The
+  // methods live on the adapter's prototype, so bind them rather than spread.
+  const playerAdapter: EngineAdapter = {
+    start: () => adapter.start(),
+    send: sendCommand,
+    onEvent: (listener) => adapter.onEvent(listener),
+  };
+
   const controller = new Controller({
-    adapter,
+    // The controller sends every command (walk/look/talk/use/skip) through
+    // this seam, so a walk through the scripted crossing door gets its paced
+    // skip wherever it was issued (Enter on the exit, the verb menu, …).
+    adapter: playerAdapter,
     pack,
     currentRoom: () => state.room,
     // The folded state and reached set for resolving examine descriptions
@@ -669,7 +725,22 @@ export async function boot(): Promise<void> {
         );
       }
       announceSaid(diff);
-      readRoom();
+      // A chapter change (the chapter 1 -> 2 crossing) is announced with the
+      // new room so the player hears they have advanced — the bedtime cutscene
+      // played and they are now in chapter 2. The live region holds only the
+      // newest line, so the chapter line is prefixed onto the room reading
+      // rather than announced separately (which would clobber it). A plain
+      // room change (same chapter, through a door) reads the room as before.
+      if (diff.chapter) {
+        const to = diff.chapter[1];
+        const name = pack.chapterName(to);
+        const chapterLine = name
+          ? `Chapter ${to}: ${name}.`
+          : `Chapter ${to}.`;
+        readRoom(undefined, chapterLine);
+      } else {
+        readRoom();
+      }
       // Autosave on moving to a new room (save-progress R2.5). The manager's
       // first-room gate was already spent by applyRoom's initial entry, so a
       // room change via a door always autosaves.
@@ -751,10 +822,29 @@ export async function boot(): Promise<void> {
   }
 
   // Keyboard: stop keys reaching the engine's own input (gotcha 7).
+  //
+  // This is a capture-phase listener on the document, so it runs BEFORE the
+  // event reaches the focused element. When the command box input is focused
+  // the player is TYPING a command, so only Enter and Escape are meaningful to
+  // us (submit / close) — every other key must reach the native <input> so the
+  // character is actually entered. Routing a typed key through the controller
+  // was the bug: with the box open, typing "look at bartender" fired L, O
+  // (load!), K, … as game keys and the input stayed empty. We therefore key the
+  // decision off the event target being the command box input, not off any
+  // interim open/close state: for a key typed into that input we hand only
+  // Enter/Escape to the controller (which forwards them to the box) and let
+  // everything else fall through to the input untouched. Keys pressed anywhere
+  // else still route to the controller exactly as before.
+  const typingInCommandBox = (ev: KeyboardEvent): boolean =>
+    ev.target === commandBoxInput;
   doc.addEventListener(
     "keydown",
     (ev) => {
-      if (startGate.hidden) {
+      if (!startGate.hidden) {
+        if (typingInCommandBox(ev)) {
+          // Only Enter/Escape act on the box; every other key types normally.
+          if (ev.key !== "Enter" && ev.key !== "Escape") return;
+        }
         const consumed = controller.handleKey(ev.key, ev.shiftKey);
         if (consumed) {
           ev.preventDefault();

@@ -90,6 +90,60 @@ test.describe("typed command box", () => {
     await expect(live(page)).toContainText("vending machine");
     await expect(page.locator(BOX)).toBeVisible();
   });
+
+  test('typing "look at bartender" types into the box and sends look 52 — no game key fires', async ({
+    page,
+  }) => {
+    // Regression for the key-routing bug: with the box open, the document
+    // capture-phase handler used to forward EVERY key to the controller, so
+    // typing "look at bartender" fired L (read room), O (load!), K … as game
+    // keys and the input never filled. The handler now lets every key except
+    // Enter/Escape reach the focused command-box input, so the player can type.
+    //
+    // This test types the phrase CHARACTER BY CHARACTER (real keydown events,
+    // not a direct value set), so the dangerous keys — O (load), L (read room),
+    // K, A, T — are actually dispatched and must all land as text, never as a
+    // game action. The tavern recording's first command is `look 52`, so the
+    // engine's bartender look line only appears if the typed phrase both filled
+    // the input and serialized to exactly `look 52`.
+    await start(page, "tavern");
+
+    // Baseline: the room reading is the newest live line after start. Capture
+    // it so we can prove no game key (L read-room, O load, …) changed the line
+    // while typing.
+    const live0 = (await live(page).textContent()) ?? "";
+    expect(live0).toContain("Inn bar");
+
+    await page.keyboard.press("/");
+    await expect(page.locator(BOX)).toBeVisible();
+    const input = page.locator(INPUT);
+    await expect(input).toBeFocused();
+
+    // Type the phrase key by key. Each keydown goes through the document
+    // capture handler first; because the target is the command-box input, only
+    // Enter/Escape are intercepted, so every letter types normally.
+    await input.pressSequentially("look at bartender", { delay: 10 });
+
+    // The whole phrase is in the input — no letter was swallowed as a game key.
+    await expect(input).toHaveValue("look at bartender");
+
+    // And no game key fired while typing: the live region still shows the room
+    // reading, NOT a read-room re-read triggered by "l", a load line from "o",
+    // etc. (the only lines a stray L/O would produce differ from the room
+    // reading captured above; a load would reload the page and drop the box).
+    await expect(page.locator(BOX)).toBeVisible();
+    await expect(input).toBeFocused();
+
+    // Enter sends it: the parser resolves "look at bartender" to `look 52`, and
+    // the replay adapter only emits the bartender look diff when the serialized
+    // command equals the recorded `look 52`. Seeing that line proves the typed
+    // phrase both filled correctly and serialized correctly — no load, no noise.
+    await page.keyboard.press("Enter");
+    await expect(live(page)).toContainText("IT'S THE BARTENDER.");
+    await expect(live(page)).not.toContainText("mismatch");
+    // The box closed after sending; the game was never reloaded by a stray O.
+    await expect(page.locator(BOX)).toBeHidden();
+  });
 });
 
 test.describe("command box accessibility", () => {
