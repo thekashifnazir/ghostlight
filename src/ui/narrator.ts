@@ -118,11 +118,19 @@ export class Narrator {
 
   /**
    * Announce "Nothing happened." when an action changed no state and said
-   * nothing — but never for a look (examine already spoke). `isLook` is the
-   * value said() returned for this diff.
+   * nothing — but never for a look (examine already spoke) and never for a
+   * save. `isLook` is the value said() returned for this diff.
+   *
+   * A `save <slot>` settles with a `changed:false` diff (saving alters no room
+   * state) in addition to its A11Y_SAVED line. The save outcome is announced by
+   * the save manager ("Saved." or a failure line), so "Nothing happened." for a
+   * save is both wrong and would clobber that outcome in the single-line live
+   * region. Suppress it for a save diff the same way it is suppressed for a
+   * look (save-progress follow-up: a save says only "Saved." or the failure).
    */
   maybeNothingHappened(diff: Diff, isLook: boolean): void {
-    if (diff.changed === false && !diff.said?.length && !isLook) {
+    const isSave = diff.cmd?.startsWith("save ") === true;
+    if (diff.changed === false && !diff.said?.length && !isLook && !isSave) {
       this.announce("Nothing happened.");
     }
   }

@@ -1730,3 +1730,26 @@ Time taken: about 1.5 hours.
 What went wrong or surprised you: I initially misread the transport-settle commit state — a stale `git log -1 -- native.ts` returned an older commit and a working-tree `M` flashed, so the spec and tasks were written treating the dependency as unmet; a precise re-check (clean `native.ts` tree, last commit `06d81ac`) showed it had landed as process-log entry #123. Also, the sandbox fail-closed moment looked like a bug at first glance (merge "failed") but was the coverage checker doing its job against fixture hotspot numbers I'd invented — proof the gate catches data that doesn't match the census, which is exactly what stops a chapter being claimed on a bad dump.
 
 What was learned: check a dependency's commit state with a clean working-tree diff and the actual last commit touching the file, not a quick `log -1` that can mislead on scope. And the merge gate earns its keep: it refuses to call a chapter covered when the merged hotspots don't match the census, so the only way to grow `coverage.chapters` is with real engine-dumped numbers — the pure transforms can't fake coverage.
+
+## 123 · save-progress · 2026-11-08 · Deploy to Cloudflare (task 9) + follow-up: a save never says "Nothing happened."
+
+What was asked: deploy current main to Cloudflare (Worker + R2 flow), confirm the live bundle hash matches the build and that https://ghostlight.kashifnazir.com boots, then a small separate follow-up — a save never announces "Nothing happened.", only "Saved." or the failure line. Cleared because Claude Code's NVDA VM run passed on d6d67aa. Don't deploy beyond this.
+
+What Kiro did — deploy (task 9):
+- Deployed from main (HEAD 5309e5b, which contains the d6d67aa save fix) following web/DEPLOY.md with the corrections from memory: used the LOCAL wrangler (web/node_modules/.bin/wrangler), not npx (which hangs on an install prompt).
+- This was a player-code + current-engine redeploy. Reassembled web/public/: overlaid a fresh dist/ (new page bundle index-BEQv_KjI.js), removed the stale old bundle, and synced the current engine scummvm.wasm/scummvm.js from vendor/scummvm-web/build-emscripten (the public/ copy was an older wasm — 10657511 vs the build's 10657887 bytes — so I copied the current one; SHA256 6a8c87f4…). Refreshed /source/ from the real engine files. Did NOT re-upload Packet.001: the remote R2 object was already present and byte-verified (32,847,563 bytes == local), and the player-only change doesn't touch it.
+- wrangler deploy uploaded exactly the 4 changed files (index.html, scummvm.wasm, assets/index-BEQv_KjI.js, scummvm.js), 159 already uploaded; Version ID 8db85714-ddce-458f-82c2-0c8e90a35d85; both URLs live (custom domain + workers.dev); R2 + ASSETS bindings intact.
+- Verified honestly: `/` serves index-BEQv_KjI.js AND the old bundle 404s (so the new deploy is live, not cached); live scummvm.wasm SHA256 == local build (application/wasm, 10,657,887 bytes); R2-served Packet.001 == 200, application/octet-stream, 32,847,563 bytes. A throwaway Playwright run against the live custom domain booted into the tavern (room 62) and C saved ("Saved.") — 1 passed (8.7s). Throwaway spec/config removed.
+
+What Kiro did — follow-up (committed separately):
+- Root cause of the "Nothing happened." the original bug report saw: a `save <slot>` settles with a changed:false diff (saving alters no room state) in addition to its A11Y_SAVED line, and the narrator's maybeNothingHappened() announced "Nothing happened." for any changed:false/no-said/non-look diff. So a save produced both the save outcome and "Nothing happened." Fixed on the player side (not engine/): maybeNothingHappened now also skips a save diff (cmd starts with "save "), exactly as it already skips a look. Added test/save-nothing-happened.test.ts (3 cases: save suppressed, autosave suppressed, a real non-save/non-look no-op still says it).
+
+Results: full vitest 262/262 green; tsc clean. Live deploy verified as above. Two commits: the deploy itself is config/assembly (web/public is gitignored, nothing to commit for the build), and the follow-up is src/ui/narrator.ts + its test. Deployed — task 9 done; no further deploys.
+
+Files changed (follow-up): src/ui/narrator.ts, test/save-nothing-happened.test.ts, docs/kiro-process.md.
+
+Time taken: about 1 hour (most of it the deploy verification against the real network).
+
+What went wrong or surprised you: web/public/ held a STALE scummvm.wasm (older than the engine build the NVDA run validated), so a naive "overlay dist and deploy" would have shipped the wrong engine; caught it by byte/sha comparing public vs the build before deploying. Also the "Nothing happened." bug is independent of the parser bug fixed in #122 — the parser fix made "Saved." appear, but the save's changed:false diff still produced "Nothing happened." alongside it, so the follow-up was genuinely needed, not redundant.
+
+What was learned: before a redeploy, diff EVERY engine artifact in web/public against the build (sha, not just mtime) — an assembled public/ can carry stale bytes from an earlier deploy. And a command that "does nothing to the room" (save) still settles with a changed:false diff, so any narration keyed on changed:false must whitelist those commands, not assume changed:false means a failed/empty action.
