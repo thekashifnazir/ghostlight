@@ -480,6 +480,11 @@ export async function boot(): Promise<void> {
     // future conversation mode can enrich it without touching the box.
     parseContext: () => ({ inConversation: false, pendingChoice: false }),
     returnToList,
+    // A typed look/examine at a hotspot runs the controller's examine path, so
+    // it reads the pack description (what Down reads) rather than the engine's
+    // stock "can't see anything" reply. The controller is constructed just
+    // below, so this defers to it through a late-bound reference.
+    examineHotspot: (h) => controller.examineHotspot(h),
     runFixed: (action) => {
       switch (action) {
         case "repeat":
@@ -602,7 +607,12 @@ export async function boot(): Promise<void> {
         inventory.setItems(e.items.map((i) => i.id));
         break;
       case "error":
-        say(e.message);
+        // An autosave's save error must never be spoken: it would clobber the
+        // room line at a room change. The save manager swallows (and logs) such
+        // an error when an autosave is in flight; every other error — including
+        // a manual save's failure, which surfaces through onSaved/the watchdog
+        // — is announced as usual (save-progress R2.5).
+        if (!saveManager.handleError(e.message)) say(e.message);
         break;
       case "saved":
         // The save manager decides what to announce: "Saved." for a manual

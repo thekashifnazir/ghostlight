@@ -41,6 +41,12 @@ const SKIP_MESSAGE =
 // bar" but a different short), so matching it confirms the tavern specifically.
 const ROOM_62_SHORT = "stone tavern with a wooden floor";
 
+// The bartender's authored pack description (room 62, hotspot 52), i.e. exactly
+// what the Down/examine path reads. A typed "look at bartender" now routes
+// through that same examine path, so it must surface this line, NOT the
+// engine's stock "I CAN'T SEE ANYTHING IN PARTICULAR" look reply.
+const BARTENDER_DESC = "A big bald man in a vest, leaning on the bar.";
+
 const LIVE = "#live-region";
 const BOX = "#command-box";
 const INPUT = "#command-box-input";
@@ -158,10 +164,12 @@ test.describe("live sweep (Chrome + WebKit)", () => {
     await expect(page.locator(BOX)).toBeVisible();
     await expect(input).toBeFocused();
 
-    // Enter sends it: "look at bartender" -> look 52, and the live engine
-    // answers with the bartender's look line. The box closes after sending.
+    // Enter sends it: "look at bartender" routes through the examine path (the
+    // same one Down uses), so the live region shows the bartender's authored
+    // pack description, not the engine's stock "can't see anything" look reply.
+    // The box closes after sending.
     await page.keyboard.press("Enter");
-    await expect(live).toContainText(/bartender/i, { timeout: 30_000 });
+    await expect(live).toContainText(BARTENDER_DESC, { timeout: 30_000 });
     await expect(page.locator(BOX)).toBeHidden();
   });
 

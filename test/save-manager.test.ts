@@ -10,6 +10,7 @@ import {
   SAVE_FAILED_LINE,
   SAVE_UNAVAILABLE_LINE,
   SaveManager,
+  isSaveError,
   type Timer,
 } from "../src/engine/save-manager.js";
 
@@ -134,6 +135,71 @@ describe("SaveManager autosave on room change", () => {
     m.manager.onRoomChange();
     m.manager.onRoomChange();
     expect(m.sent).toEqual([]);
+  });
+});
+
+describe("SaveManager.handleError (autosave errors never speak)", () => {
+  /** Drive the manager to a point where an autosave is in flight. */
+  function withPendingAutosave() {
+    const m = makeManager();
+    m.manager.onRoomChange(); // first room (gated, no save)
+    m.manager.onRoomChange(); // second room -> autosave sent, pendingAuto set
+    expect(m.sent).toEqual([{ verb: "save", slot: AUTOSAVE_SLOT }]);
+    return m;
+  }
+
+  it("swallows a save error that arrives while an autosave is in flight (logs, does not speak)", () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const m = withPendingAutosave();
+    const consumed = m.manager.handleError("save slot must be 1 or greater, got: 0");
+    expect(consumed).toBe(true); // the page must stay silent
+    expect(m.announced).toEqual([]); // nothing spoken
+    expect(warn).toHaveBeenCalledOnce(); // logged for developers only
+    warn.mockRestore();
+  });
+
+  it("only swallows one autosave error: a second save error (no autosave pending) passes through", () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const m = withPendingAutosave();
+    expect(m.manager.handleError("save needs a slot number")).toBe(true);
+    // The in-flight autosave is now resolved; a later save error is not ours.
+    expect(m.manager.handleError("save needs a slot number")).toBe(false);
+    warn.mockRestore();
+  });
+
+  it("passes through a save error when no autosave is in flight (a manual save's error still speaks)", () => {
+    const m = makeManager();
+    // No room change -> no autosave pending. A manual save's failure surfaces
+    // through onSaved/the watchdog, so handleError must not swallow it.
+    const consumed = m.manager.handleError("save slot must be a number, got: x");
+    expect(consumed).toBe(false);
+  });
+
+  it("never swallows an ordinary (non-save) game error, even with an autosave in flight", () => {
+    const m = withPendingAutosave();
+    const consumed = m.manager.handleError("no handler for command: fly");
+    expect(consumed).toBe(false); // ordinary errors are the page's to announce
+  });
+
+  it("clears the in-flight autosave on A11Y_SAVED, so a later save error passes through", async () => {
+    const m = withPendingAutosave();
+    await m.manager.onSaved(AUTOSAVE_SLOT); // autosave completed -> pendingAuto cleared
+    expect(m.manager.handleError("save slot must be 1 or greater, got: 0")).toBe(false);
+  });
+});
+
+describe("isSaveError", () => {
+  it("matches the engine's save rejection messages", () => {
+    expect(isSaveError("save slot must be 1 or greater, got: 0")).toBe(true);
+    expect(isSaveError("save slot must be a number, got: x")).toBe(true);
+    expect(isSaveError("save needs a slot number, e.g. `save 1`")).toBe(true);
+  });
+
+  it("does not match ordinary game errors", () => {
+    expect(isSaveError("no handler for command: fly")).toBe(false);
+    expect(isSaveError("I DON'T HAVE A ROOM YET")).toBe(false);
+    // "saved" is a different word (word boundary after "save"), not the verb.
+    expect(isSaveError("saved the day")).toBe(false);
   });
 });
 

@@ -34,4 +34,19 @@ describe("autosave never overwrites a manual slot (R6.2, R2.6)", () => {
   it("the autosave and manual slot numbers are disjoint by construction", () => {
     expect(slotForSave("auto")).not.toBe(slotForSave("manual"));
   });
+
+  it("routes every save to a slot the engine accepts (>= 1), never slot 0", () => {
+    // a11y.cpp dispatchSave rejects any save with slot < 1, so BOTH kinds must
+    // route to a slot >= 1. This is the regression guard for the autosave that
+    // used to route to slot 0 and spoke "save slot must be 1 or greater" on
+    // every room change.
+    const kinds: fc.Arbitrary<SaveKind> = fc.constantFrom("auto", "manual");
+    fc.assert(
+      fc.property(kinds, (kind) => {
+        const slot = slotForSave(kind);
+        expect(slot).toBeGreaterThanOrEqual(1);
+        expect(Number.isInteger(slot)).toBe(true);
+      }),
+    );
+  });
 });

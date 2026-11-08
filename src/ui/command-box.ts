@@ -29,6 +29,18 @@ export interface CommandBoxCallbacks {
   returnToList: () => void;
   /** Run a fixed action the parser recognised (help, read room, inventory…). */
   runFixed: (action: FixedAction) => void;
+  /**
+   * Examine a hotspot through the SAME path the Down key uses (the controller's
+   * examineHotspot): announce the pack's authored description and arm the
+   * look-text suppression, then send `look`. A typed "look at <hotspot>" and
+   * "examine <hotspot>" route here so they read the pack description instead of
+   * the engine's useless stock "I CAN'T SEE ANYTHING IN PARTICULAR" reply,
+   * matching what Down reads. A look at a carried ITEM is unaffected: it still
+   * sends `look <id>` (items have their own look text, not this stock line).
+   * Optional so a test that exercises only command resolution need not wire it;
+   * when absent, a typed hotspot look falls back to sending a raw `look`.
+   */
+  examineHotspot?: (h: Hotspot) => void;
 }
 
 /**
@@ -112,6 +124,23 @@ export class CommandBox {
       this.cb.inventory(),
       this.cb.parseContext(),
     );
+
+    // A typed look/examine at a HOTSPOT ("look at bartender", "examine door")
+    // goes through the same examine path the Down key uses, so it reads the
+    // pack's authored description rather than the engine's stock "I can't see
+    // anything in particular" reply. The parser maps look/examine/inspect to
+    // the "look" verb, so this catches all three. A look at a carried ITEM is
+    // NOT routed here — it falls through to commandFor, which sends `look <id>`.
+    if (
+      match.kind === "hotspot" &&
+      match.verb === "look" &&
+      this.cb.examineHotspot
+    ) {
+      this.close();
+      this.cb.returnToList();
+      this.cb.examineHotspot(match.hotspot);
+      return;
+    }
 
     const command = this.commandFor(match);
     if (command) {
