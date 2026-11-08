@@ -48,8 +48,15 @@ npx wrangler r2 bucket create ghostlight-game-data
 
 Run from the repo root. `BUILD` is the output of `scripts/build-web.sh`.
 
+Use the project-local wrangler (`web/node_modules/.bin/wrangler`), not `npx
+wrangler`. wrangler is a devDependency of `web/`, not of the repo root, so `npx
+wrangler` run from the root does not find it and stops on an interactive "Ok to
+proceed?" install prompt — which hangs a non-interactive deploy. The local
+binary is the same pinned version (4.158.0) and needs no prompt.
+
 ```sh
 BUILD=vendor/scummvm-web/build-emscripten
+WRANGLER=web/node_modules/.bin/wrangler
 
 # 1. Build the Ghostlight player (the typed/keyboard page) with Vite. This is a
 #    separate build from the ScummVM wasm: `scripts/build-web.sh` only produces
@@ -71,7 +78,7 @@ cp -R dist/*     web/public/
 #    (Static assets cannot hold a file over 25 MiB; the Worker serves it from R2.)
 #    --remote is REQUIRED: without it wrangler 4.x writes to the LOCAL simulated
 #    R2 (it prints "Resource location: local") and the live bucket is untouched.
-npx wrangler r2 object put --remote \
+"$WRANGLER" r2 object put --remote \
   ghostlight-game-data/data/games/drascula/Packet.001 \
   --file "web/public/data/games/drascula/Packet.001" \
   --content-type application/octet-stream
@@ -106,7 +113,7 @@ cp engine/COPYING                web/public/source/COPYING
 cp scripts/build-web.sh          web/public/source/build-web.sh
 
 # 6. Deploy the Worker + static assets.
-npx wrangler deploy --config web/wrangler.jsonc
+"$WRANGLER" deploy --config web/wrangler.jsonc
 ```
 
 Wrangler prints the deployed URL (a `*.workers.dev` subdomain unless a custom
