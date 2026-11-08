@@ -26,6 +26,7 @@ import type { Pack as HintPack } from "../packs/tools/src/types.js";
 // writes it and no copy of it lives under src/. Vite resolves this to the real
 // packs/drascula-en.json at dev and build time.
 import packJson from "../packs/drascula-en.json";
+import { CommandBox } from "./ui/command-box.js";
 import { Controller } from "./ui/controller.js";
 import { Narrator } from "./ui/narrator.js";
 import { Highlight } from "./ui/highlight.js";
@@ -39,7 +40,10 @@ const HELP_TEXT =
   "Up or Enter interacts with the focused thing. Down examines it. " +
   "Press V for more actions: open, close, talk, push. " +
   "Tab opens your inventory; choose an item to make it active, then interact " +
-  "with a thing to use it. Backspace cancels. R repeats the last line. " +
+  "with a thing to use it. Backspace cancels. " +
+  "Slash opens a command box: type a plain command such as use coins on " +
+  "machine, press Enter to send it, or Escape to close. " +
+  "R repeats the last line. " +
   "L reads the whole room. H asks the ghost for a hint. " +
   "G turns the ghost voice on or off; text hints keep working either way. " +
   "F1 reads this help. Escape skips. " +
@@ -106,6 +110,10 @@ export async function boot(): Promise<void> {
   const highlightEl = doc.getElementById("highlight") as HTMLElement;
   const verbMenuEl = doc.getElementById("verb-menu") as HTMLElement;
   const inventoryEl = doc.getElementById("inventory") as HTMLElement;
+  const commandBoxEl = doc.getElementById("command-box") as HTMLElement;
+  const commandBoxInput = doc.getElementById(
+    "command-box-input",
+  ) as HTMLInputElement;
   const startGate = doc.getElementById("start-gate") as HTMLElement;
   const startButton = doc.getElementById("start-button") as HTMLButtonElement;
 
@@ -245,6 +253,57 @@ export async function boot(): Promise<void> {
     chapter: () => state.chapter,
   });
 
+  // The typed command box: "/" opens it; Enter parses the phrase with the
+  // existing parser against the current hotspot list and inventory, and sends
+  // the resolved command through the same adapter seam the list and menus use.
+  // A fixed phrase (help, read room, inventory, skip, choices, repeat) runs the
+  // page's own handler for it. Unknown or ambiguous phrases are announced in
+  // the live region and not sent.
+  const commandBox = new CommandBox(commandBoxEl, commandBoxInput, {
+    announce: (t) => live.announce(t),
+    send: (cmd) => adapter.send(cmd),
+    visible: () => currentList,
+    // Resolve carried item ids to the same pack names the inventory uses, so a
+    // typed name (e.g. "coins") matches the parser's candidate set.
+    inventory: () =>
+      state.inventory.map((id) => ({
+        id,
+        name: pack.itemName(id, state.chapter) ?? `item ${id}`,
+      })),
+    // No conversation state is tracked at the page level yet; the vending and
+    // other non-conversation fixtures never set these. Kept as a seam so a
+    // future conversation mode can enrich it without touching the box.
+    parseContext: () => ({ inConversation: false, pendingChoice: false }),
+    returnToList,
+    runFixed: (action) => {
+      switch (action) {
+        case "repeat":
+          live.repeat();
+          break;
+        case "readRoom":
+          readRoom();
+          break;
+        case "help":
+          live.announce(HELP_TEXT);
+          break;
+        case "inventory":
+          inventory.openMenu();
+          break;
+        case "skip":
+          adapter.send({ verb: "skip" });
+          break;
+        case "choices":
+          adapter.send({ verb: "choices" });
+          break;
+        case "cancel":
+          // Nothing to cancel once the box has closed; re-read the focus so the
+          // player knows where they are.
+          list.announceCurrent();
+          break;
+      }
+    },
+  });
+
   const readRoom = (): void => {
     live.announce(
       LiveRegion.roomAnnouncement({
@@ -268,6 +327,7 @@ export async function boot(): Promise<void> {
     list,
     verbMenu,
     inventory,
+    commandBox,
     live,
     // Open the examine window so the engine's hover/examine A11Y_TEXT lines for
     // this look are filtered from the text path until the look diff arrives.

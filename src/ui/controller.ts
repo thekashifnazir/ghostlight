@@ -11,6 +11,7 @@ import type { Command, Diff, EngineAdapter } from "../engine/adapter.js";
 import type { Hotspot } from "../model/hotspot-list.js";
 import type { Pack } from "../model/pack.js";
 import type { Sonar } from "../sonar/sonar.js";
+import type { CommandBox } from "./command-box.js";
 import type { Inventory } from "./inventory.js";
 import type { ListMode } from "./list-mode.js";
 import type { LiveRegion } from "./live-region.js";
@@ -44,6 +45,13 @@ export interface ControllerDeps {
   list: ListMode;
   verbMenu: VerbMenu;
   inventory: Inventory;
+  /**
+   * The typed command box: "/" opens it; it parses and sends commands.
+   * Optional so controller unit tests that exercise only list/menu/inventory
+   * behaviour need not construct one; when absent, "/" does nothing and the
+   * box is never open.
+   */
+  commandBox?: CommandBox;
   live: LiveRegion;
   /**
    * Open an examine window for the focused hotspot before sending `look`
@@ -85,6 +93,12 @@ export class Controller {
    * propagation and default, keeping it from the engine's input, gotcha 7).
    */
   handleKey(key: string): boolean {
+    // The command box owns the keyboard while it is open: Enter submits and
+    // Escape closes (both consumed); every other key is left for the native
+    // input so the player can type, so we must not stop audio or route it
+    // elsewhere here.
+    if (this.d.commandBox?.isOpen()) return this.d.commandBox.handleKey(key);
+
     // Stop audio on every key press (R9.5).
     this.d.stopAudio();
 
@@ -140,6 +154,12 @@ export class Controller {
         // only turns the optional whisper on or off and announces the new
         // state (R6.2).
         this.d.toggleGhostVoice();
+        return true;
+      case "/":
+        // Open the typed command box. The list stays the primary way to play;
+        // this is a keyboard shortcut for "use item on spot" and the like.
+        if (!this.d.commandBox) return false;
+        this.d.commandBox.openBox();
         return true;
       case "F1":
         this.d.readHelp();

@@ -155,11 +155,53 @@
         margin: 0 0 0.35rem;
       }
 
-      /* Containers for transient UI (verb menu, inventory). Positioned over
-         the stage; hidden until opened. */
+      /* Containers for transient UI (verb menu, inventory, command box).
+         Positioned over the stage; hidden until opened. */
       #verb-menu[hidden],
-      #inventory[hidden] {
+      #inventory[hidden],
+      #command-box[hidden] {
         display: none;
+      }
+
+      #command-box {
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        transform: translate(-50%, -50%);
+        min-width: 22rem;
+        max-width: 90%;
+        background: #1c1930;
+        border: 2px solid var(--accent);
+        border-radius: 0.5rem;
+        padding: 0.75rem;
+        z-index: 20;
+      }
+
+      #command-box label {
+        display: block;
+        margin-bottom: 0.4rem;
+        font-weight: 600;
+      }
+
+      #command-box input {
+        width: 100%;
+        font: inherit;
+        padding: 0.5rem 0.6rem;
+        background: #11101a;
+        color: var(--fg);
+        border: 1px solid var(--muted);
+        border-radius: 0.3rem;
+      }
+
+      #command-box input:focus-visible {
+        outline: 2px solid var(--accent);
+        outline-offset: 1px;
+      }
+
+      #command-box p {
+        margin: 0.5rem 0 0;
+        font-size: 0.85rem;
+        color: var(--muted);
       }
 
       #verb-menu,
@@ -228,6 +270,26 @@
 
         <!-- Inventory: a keyboard list of carried items. -->
         <div id="inventory" role="menu" aria-label="Inventory" hidden></div>
+
+        <!-- Typed command box: "/" opens it. A labelled single-line input that
+             parses a plain-English phrase and sends the resolved command. -->
+        <div id="command-box" hidden>
+          <label id="command-box-label" for="command-box-input"
+            >Type a command</label
+          >
+          <input
+            id="command-box-input"
+            type="text"
+            autocomplete="off"
+            autocapitalize="off"
+            autocorrect="off"
+            spellcheck="false"
+            aria-describedby="command-box-hint"
+          />
+          <p id="command-box-hint">
+            For example: use coins on machine. Enter sends it. Escape closes.
+          </p>
+        </div>
       </div>
 
       <!-- The one polite live region: every functional line is written here as
