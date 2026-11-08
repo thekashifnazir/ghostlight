@@ -107,9 +107,13 @@ The player and pack suites use property-based tests (fast-check) alongside examp
 
 ## Credits and licences
 
-The root of this repository is **MIT** (see `LICENSE`), so the player, the parser, the pack format and the tools are reusable.
+This repository carries three licences, one per kind of thing in it.
 
-The engine patch in `engine/` modifies GPL ScummVM code and so stays **GPL-3.0-or-later**, as does any wasm built from it.
+- **Apache License 2.0** (see [`LICENSE`](LICENSE)) covers the code: the player, the parser, the pack format, the tools, the MCP server and the scummvm-access power. It is a permissive licence with an explicit patent grant, so these parts stay reusable.
+- **CC BY 4.0** (see [`packs/LICENSE`](packs/LICENSE)) covers the accessibility pack *data* in `packs/` (the `<gameId>-<lang>.json` files): the room and object descriptions, exit labels, hints and other authored text. Reuse it with attribution.
+- **GPL-3.0-or-later** (see [`engine/COPYING`](engine/COPYING)) covers the engine patch in `engine/`, which modifies GPL ScummVM code, as does any wasm built from it.
+
+A root [`NOTICE`](NOTICE) file records these, as the Apache licence expects.
 
 The game data is not in this repository. *Drascula: The Vampire Strikes Back* is distributed as freeware through [ScummVM's official downloads](https://www.scummvm.org/games/#games-drascula), and a script fetches it with checksums; the hosted copy keeps the game's readme and a notice that it is modified. Ghostlight builds on ScummVM and does not claim ScummVM's own work as its own.
 
@@ -123,4 +127,4 @@ This project does not make claims about what blind or low-vision players need wi
 
 ## More
 
-- [`docs/kiro-features.md`](docs/kiro-features.md) · [`docs/kiro-process.md`](docs/kiro-process.md) · [`packs/FORMAT.md`](packs/FORMAT.md) · [`mcp/README.md`](mcp/README.md) · [`LICENSE`](LICENSE)
+- [`docs/kiro-features.md`](docs/kiro-features.md) · [`docs/kiro-process.md`](docs/kiro-process.md) · [`packs/FORMAT.md`](packs/FORMAT.md) · [`mcp/README.md`](mcp/README.md) · [`LICENSE`](LICENSE) · [`NOTICE`](NOTICE) · [`packs/LICENSE`](packs/LICENSE)

@@ -20,7 +20,7 @@ skills/
 packs/
   FORMAT.md              the pack format, field by field, with examples
   schema.json            JSON Schema 2020-12 for the pack
-  tools/                 the validator (validate + check-coverage), MIT, no network
+  tools/                 the validator (validate + check-coverage), Apache-2.0, no network
 ```
 
 The MCP server itself (`drascula-mcp`) lives in the Ghostlight repo under `mcp/` and is referenced, not copied; the pack validator and format are copied in so the plugin is self-contained for authoring and validation.
@@ -110,4 +110,4 @@ With a machine-readable census (rooms, hotspots, doors and the exit graph), `che
 
 ## Licensing
 
-The pack format, validator and this plugin are MIT. A ScummVM engine patch that adds the accessibility layer is a modification of GPL code and stays GPL-3.0-or-later; it is not part of this plugin. Game data is never bundled.
+The pack format, validator and this plugin are Apache-2.0. Accessibility pack data (the `<gameId>-<lang>.json` files) is licensed CC BY 4.0. A ScummVM engine patch that adds the accessibility layer is a modification of GPL code and stays GPL-3.0-or-later; it is not part of this plugin. Game data is never bundled.

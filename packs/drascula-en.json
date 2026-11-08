@@ -16,7 +16,7 @@
     "coverage": { "chapters": [1, 2] },
     "speechLocale": "en-GB",
     "authors": ["Ghostlight"],
-    "licence": "MIT",
+    "licence": "CC-BY-4.0",
     "notes": "First pack for the v1 format, covering Drascula chapters 1 and 2. Room descriptions written from decoded background pictures; hotspot numbers and destinations from the game-data census. Promoted from the format 0.1 draft in reference/pack-draft."
   },
   "textFixes": [

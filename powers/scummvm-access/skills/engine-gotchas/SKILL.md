@@ -1,7 +1,7 @@
 ---
 name: "engine-gotchas"
 description: "Adapt a new ScummVM engine to the accessibility method and survey a game by command: the thirteen Drascula engine findings as a new-engine checklist, plus the survey-write-validate loop for producing a pack. Use when wiring an accessibility layer into an engine, debugging why commands or text do not come through, or surveying a game through the drascula MCP server."
-license: "MIT"
+license: "Apache-2.0"
 compatibility: "Adapting a ScummVM engine or surveying a game. Pairs with the bundled drascula MCP server (mcp.json) and the pack schema and validator."
 metadata:
   author: "Ghostlight"
