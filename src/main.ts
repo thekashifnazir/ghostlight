@@ -54,6 +54,16 @@ const HELP_TEXT =
 /** Spoken when the player asks for a hint but nothing is offered yet. */
 const NO_HINT_TEXT = "There is nothing to hint at right now.";
 
+/**
+ * Spoken once, on the first room the player reaches after Start, as a short
+ * orientation to the core keys (accessibility: keyboard only, functional text
+ * in the live region). Never repeated on later rooms — F1 gives the full help
+ * at any time.
+ */
+const ONBOARDING_TEXT =
+  "Left and Right move through the room. Enter acts, Down examines. " +
+  "Slash to type a command. H for a hint. F1 for all keys.";
+
 /** Minimal window.Module shape ScummVM expects; set up before boot. */
 declare global {
   interface Window {
@@ -135,6 +145,9 @@ export async function boot(): Promise<void> {
     inventory: [],
   };
   let currentList: Hotspot[] = [];
+  // One-shot: the spoken key orientation is announced on the first room the
+  // player reaches after Start, and never again (later rooms arrive as diffs).
+  let onboardingDone = false;
 
   // The narrator owns the cross-cutting narration rules the live-engine survey
   // turned up: dropping the generic look reply and hover-name echoes from the
@@ -304,17 +317,19 @@ export async function boot(): Promise<void> {
     },
   });
 
-  const readRoom = (): void => {
-    live.announce(
-      LiveRegion.roomAnnouncement({
-        name: pack.roomName(state.room),
-        // Resolve the short against the running complete state and the reached
-        // set, so a variant (e.g. a passage opening) is spoken once its
-        // condition holds (description-variants R3.1, R3.5).
-        short: pack.roomShortFor(state.room, hintState, hintEngine.reached()),
-        hotspots: currentList,
-      }),
-    );
+  // Read the whole room. `suffix`, when given, is appended to the same spoken
+  // line (used once for the first-room key orientation) so it is spoken with
+  // the room rather than clobbering it in the single-line live region.
+  const readRoom = (suffix?: string): void => {
+    const room = LiveRegion.roomAnnouncement({
+      name: pack.roomName(state.room),
+      // Resolve the short against the running complete state and the reached
+      // set, so a variant (e.g. a passage opening) is spoken once its
+      // condition holds (description-variants R3.1, R3.5).
+      short: pack.roomShortFor(state.room, hintState, hintEngine.reached()),
+      hotspots: currentList,
+    });
+    live.announce(suffix ? `${room} ${suffix}` : room);
   };
 
   const controller = new Controller({
@@ -388,7 +403,16 @@ export async function boot(): Promise<void> {
     rebuildRoomLabels();
     list.rebuild(currentList);
     inventory.setItems(s.inventory);
-    readRoom();
+    // On the first room after Start, append the one-time key orientation to the
+    // room reading so both are spoken together as the single newest live-region
+    // line (the region holds only the newest line, so a separate announce would
+    // clobber the room). Later rooms arrive as diffs and never repeat it.
+    if (!onboardingDone) {
+      onboardingDone = true;
+      readRoom(ONBOARDING_TEXT);
+    } else {
+      readRoom();
+    }
     showHighlight(list.current());
     // Feed sonar the full room (with the real hero) and reset its step cursor.
     sonar.setRoom(s, currentList);

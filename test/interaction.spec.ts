@@ -29,6 +29,42 @@ test.describe("start screen", () => {
   });
 });
 
+test.describe("spoken onboarding", () => {
+  test("announces the key orientation once, on the first room only", async ({
+    page,
+  }) => {
+    // leave-tavern boots into room 62 and `walk 105` crosses to room 14, so it
+    // exercises both the first room (onboarding spoken) and a later room
+    // (onboarding not repeated).
+    await start(page, "leave-tavern");
+
+    // The first room's reading carries the one-time key orientation on the same
+    // line, so the room is still announced AND the controls are heard with it.
+    await expect(live(page)).toContainText("Inn bar");
+    await expect(live(page)).toContainText(
+      "Left and Right move through the room. Enter acts, Down examines. " +
+        "Slash to type a command. H for a hint. F1 for all keys.",
+    );
+
+    // Cross to the next room: the recording's one command is `walk 105`, the
+    // curtained doorway to the guest rooms (hotspot 105). Cycle to it, then
+    // interact — an exit's primary action is walk, so Enter sends walk 105.
+    let onDoorway = false;
+    for (let i = 0; i < 10 && !onDoorway; i++) {
+      await page.keyboard.press("ArrowRight");
+      const t = (await live(page).textContent()) ?? "";
+      if (t.startsWith("curtained doorway to the guest rooms")) onDoorway = true;
+    }
+    expect(onDoorway).toBe(true);
+    await page.keyboard.press("Enter"); // walk 105 → crosses to room 14
+
+    // The new room is read (the replay's walk 105 diff changes the room), and
+    // the onboarding must NOT appear again on this later room.
+    await expect(live(page)).toContainText("Here:");
+    await expect(live(page)).not.toContainText("F1 for all keys");
+  });
+});
+
 test.describe("list cycling", () => {
   test("Left/Right cycle with N of M and wrap", async ({ page }) => {
     await start(page, "tavern");
