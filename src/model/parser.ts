@@ -176,10 +176,15 @@ export function parsePhrase(
     rest = words.slice(1);
   }
 
-  // Split on on/with/in/to into item + target for a `use` phrase.
+  // Split on on/with/in/to into item + target for a `use` phrase. Only take
+  // this branch for an explicit `use` (or a verbless phrase), and only when the
+  // left side names something after stop words. Otherwise a split word like
+  // "at" or "to" in "look at bartender" or "talk to drunk" would wrongly be
+  // read as a use phrase with an empty item; fall through to the hotspot/name
+  // branch so the verb and target resolve normally.
   const splitAt = rest.findIndex((w) => SPLIT_WORDS.has(w));
-  if ((verb === "use" || splitAt >= 0) && splitAt >= 0) {
-    const left = rest.slice(0, splitAt).filter((w) => !STOP_WORDS.has(w));
+  const left = splitAt >= 0 ? rest.slice(0, splitAt).filter((w) => !STOP_WORDS.has(w)) : [];
+  if (splitAt >= 0 && (verb === "use" || verb === undefined) && left.length > 0) {
     const right = rest.slice(splitAt + 1).filter((w) => !STOP_WORDS.has(w));
 
     const itemMatch = bestItem(left, inventory);

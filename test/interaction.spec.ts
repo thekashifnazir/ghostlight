@@ -65,6 +65,37 @@ test.describe("spoken onboarding", () => {
   });
 });
 
+test.describe("chapter crossing", () => {
+  test("walking through the curtained doorway announces reaching chapter 2", async ({
+    page,
+  }) => {
+    // The chapter 1 -> 2 crossing. In leave-tavern the one recorded command is
+    // `walk 105` (the scripted curtained doorway), whose diff carries
+    // chapter:[1,2] and room:[62,14]. The player must tell the screen-reader
+    // player they have ADVANCED a chapter, not just moved rooms — so the new
+    // room reading is prefixed with the chapter line from the pack
+    // ("Chapter 2: The village.").
+    await start(page, "leave-tavern");
+    await expect(live(page)).toContainText("Inn bar");
+
+    // Cycle to the curtained doorway (hotspot 105) and walk through it.
+    let onDoorway = false;
+    for (let i = 0; i < 10 && !onDoorway; i++) {
+      await page.keyboard.press("ArrowRight");
+      const t = (await live(page).textContent()) ?? "";
+      if (t.startsWith("curtained doorway to the guest rooms")) onDoorway = true;
+    }
+    expect(onDoorway).toBe(true);
+    await page.keyboard.press("Enter"); // walk 105 → crosses to chapter 2
+
+    // The crossing is announced as reaching chapter 2, on the same line as the
+    // new room (the live region holds only the newest line), with the pack's
+    // chapter name.
+    await expect(live(page)).toContainText("Chapter 2: The village.");
+    await expect(live(page)).toContainText("Here:");
+  });
+});
+
 test.describe("list cycling", () => {
   test("Left/Right cycle with N of M and wrap", async ({ page }) => {
     await start(page, "tavern");

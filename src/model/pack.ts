@@ -55,9 +55,16 @@ interface TextFix {
   reason?: string;
 }
 
+interface PackChapter {
+  name: string;
+  startRoom?: number;
+  summary?: string;
+}
+
 /** The raw pack JSON shape, only the fields this reader uses. */
 export interface PackData {
   formatVersion: string;
+  chapters?: Record<string, PackChapter>;
   rooms: Record<string, PackRoom>;
   items: PackItem[];
   textFixes?: TextFix[];
@@ -87,6 +94,25 @@ export class Pack {
   /** The room's display name, or undefined if the room is not in the pack. */
   roomName(room: number): string | undefined {
     return this.room(room)?.name;
+  }
+
+  /** The chapter's display name (e.g. "The village"), or undefined. */
+  chapterName(chapter: number): string | undefined {
+    return this.data.chapters?.[String(chapter)]?.name;
+  }
+
+  /**
+   * True if the given exit is a scripted cross-chapter doorway: the pack lists
+   * it as an exit with `to: null`. In the pack, a plain exit carries its
+   * destination room number, and a scripted doorway that runs a cutscene (and,
+   * in chapter 1, crosses into the next chapter) is modelled with `to: null`
+   * because it has no static destination. The live engine answers a walk
+   * through such a door with a blocking cutscene that only advances on a
+   * `skip`, so the web player needs to recognise it to deliver that skip.
+   */
+  isScriptedExit(room: number, num: number): boolean {
+    const exit = this.room(room)?.exits?.[String(num)];
+    return exit !== undefined && exit.to === null;
   }
 
   /**
