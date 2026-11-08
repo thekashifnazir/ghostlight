@@ -843,7 +843,14 @@ export async function boot(): Promise<void> {
       if (startGate.hidden) {
         if (typingInCommandBox(ev)) {
           // Only Enter/Escape act on the box; every other key types normally.
-          if (ev.key !== "Enter" && ev.key !== "Escape") return;
+          if (ev.key !== "Enter" && ev.key !== "Escape") {
+            // Stop the key reaching the engine's own SDL keyboard listener,
+            // which would otherwise preventDefault() it so nothing types into
+            // the box in the LIVE build. Do NOT preventDefault: the native
+            // <input> still needs the keydown to enter the character.
+            ev.stopPropagation();
+            return;
+          }
         }
         const consumed = controller.handleKey(ev.key, ev.shiftKey);
         if (consumed) {
