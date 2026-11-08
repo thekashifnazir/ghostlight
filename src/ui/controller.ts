@@ -91,8 +91,12 @@ export class Controller {
   /**
    * Handle one key. Returns true if the key was consumed (so the caller stops
    * propagation and default, keeping it from the engine's input, gotcha 7).
+   *
+   * `shift` is whether Shift was held; it only matters for Shift+R (step back
+   * through the line history). Defaults to false so the key routing and the
+   * controller's many unit harnesses are unaffected by the extra argument.
    */
-  handleKey(key: string): boolean {
+  handleKey(key: string, shift = false): boolean {
     // The command box owns the keyboard while it is open: Enter submits and
     // Escape closes (both consumed); every other key is left for the native
     // input so the player can type, so we must not stop audio or route it
@@ -102,13 +106,21 @@ export class Controller {
     // Stop audio on every key press (R9.5).
     this.d.stopAudio();
 
+    // Any key other than Shift+R resets the line-history back cursor, so the
+    // next Shift+R starts again from the most recent earlier line (the "any
+    // other key resets" rule). Shift+R itself handles the cursor in stepBack.
+    const isStepBack = (key === "r" || key === "R") && shift;
+    if (!isStepBack) {
+      (this.d.live as Partial<LiveRegion>).resetHistoryCursor?.();
+    }
+
     // Mode-specific routing first.
     if (this.d.verbMenu.isOpen()) return this.handleVerbMenuKey(key);
     if (this.d.inventory.isOpen()) return this.handleInventoryKey(key);
-    return this.handleListKey(key);
+    return this.handleListKey(key, shift);
   }
 
-  private handleListKey(key: string): boolean {
+  private handleListKey(key: string, shift = false): boolean {
     switch (key) {
       case "ArrowRight":
         this.d.list.next();
@@ -136,7 +148,17 @@ export class Controller {
         return true;
       case "r":
       case "R":
-        this.d.live.repeat();
+        // R repeats the last line; Shift+R steps back through up to 20 earlier
+        // lines, each announced as "Earlier: <line>". Case alone cannot tell
+        // the two apart (Caps Lock also yields "R"), so the shift modifier
+        // decides. A LiveRegion stand-in without stepBack falls back to repeat.
+        if (shift) {
+          const live = this.d.live as Partial<LiveRegion>;
+          if (live.stepBack) live.stepBack();
+          else this.d.live.repeat();
+        } else {
+          this.d.live.repeat();
+        }
         return true;
       case "l":
       case "L":

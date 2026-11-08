@@ -43,7 +43,7 @@ const HELP_TEXT =
   "with a thing to use it. Backspace cancels. " +
   "Slash opens a command box: type a plain command such as use coins on " +
   "machine, press Enter to send it, or Escape to close. " +
-  "R repeats the last line. " +
+  "R repeats the last line; Shift plus R steps back through earlier lines. " +
   "L reads the whole room. H asks the ghost for a hint. " +
   "G turns the ghost voice on or off; text hints keep working either way. " +
   "F1 reads this help. Escape skips. " +
@@ -565,7 +565,7 @@ export async function boot(): Promise<void> {
     "keydown",
     (ev) => {
       if (startGate.hidden) {
-        const consumed = controller.handleKey(ev.key);
+        const consumed = controller.handleKey(ev.key, ev.shiftKey);
         if (consumed) {
           ev.preventDefault();
           ev.stopPropagation();

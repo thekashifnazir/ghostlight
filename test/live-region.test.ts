@@ -49,6 +49,85 @@ describe("LiveRegion", () => {
     expect(live.lastLine()).toBe("A line to repeat.");
   });
 
+  describe("line history (Shift+R)", () => {
+    it("steps back through earlier lines, prefixed with 'Earlier:'", () => {
+      live.announce("One.");
+      live.announce("Two.");
+      live.announce("Three."); // current line
+
+      live.stepBack();
+      expect(region.textContent).toBe("Earlier: Two.");
+      live.stepBack();
+      expect(region.textContent).toBe("Earlier: One.");
+    });
+
+    it("does not disturb the last line: R still repeats the real last line", () => {
+      live.announce("One.");
+      live.announce("Two.");
+      live.stepBack(); // walks back to "One."
+      expect(region.textContent).toBe("Earlier: One.");
+      expect(live.lastLine()).toBe("Two.");
+      live.repeat();
+      expect(region.textContent).toBe("Two.");
+    });
+
+    it("stays on the oldest remembered line past the start of history", () => {
+      live.announce("One.");
+      live.announce("Two.");
+      live.stepBack(); // "One."
+      live.stepBack(); // already oldest; stays on "One."
+      live.stepBack();
+      expect(region.textContent).toBe("Earlier: One.");
+    });
+
+    it("remembers at most 20 earlier lines", () => {
+      // Announce 22 lines: "L0".."L21". The current line is "L21"; the earlier
+      // lines are L20..L0, but only the newest 20 (L20..L1) are kept.
+      for (let i = 0; i < 22; i++) live.announce(`L${i}`);
+      // Step back 25 times; it should stop at the oldest kept line, L1.
+      for (let i = 0; i < 25; i++) live.stepBack();
+      expect(region.textContent).toBe("Earlier: L1");
+    });
+
+    it("resetHistoryCursor makes the next Shift+R start from the most recent earlier line", () => {
+      live.announce("One.");
+      live.announce("Two.");
+      live.announce("Three.");
+      live.stepBack(); // "Two."
+      live.stepBack(); // "One."
+      expect(region.textContent).toBe("Earlier: One.");
+      live.resetHistoryCursor();
+      live.stepBack(); // starts again from the most recent earlier line
+      expect(region.textContent).toBe("Earlier: Two.");
+    });
+
+    it("a new announced line resets the back cursor", () => {
+      live.announce("One.");
+      live.announce("Two.");
+      live.stepBack(); // "One."
+      live.announce("Three."); // new line resets the cursor
+      live.stepBack();
+      expect(region.textContent).toBe("Earlier: Two.");
+    });
+
+    it("stepBack is a no-op with no earlier lines", () => {
+      live.announce("Only line.");
+      live.stepBack();
+      // No earlier line to recall; the region is untouched.
+      expect(region.textContent).toBe("Only line.");
+    });
+
+    it("mirrors recalled lines to the transcript too", () => {
+      live.announce("One.");
+      live.announce("Two.");
+      live.stepBack();
+      const lines = Array.from(transcript.querySelectorAll("p")).map(
+        (p) => p.textContent,
+      );
+      expect(lines).toEqual(["One.", "Two.", "Earlier: One."]);
+    });
+  });
+
   it("composes the N of M focus line", () => {
     expect(LiveRegion.focusLine("skull", 2, 7)).toBe("skull, 3 of 7");
   });

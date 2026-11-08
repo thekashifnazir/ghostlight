@@ -172,6 +172,41 @@ test.describe("reading keys", () => {
   });
 });
 
+test.describe("line history", () => {
+  test("R repeats; Shift+R steps back through earlier lines; another key resets", async ({
+    page,
+  }) => {
+    await start(page, "tavern");
+
+    // Build up a few distinct lines by cycling focus, so there is history.
+    await page.keyboard.press("ArrowRight"); // line A (2 of N)
+    const lineA = (await live(page).textContent()) ?? "";
+    await page.keyboard.press("ArrowRight"); // line B (3 of N)
+    const lineB = (await live(page).textContent()) ?? "";
+    expect(lineA).not.toBe(lineB);
+
+    // R repeats the current (last) line, line B.
+    await page.keyboard.press("r");
+    await expect(live(page)).toHaveText(lineB);
+
+    // Shift+R steps back to the previous line, announced "Earlier: <line>".
+    await page.keyboard.press("Shift+R");
+    await expect(live(page)).toHaveText(`Earlier: ${lineA}`);
+
+    // Any other key resets the back cursor: a fresh focus line, then Shift+R
+    // starts again from the most recent earlier line (now line B).
+    await page.keyboard.press("ArrowRight");
+    await page.keyboard.press("Shift+R");
+    await expect(live(page)).toHaveText(`Earlier: ${lineB}`);
+  });
+
+  test("F1 help mentions Shift+R", async ({ page }) => {
+    await start(page, "tavern");
+    await page.keyboard.press("F1");
+    await expect(live(page)).toContainText("Shift plus R steps back");
+  });
+});
+
 test.describe("typed shortcut (via the parser through the page)", () => {
   // The typed box UI is driven by the same parser; here we assert the parser's
   // guarantee holds at the page level by checking the inventory use path, which
