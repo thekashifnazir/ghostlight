@@ -64,7 +64,7 @@
       "long": "A gloomy stone tavern lit by an iron chandelier. The bar runs along the back wall, with a burger poster above it and the bartender, a big bald man, leaning on the counter. A drunk in a brown jacket props up the right-hand end of the bar. On the far left, under a hand-painted EXIT sign, stairs lead down to the street. Right of the bar, a red curtain hangs in a doorway under a sign reading HABITACIONES, Spanish for rooms, and further right a stone arch leads to a back room. A blond pianist in a tailcoat plays an upright piano in the front right corner, with a skull on top. Beer barrels fill the foreground.",
       "seen": true,
       "exits": {
-        "105": { "label": "curtained doorway to the guest rooms", "to": null, "direction": "up", "opensWhen": { "flags": { "0": 1 } }, "note": "Engine data says room 63, but in chapter 1 this door runs the bedtime cutscene (animation_2_1) and starts chapter 2. Until the bartender gives you a room it answers I DON'T HAVE A ROOM YET." },
+        "105": { "label": "curtained doorway to the guest rooms", "to": null, "direction": "up", "opensWhen": { "flags": { "0": 1 } }, "note": "Opens once the bartender has given you a room: go up here to go to bed. Engine data says room 63, but in chapter 1 this door runs the bedtime cutscene (animation_2_1) and starts chapter 2. Until the bartender gives you a room it answers I DON'T HAVE A ROOM YET." },
         "106": { "label": "stone arch to the back room", "to": 63, "direction": "right" }
       },
       "objects": {
@@ -140,7 +140,7 @@
       "long": "A sloping attic room with dark beams overhead and a green rug on the floor. The door is in the left wall, with a lamp beside it. A rumpled bed sits left of centre, its red cover spilling across the rug, and an oval mirror hangs on the wall above it. A tall wooden wardrobe stands against the back wall. On the right, a big arched window looks out into the night, with a wooden trunk on the floor beneath it.",
       "seen": true,
       "exits": {
-        "163": { "label": "door to the stairs", "to": 14, "direction": "left", "opensWhen": { "flags": { "17": 1 } }, "note": "Open at chapter start; open and close toggle flag 17." }
+        "163": { "label": "door to the stairs", "to": 14, "direction": "left", "opensWhen": { "flags": { "17": 1 } }, "note": "Open at chapter start, so you can walk through it straight away. Opening and closing the door toggles flag 17." }
       },
       "objects": {
         "183": { "name": "trunk", "type": "object", "description": "A wooden chest with an iron lock, under the window." },
@@ -158,7 +158,7 @@
       "seen": true,
       "exits": {
         "151": { "label": "street to the village square", "to": 10, "direction": "right" },
-        "156": { "label": "inn door", "to": 14, "direction": "ahead", "opensWhen": { "flags": { "16": 1 } }, "note": "Open at chapter start; open and close toggle flag 16." },
+        "156": { "label": "inn door", "to": 14, "direction": "ahead", "opensWhen": { "flags": { "16": 1 } }, "note": "Open at chapter start, so you can walk through it straight away. Opening and closing the door toggles flag 16." },
         "158": { "label": "archway into the side lane", "to": 8, "direction": "left" }
       },
       "objects": {
@@ -237,7 +237,7 @@
         "123": { "label": "church", "to": 1, "direction": "right" },
         "125": { "label": "village", "to": 4, "direction": "ahead" },
         "127": { "label": "cemetery", "to": 3, "direction": "right" },
-        "175": { "label": "hut", "to": 17, "direction": "left", "opensWhen": { "flags": { "40": 1 } }, "note": "doors[] gate: only works once flag 40 is set." }
+        "175": { "label": "hut", "to": 17, "direction": "left", "opensWhen": { "flags": { "40": 1 } }, "note": "The hut only appears on the map once you know it is there: talk to the drunk in the inn and ask where to find Von Braun. That sets flag 40 and the path to the hut opens." }
       },
       "objects": {}
     },
@@ -298,7 +298,7 @@
       "note": "Same background file as room 1, with a smaller hero sprite and a walk area behind the fence.",
       "exits": {
         "135": { "label": "way back to the cemetery", "to": 3, "direction": "right" },
-        "136": { "label": "boarded window", "to": 6, "direction": "left", "opensWhen": { "flags": { "8": 1 } }, "note": "doors[] gate: works once flag 8 is set. Looking at it says IF ONLY THIS WINDOW WASN'T BOARDED UP." }
+        "136": { "label": "boarded window", "to": 6, "direction": "left", "opensWhen": { "flags": { "8": 1 } }, "note": "Use the iron spike on the boarded window to prise the boards off. That sets flag 8 and the window becomes a way in. Looking at it beforehand says IF ONLY THIS WINDOW WASN'T BOARDED UP." }
       },
       "objects": {
         "212": { "name": "moon", "type": "object", "description": "A full moon over the hill." },
@@ -314,7 +314,7 @@
       "note": "The engine darkens and brightens this room with the hero's position. No gameplay effect.",
       "exits": {
         "137": { "label": "window you climbed in by", "to": 5, "direction": "left" },
-        "138": { "label": "arched door into the church", "to": 7, "direction": "ahead", "opensWhen": { "flags": { "0": 1 } }, "note": "doors[] gate: opening the door sets flag 0." }
+        "138": { "label": "arched door into the church", "to": 7, "direction": "ahead", "opensWhen": { "flags": { "0": 1 } }, "note": "Open the arched door first, then walk through it. Opening the door sets flag 0; closing it shuts the door again." }
       },
       "objects": {
         "139": { "name": "drawer", "type": "object", "description": "A drawer in the long bench under the windows." },
@@ -347,7 +347,7 @@
       "seen": true,
       "exits": {
         "170": { "label": "doorway back into the church", "to": 7, "direction": "right" },
-        "173": { "label": "well", "to": null, "direction": "down", "opensWhen": { "flags": { "36": 1 } }, "note": "doors[] gate: works once flag 36 is set. Runs animation_35_2 and starts chapter 3 (engine data says room 20)." }
+        "173": { "label": "well", "to": null, "direction": "down", "opensWhen": { "flags": { "36": 1 } }, "note": "The well only works once Von Braun has made you his brew: collect every ingredient, then talk to Von Braun and tell him you have them all. That sets flag 36. Walking into the well then runs animation_35_2 and starts chapter 3 (engine data says room 20)." }
       },
       "objects": {
         "214": { "name": "cypress trees", "type": "object", "description": "Tall dark cypress trees beyond the fence." }
@@ -361,7 +361,7 @@
       "seen": true,
       "exits": {
         "176": { "label": "path back to the valley", "to": 2, "direction": "left" },
-        "177": { "label": "front door", "to": 18, "direction": "ahead", "opensWhen": { "flags": { "15": 1 } }, "note": "doors[] gate: flag 15, set when Von Braun lets you in." }
+        "177": { "label": "front door", "to": 18, "direction": "ahead", "opensWhen": { "flags": { "15": 1 } }, "note": "The door stays shut until Von Braun lets you in: open the door to knock, then talk to the door and talk your way past him, betting your money that you are serious. Once he agrees the door opens and sets flag 15." }
       },
       "objects": {}
     },
