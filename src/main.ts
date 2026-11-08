@@ -840,7 +840,7 @@ export async function boot(): Promise<void> {
   doc.addEventListener(
     "keydown",
     (ev) => {
-      if (!startGate.hidden) {
+      if (startGate.hidden) {
         if (typingInCommandBox(ev)) {
           // Only Enter/Escape act on the box; every other key types normally.
           if (ev.key !== "Enter" && ev.key !== "Escape") return;

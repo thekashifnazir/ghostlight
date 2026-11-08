@@ -157,3 +157,59 @@ describe("parsePhrase units", () => {
     expect(m).toEqual({ kind: "choice", n: 2 });
   });
 });
+
+describe("parsePhrase split-word verbs vs use", () => {
+  // A split word ("at", "to", "on") must not force the use branch for a plain
+  // verb phrase. "look at X" / "talk to X" / "walk to X" resolve to the target
+  // with the verb, while real use phrases still parse as use.
+  const visible = [
+    hs("bartender", 1),
+    hs("drunk", 2),
+    hs("stairs", 3),
+    hs("machine", 4),
+  ];
+  const inventory: InvItem[] = [
+    { id: 5, name: "coins" },
+    { id: 7, name: "phone" },
+  ];
+
+  it("parses 'look at bartender' as a look on the bartender hotspot", () => {
+    const m = parsePhrase("look at bartender", visible, inventory, CTX);
+    expect(m.kind).toBe("hotspot");
+    if (m.kind !== "hotspot") throw new Error("kind");
+    expect(m.hotspot.name).toBe("bartender");
+    expect(m.verb).toBe("look");
+  });
+
+  it("parses 'talk to drunk' as a talk on the drunk hotspot", () => {
+    const m = parsePhrase("talk to drunk", visible, inventory, CTX);
+    expect(m.kind).toBe("hotspot");
+    if (m.kind !== "hotspot") throw new Error("kind");
+    expect(m.hotspot.name).toBe("drunk");
+    expect(m.verb).toBe("talk");
+  });
+
+  it("parses 'walk to stairs' as a walk on the stairs hotspot", () => {
+    const m = parsePhrase("walk to stairs", visible, inventory, CTX);
+    expect(m.kind).toBe("hotspot");
+    if (m.kind !== "hotspot") throw new Error("kind");
+    expect(m.hotspot.name).toBe("stairs");
+    expect(m.verb).toBe("walk");
+  });
+
+  it("parses 'use coins on machine' as a use against the machine hotspot", () => {
+    const m = parsePhrase("use coins on machine", visible, inventory, CTX);
+    expect(m.kind).toBe("use");
+    if (m.kind !== "use") throw new Error("kind");
+    expect(m.item.id).toBe(5);
+    expect("num" in m.target && m.target.num).toBe(4);
+  });
+
+  it("parses verbless 'phone on bartender' as a use against the bartender", () => {
+    const m = parsePhrase("phone on bartender", visible, inventory, CTX);
+    expect(m.kind).toBe("use");
+    if (m.kind !== "use") throw new Error("kind");
+    expect(m.item.id).toBe(7);
+    expect("num" in m.target && m.target.num).toBe(1);
+  });
+});
