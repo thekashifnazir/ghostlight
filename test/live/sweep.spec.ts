@@ -41,6 +41,12 @@ const SKIP_MESSAGE =
 // bar" but a different short), so matching it confirms the tavern specifically.
 const ROOM_62_SHORT = "stone tavern with a wooden floor";
 
+// The bartender's authored pack description (room 62, hotspot 52), i.e. exactly
+// what the Down/examine path reads. A typed "look at bartender" now routes
+// through that same examine path, so it must surface this line, NOT the
+// engine's stock "I CAN'T SEE ANYTHING IN PARTICULAR" look reply.
+const BARTENDER_DESC = "A big bald man in a vest, leaning on the bar.";
+
 const LIVE = "#live-region";
 const BOX = "#command-box";
 const INPUT = "#command-box-input";
@@ -158,24 +164,29 @@ test.describe("live sweep (Chrome + WebKit)", () => {
     await expect(page.locator(BOX)).toBeVisible();
     await expect(input).toBeFocused();
 
-    // Enter sends it: "look at bartender" -> look 52, and the live engine
-    // answers with the bartender's look line. The box closes after sending.
+    // Enter sends it: "look at bartender" routes through the examine path (the
+    // same one Down uses), so the live region shows the bartender's authored
+    // pack description, not the engine's stock "can't see anything" look reply.
+    // The box closes after sending.
     await page.keyboard.press("Enter");
-    await expect(live).toContainText(/bartender/i, { timeout: 30_000 });
+    await expect(live).toContainText(BARTENDER_DESC, { timeout: 30_000 });
     await expect(page.locator(BOX)).toBeHidden();
   });
 
   test("reaches chapter 2 through the curtained doorway with an announcement", async ({
     page,
   }) => {
+    // The bartender conversation plays in full (no skipping), then the crossing
+    // runs the bedtime cutscene, so this one test needs a long budget: up to
+    // ~4 min waiting on the conversation plus 120 s on the crossing.
+    test.setTimeout(480_000);
+
     const live = page.locator(LIVE);
     await bootToTavern(page);
 
     // 1. Talk to the bartender to get a room (sets engine flag 0, which opens
     //    the curtained doorway). The bartender is an NPC; the room readout lists
-    //    "… bartender …" — step to it and Enter sends `talk 52`. The live
-    //    dialogue is slow and blocks, so pace Escape (skip) to advance it line
-    //    by line until the engine settles back in the tavern with the key.
+    //    "… bartender …" — step to it and Enter sends `talk 52`.
     let onBartender = false;
     for (let i = 0; i < 12 && !onBartender; i++) {
       await page.keyboard.press("ArrowRight");
@@ -186,15 +197,27 @@ test.describe("live sweep (Chrome + WebKit)", () => {
     expect(onBartender).toBe(true);
     await page.keyboard.press("Enter"); // talk 52 — opens the conversation
 
-    // Advance the blocking conversation with paced skips (one at a time; over-
-    // skipping corrupts the engine). Stop once the room key confirmation or the
-    // settled tavern reappears.
-    for (let i = 0; i < 40; i++) {
-      await page.keyboard.press("Escape"); // skip one line / close the choice
-      await page.waitForTimeout(500);
-      const t = (await liveText(page)).toLowerCase();
-      if (t.includes("room key") || t.includes("take the key")) break;
+    // Let the conversation play out completely WITHOUT pressing any keys that
+    // advance it. Escaping here skips the conversation before the bartender
+    // hands over the room, which leaves flag 0 unset so the doorway answers
+    // "I DON'T HAVE A ROOM YET". Instead, poll with H (hint) every ~10 s: once
+    // the bartender has finished and handed over the room, ch1.room is reached
+    // and the ch1.bed hint ("… curtained doorway …") becomes available. Press H
+    // to escalate the tier until the live region names the curtained doorway.
+    // Cap the wait at ~4 min so a wedged engine fails rather than hanging.
+    let handedOver = false;
+    for (let i = 0; i < 24 && !handedOver; i++) {
+      await page.keyboard.press("h"); // ask the ghost for a hint (safe; no skip)
+      if ((await liveText(page)).toLowerCase().includes("curtained doorway")) {
+        handedOver = true;
+        break;
+      }
+      await page.waitForTimeout(10_000);
     }
+    expect(
+      handedOver,
+      "bartender never handed over the room (no ch1.bed curtained-doorway hint within ~4 min)",
+    ).toBe(true);
 
     // 2. Walk through the curtained doorway (exit 105). Step to it and Enter
     //    sends `walk 105`. The player's own crossing logic then pages the single
@@ -219,6 +242,50 @@ test.describe("live sweep (Chrome + WebKit)", () => {
     //    not merely a room. Generous timeout: the cutscene runs for a while.
     await expect(live).toContainText("Chapter 2: The village.", {
       timeout: 120_000,
+    });
+  });
+
+  test("impatient player: five quick Escapes during the conversation never wedge the engine", async ({
+    page,
+  }, testInfo) => {
+    const live = page.locator(LIVE);
+    await bootToTavern(page);
+
+    // Talk to the bartender, then an impatient player mashes Escape to skip the
+    // slow conversation. Over-skipping can race the engine, so this guards that
+    // the engine is still responsive afterwards: L must read the room back
+    // within 30 s. Whether the bartender actually handed over the room (and so
+    // whether a full playthrough is still possible from here) is recorded as an
+    // annotation, not asserted — the point of THIS test is that the engine is
+    // not wedged, not that the room was granted.
+    let onBartender = false;
+    for (let i = 0; i < 12 && !onBartender; i++) {
+      await page.keyboard.press("ArrowRight");
+      if ((await liveText(page)).toLowerCase().includes("bartender")) {
+        onBartender = true;
+      }
+    }
+    expect(onBartender).toBe(true);
+    await page.keyboard.press("Enter"); // talk 52 — opens the conversation
+
+    // Five quick Escapes, back to back.
+    for (let i = 0; i < 5; i++) {
+      await page.keyboard.press("Escape");
+      await page.waitForTimeout(100);
+    }
+
+    // The engine must still answer a plain read: L reads the room within 30 s.
+    await page.keyboard.press("l");
+    await expect(live).toContainText(ROOM_62_SHORT, { timeout: 30_000 });
+
+    // Record whether the room was handed over despite the impatient skipping,
+    // as an annotation rather than an assertion.
+    const roomHandedOver = (await liveText(page))
+      .toLowerCase()
+      .includes("curtained doorway");
+    testInfo.annotations.push({
+      type: "room-handed-over",
+      description: String(roomHandedOver),
     });
   });
 

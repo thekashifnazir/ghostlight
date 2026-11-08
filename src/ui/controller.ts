@@ -301,8 +301,19 @@ export class Controller {
     this.d.adapter.send(primaryVerb(h));
   }
 
+  /** Examine the focused hotspot (look), without walking (R3.4). */
+  private examine(): void {
+    const h = this.d.list.current();
+    if (!h) return;
+    this.examineHotspot(h);
+  }
+
   /**
-   * Examine the focused hotspot (look), without walking (R3.4).
+   * Examine a specific hotspot (look), without walking (R3.4). This is the
+   * shared examine path: the Down key calls it for the focused hotspot, and the
+   * typed command box calls it for a hotspot a typed "look at <name>" resolved
+   * to, so both give the same authored result rather than the engine's useless
+   * stock look reply.
    *
    * The engine's own look reply is useless for people and doors — it answers
    * the stock "I can't see anything in particular" line, or nothing. So we
@@ -314,9 +325,7 @@ export class Controller {
    * so it never reaches the player. When the pack has nothing for the hotspot,
    * nothing is announced up front and the engine text stands alone, as before.
    */
-  private examine(): void {
-    const h = this.d.list.current();
-    if (!h) return;
+  examineHotspot(h: Hotspot): void {
     const room = this.d.currentRoom();
     const ds = this.d.descriptionState?.();
     const objectText = ds

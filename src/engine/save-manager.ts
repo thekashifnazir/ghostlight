@@ -33,6 +33,18 @@ export const LOAD_FAILED_LINE = "That saved game couldn't be loaded.";
 /** How long to wait for an A11Y_SAVED before declaring a save failed (ms). */
 export const SAVE_WATCHDOG_MS = 4000;
 
+/**
+ * True when an A11Y_ERR message is the engine's own save rejection. The engine
+ * (a11y.cpp dispatchSave) answers a bad `save` with a message that begins
+ * "save " — "save needs a slot number…", "save slot must be a number…", "save
+ * slot must be 1 or greater…". Matched on that prefix so only save errors are
+ * ever classified as an autosave's error; an ordinary game error never begins
+ * with "save ".
+ */
+export function isSaveError(message: string): boolean {
+  return /^save\b/i.test(message.trim());
+}
+
 /** A cancellable timer, injected so tests drive it without real time. */
 export interface Timer {
   set(fn: () => void, ms: number): unknown;
@@ -81,6 +93,13 @@ export class SaveManager {
    * the autosave the player just loaded from (design, autosave guard).
    */
   private firstRoomSeen = false;
+  /**
+   * Whether a room-change autosave is in flight (sent, no A11Y_SAVED yet). Used
+   * only to classify an engine save error as belonging to an autosave, so that
+   * error is swallowed (logged, never spoken) while a manual save's error still
+   * speaks — see handleError.
+   */
+  private pendingAuto = false;
 
   constructor(deps: SaveManagerDeps) {
     this.d = deps;
@@ -118,6 +137,7 @@ export class SaveManager {
   async onSaved(slot: number): Promise<void> {
     const autoSlot = slotForSave("auto");
     if (slot === autoSlot) {
+      this.pendingAuto = false;
       await this.d.persistence.commit();
       return;
     }
@@ -138,7 +158,35 @@ export class SaveManager {
       return;
     }
     if (!this.d.persistence.isAvailable()) return;
+    this.pendingAuto = true;
     this.d.send({ verb: "save", slot: slotForSave("auto") });
+  }
+
+  /**
+   * Classify an engine A11Y_ERR and decide whether the page may announce it.
+   * Returns true when the manager has consumed the error (the caller must stay
+   * silent), false when the error is not ours and the page should announce it
+   * as usual.
+   *
+   * A save error (the engine's `save …` rejections from a11y.cpp dispatchSave)
+   * that arrives while a room-change autosave is in flight belongs to that
+   * autosave. An autosave is silent by design — it must never clobber the room
+   * line with a spoken error (R2.5, screen-reader-output: one update per
+   * action) — so such an error is logged for developers and swallowed, and the
+   * in-flight autosave is cleared. A save error with no autosave pending is a
+   * manual save's failure, which still speaks through the manual watchdog /
+   * onSaved path, so it is left for the page to surface. Any non-save error
+   * (an ordinary game rejection like "no handler for command: fly") is never
+   * ours and is returned for announcement.
+   */
+  handleError(message: string): boolean {
+    if (this.pendingAuto && isSaveError(message)) {
+      this.pendingAuto = false;
+      // Log only; never spoken. Keeps the room line intact at a room change.
+      console.warn(`[ghostlight] autosave error (not announced): ${message}`);
+      return true;
+    }
+    return false;
   }
 
   /**

@@ -181,9 +181,13 @@ describe("Persistence.hasSave / latestSlot", () => {
 });
 
 describe("slot constants", () => {
-  it("keep autosave and manual slots disjoint (R2.6)", () => {
+  it("keep autosave and manual slots disjoint, both valid engine slots (R2.6)", () => {
     expect(AUTOSAVE_SLOT).not.toBe(MANUAL_SLOT);
-    expect(AUTOSAVE_SLOT).toBe(0);
+    // The engine (a11y.cpp dispatchSave) rejects any save slot < 1, so BOTH
+    // the autosave and the manual slot must be >= 1; the autosave is no longer
+    // ScummVM's conventional slot 0.
+    expect(AUTOSAVE_SLOT).toBe(99);
+    expect(AUTOSAVE_SLOT).toBeGreaterThanOrEqual(1);
     expect(MANUAL_SLOT).toBeGreaterThanOrEqual(1);
   });
 });

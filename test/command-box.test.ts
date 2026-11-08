@@ -35,6 +35,7 @@ function setup(visible: Hotspot[] = [MACHINE, CURTAIN], inventory: InvItem[] = [
   const send = vi.fn<(cmd: Command) => void>();
   const returnToList = vi.fn();
   const runFixed = vi.fn();
+  const examineHotspot = vi.fn<(h: Hotspot) => void>();
   const box = new CommandBox(el, input, {
     announce,
     send,
@@ -43,8 +44,9 @@ function setup(visible: Hotspot[] = [MACHINE, CURTAIN], inventory: InvItem[] = [
     parseContext: () => ({ inConversation: false, pendingChoice: false }),
     returnToList,
     runFixed,
+    examineHotspot,
   });
-  return { el, input, box, announce, send, returnToList, runFixed };
+  return { el, input, box, announce, send, returnToList, runFixed, examineHotspot };
 }
 
 /** Type a phrase into the input and submit with Enter. */
@@ -133,5 +135,69 @@ describe("CommandBox", () => {
     // A plain object defaults to `take`, which the engine routes to the
     // object's own primary action.
     expect(send).toHaveBeenCalledWith({ verb: "take", target: 188 });
+  });
+
+  describe("typed look/examine at a hotspot routes through the examine path (fix 2)", () => {
+    // An NPC hotspot (like the tavern bartender, engine hotspot 52) whose raw
+    // engine look is the useless stock "I CAN'T SEE ANYTHING IN PARTICULAR".
+    const BARTENDER: Hotspot = {
+      num: 52,
+      kind: "npc",
+      name: "bartender",
+      rect: [120, 40, 40, 80],
+      walkTo: [140, 150],
+    };
+
+    it("'look at bartender' calls examineHotspot and does NOT send a raw look", () => {
+      const { input, box, send, examineHotspot } = setup([BARTENDER], []);
+      box.openBox();
+      type(input, box, "look at bartender");
+      expect(examineHotspot).toHaveBeenCalledWith(BARTENDER);
+      expect(send).not.toHaveBeenCalled();
+      expect(box.isOpen()).toBe(false); // the box closes, like Down does
+    });
+
+    it("'examine bartender' routes the same way (examine is a look synonym)", () => {
+      const { input, box, send, examineHotspot } = setup([BARTENDER], []);
+      box.openBox();
+      type(input, box, "examine bartender");
+      expect(examineHotspot).toHaveBeenCalledWith(BARTENDER);
+      expect(send).not.toHaveBeenCalled();
+    });
+
+    it("a look at an inventory ITEM still sends look <id>, not the examine path", () => {
+      const { input, box, send, examineHotspot } = setup([BARTENDER], [COINS]);
+      box.openBox();
+      type(input, box, "look at coins");
+      expect(examineHotspot).not.toHaveBeenCalled();
+      expect(send).toHaveBeenCalledWith({ verb: "look", target: 18 });
+    });
+
+    it("falls back to a raw look when no examineHotspot is wired", () => {
+      // A consumer that only resolves commands (no page examine path) still
+      // gets a sendable command rather than nothing.
+      document.body.innerHTML = `
+        <div id="box" hidden>
+          <label for="in">Type a command</label>
+          <input id="in" type="text" />
+        </div>`;
+      const el = document.getElementById("box")!;
+      const input = document.getElementById("in") as HTMLInputElement;
+      const send = vi.fn<(cmd: Command) => void>();
+      const box = new CommandBox(el, input, {
+        announce: vi.fn(),
+        send,
+        visible: () => [BARTENDER],
+        inventory: () => [],
+        parseContext: () => ({ inConversation: false, pendingChoice: false }),
+        returnToList: vi.fn(),
+        runFixed: vi.fn(),
+        // examineHotspot intentionally omitted
+      });
+      box.openBox();
+      input.value = "look at bartender";
+      box.handleKey("Enter");
+      expect(send).toHaveBeenCalledWith({ verb: "look", target: 52 });
+    });
   });
 });

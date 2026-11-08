@@ -30,14 +30,16 @@ export const SAVE_DIR = "/saves";
 export const COMMAND_FILE_NAME = "a11y-cmd.txt";
 
 /**
- * The reserved autosave slot. ScummVM's convention (and the engine's
- * dispatchSave, which rejects `save 0` as a manual save) is slot 0 = autosave,
- * slots >= 1 = manual. Keeping the autosave on slot 0 and manual saves on a
- * slot >= 1 makes them disjoint by construction, so an autosave can never
+ * The reserved autosave slot. The engine's dispatchSave (a11y.cpp) rejects any
+ * `save` with a slot < 1 — it answers `A11Y_ERR save slot must be 1 or greater`
+ * and writes nothing — so the autosave must use a real slot >= 1, NOT ScummVM's
+ * conventional slot 0. We park it high in Drascula's range (getMaximumSaveSlot
+ * is 999) so it stays well clear of the low manual slots a player would ever
+ * reach, keeping the two disjoint by construction: an autosave can never
  * overwrite a manual slot and a manual save can never overwrite the autosave
  * (Requirement 2.6).
  */
-export const AUTOSAVE_SLOT = 0;
+export const AUTOSAVE_SLOT = 99;
 
 /** The single manual quick-save slot this feature writes with the save key. */
 export const MANUAL_SLOT = 1;
@@ -59,10 +61,11 @@ export type SaveKind = "auto" | "manual";
 /**
  * The slot a save of the given kind writes to. Autosaves always write the
  * reserved AUTOSAVE_SLOT; manual saves always write MANUAL_SLOT. Because the
- * two constants are disjoint (0 vs >= 1), an autosave can never land on a
- * manual slot and a manual save can never land on the autosave slot
- * (Requirement 2.6). This is the single routing point the save manager uses,
- * so the invariant cannot be broken by a stray slot literal elsewhere.
+ * two constants are disjoint (99 vs 1, both >= 1 so the engine accepts either),
+ * an autosave can never land on a manual slot and a manual save can never land
+ * on the autosave slot (Requirement 2.6). This is the single routing point the
+ * save manager uses, so the invariant cannot be broken by a stray slot literal
+ * elsewhere.
  */
 export function slotForSave(kind: SaveKind): number {
   return kind === "auto" ? AUTOSAVE_SLOT : MANUAL_SLOT;
@@ -136,9 +139,16 @@ export function probeSaves(
             resolve({ hasSave: false });
           } else {
             // The probe cannot read mtimes cheaply; "most recent" is refined by
-            // the mounted-FS latestSlot() after boot. For onboarding, the
-            // highest manual-or-auto slot is a reasonable default to continue.
-            resolve({ hasSave: true, latestSlot: Math.max(...slots) });
+            // the mounted-FS latestSlot() after boot. For onboarding, prefer the
+            // highest MANUAL slot (a slot the player deliberately wrote), and
+            // only fall back to the autosave slot when no manual save exists —
+            // so Continue resumes a real quick-save when there is one. Picking
+            // the plain Math.max here would instead favour the high-numbered
+            // autosave slot (AUTOSAVE_SLOT = 99) over any low manual slot.
+            const manual = slots.filter((s) => s !== AUTOSAVE_SLOT);
+            const latestSlot =
+              manual.length > 0 ? Math.max(...manual) : Math.max(...slots);
+            resolve({ hasSave: true, latestSlot });
           }
         };
       } catch {
