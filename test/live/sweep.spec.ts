@@ -116,6 +116,17 @@ async function liveText(page: Page): Promise<string> {
   return (await page.locator(LIVE).textContent()) ?? "";
 }
 
+/**
+ * The newest functional line the player recorded in window.__ghostlight.lines
+ * (the same ring buffer a screen-reader harness reads). Unlike liveText, this
+ * sees a line even if a LATER line has since replaced the single-line live
+ * region — so it catches a stray "Nothing happened." that briefly clobbered
+ * the choice line and would otherwise be invisible to a textContent read.
+ */
+async function newestLine(page: Page): Promise<string> {
+  return page.evaluate(() => window.__ghostlight?.lines.at(-1)?.text ?? "");
+}
+
 test.describe("live sweep (Chrome + WebKit)", () => {
   // Skip the whole file when there is no local build, with a clear message.
   test.skip(!existsSync(WASM) || !existsSync(PACKET), SKIP_MESSAGE);
@@ -434,6 +445,17 @@ test.describe("live sweep (Chrome + WebKit)", () => {
     expect(enterPhase).toBe("choice");
     expect(enterChoiceLine).toMatch(/\b1\./); // the menu enumerates options
 
+    // The drunk `talk 53` bug: the engine opened the menu, then its settling
+    // changed:false diff announced "Nothing happened." ~1 ms later, replacing
+    // the choice line in the single-line live region so a screen reader heard
+    // only "Nothing happened." Give any settle diff time to land, then assert
+    // the NEWEST recorded line (from the same ring buffer a harness reads) is
+    // still the choice line — never "Nothing happened."
+    await page.waitForTimeout(1_000);
+    const enterNewest = (await newestLine(page)).trim();
+    expect(enterNewest.toLowerCase()).not.toContain("nothing happened");
+    expect(enterNewest).toBe(enterChoiceLine);
+
     // --- Path B: typed "talk to drunk" via the command box -------------------
     // A fresh boot so the drunk conversation starts from the same state as Path
     // A (the menu is state-dependent), isolating the typed route.
@@ -463,5 +485,12 @@ test.describe("live sweep (Chrome + WebKit)", () => {
     expect(typedChoiceLine.toLowerCase()).not.toContain("can't be saved");
     // ...and announce the SAME choices as Enter did (same lines).
     expect(typedChoiceLine).toBe(enterChoiceLine);
+
+    // And, as in Path A, the newest recorded line once the menu is open must be
+    // the choice line, never a stray "Nothing happened." from the settle diff.
+    await page.waitForTimeout(1_000);
+    const typedNewest = (await newestLine(page)).trim();
+    expect(typedNewest.toLowerCase()).not.toContain("nothing happened");
+    expect(typedNewest).toBe(typedChoiceLine);
   });
 });

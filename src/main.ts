@@ -418,6 +418,11 @@ export async function boot(): Promise<void> {
   const sendCommand = (cmd: Command): void => {
     const crossing =
       cmd.verb === "walk" && pack.isScriptedExit(state.room, cmd.target);
+    // Start a fresh narration window for this command, so the "Nothing
+    // happened." decision on its settle diff is made only from what THIS
+    // command produces (a choice menu, a dialogue line, a 'choice' phase). The
+    // one command seam resets it for every verb however it was issued.
+    narrator.beginCommand();
     // Tell the readiness signal a command is in flight: a scripted-crossing
     // walk runs the blocking cutscene (phase 'cutscene'), every other command
     // is a plain 'busy' that settles on its quiet period / diff.
@@ -632,7 +637,10 @@ export async function boot(): Promise<void> {
         announceText(e.line);
         break;
       case "choices":
-        say(e.choices.map((c) => `${c.n}. ${c.text}`).join(" "));
+        // Announce the open choice menu through the narrator, which also
+        // records that this command produced a choice menu so its settle diff
+        // never says "Nothing happened." over it.
+        narrator.choices(e.choices.map((c) => `${c.n}. ${c.text}`).join(" "));
         break;
       case "inv":
         inventory.setItems(e.items.map((i) => i.id));
@@ -659,7 +667,11 @@ export async function boot(): Promise<void> {
         // signal via status.onEvent(e) above and is internal diagnostics, not
         // player output, so nothing is announced here
         // (screen-reader-output.md: raw engine lines never reach the live
-        // region).
+        // region). It is also handed to the narrator so a change to 'choice'
+        // (a conversation menu opened) suppresses the settling diff's "Nothing
+        // happened." even on a build/recording where the choice menu arrives
+        // only as a phase line.
+        narrator.onPhase(e.phase);
         break;
     }
   }
