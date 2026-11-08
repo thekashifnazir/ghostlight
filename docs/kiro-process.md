@@ -1506,6 +1506,8 @@ What went wrong or surprised you: `disclose_context` could not activate the file
 
 What was learned: a freshly written `inclusion: auto` steering file is matched and injected on the next topic-matching request in the same session, even though the on-demand `disclose_context` catalog is only refreshed at session start. The injection, not the tool, is the evidence to capture.
 
+**Correction (entry 121, 2026-11-08):** the "auto-load demonstrated" claim above was wrong. The front matter written here had an unquoted colon in the description value (`description: Use when changing anything the player hears: live-region text, …`), which YAML reads as a nested mapping, breaking the flat `inclusion`/`name`/`description` map the auto-inclusion loader needs. So the body that appeared in that session was injected by the editor's steering-reminder path, not matched by description; `disclose_context` could not activate it by name for the same reason, not merely because of a stale catalog. The description value was quoted in a later fix, after which the front matter parses cleanly and `disclose_context` activates it on a matching request. See the entry below for the fix and the verified activation.
+
 ## 116 · tooling · 2026-11-08 · Vibe-coded build stamp in F1 help (no spec)
 What was asked: as an honest vibe-coding comparison (no spec), add a build line to F1 help — "Ghostlight build <short git hash>, <date>" — injected by Vite at build time, so testers can tell us which build they used. Plus one paragraph comparing the vibe path with the spec path.
 
@@ -1629,3 +1631,21 @@ Time taken: a few minutes.
 What went wrong or surprised you: nothing — the code and tests were already correct and pushed; only the earlier commit message under-named the work, which an append-only log note fixes without touching shared history.
 
 What was learned: when a shared file carries two specs' edits in one unavoidable commit, name both specs in that commit's message at the time; when it is already pushed, a dated process-log note is the clean way to restore the attribution.
+
+## 122 · tooling · 2026-11-08 · Four small fixes: steering front matter, task ticks, feature table, stale comment
+
+What was asked: (1) fix the broken YAML front matter in `.kiro/steering/screen-reader-output.md` (an unquoted colon in `description`), confirm the editor problem clears, show it auto-loading, and correct the earlier process-log claim if it was wrong; (2) tick the genuinely-done tasks in the screen-reader-focus and save-progress task lists, checking each against the code, leaving save-progress task 9 (deploy) open; (3) move the "Kiro CLI / headless" and "Kiro Crew" rows in `docs/kiro-features.md` to "in use" with evidence; (4) drop the stale "exhausted" comment in `main.ts` `askHint`. Commit explicit paths; no deploy.
+
+What Kiro did:
+- (1) Quoted the description value so the three front-matter keys form a flat map again (the unquoted `hears: live-region …` colon made YAML read a nested mapping, which is why the auto-inclusion loader and `disclose_context` couldn't register it). Verified the front matter parses as three scalar keys, and activated the file via `disclose_context` on this matching request — it now loads cleanly. Appended a dated correction to entry 115: its "auto-load demonstrated" claim was wrong; the body that appeared then was the editor's steering-reminder injection, not a description match, because the front matter was malformed until this fix.
+- (2) Checked every screen-reader-focus task against the code (the `#game` element and `<title>` in index.html; `focusGame`/`suppressMidiProbe`/`pinTitle`/the NVDA+Space reminder in main.ts; the `aria-posinset`/`aria-setsize` in both menus; the two new test files) and ticked all 10. Checked every save-progress task against the code (persistence.ts, boot savepath+saveSlot, the save-manager, the C/O keys in controller.ts, the main.ts wiring and help text, the live continue spec) and ran its test files (35 pass); ticked 0–8 and left task 9 (deploy, waits for Kash) open.
+- (3) "Kiro CLI / headless" → in use, evidenced by the two read-only kiro-cli 3.1.0 `--no-interactive --trust-tools=fs_read` runs by Claude Code: the hints audit (96 s) in `docs/headless/2026-11-08-hints-and-ghost.md` and the second-game study (94 s) in `reference/spikes/11-second-game.md`. "Kiro Crew" → in use, evidenced by the separate repo github.com/thekashifnazir/ghostlight-crew (surveyor bot, 4 milestones, MCP bugs fed back into drascula-mcp).
+- (4) Rewrote the `askHint` comment to drop the "exhausted line once the answer has been given twice" wording, now that the answer repeats on every ask (entry 121). main.ts was already committed by the save-progress chat (commit 3fc4ede, option B), so this is a clean comment-only diff with no interleaved uncommitted work — the earlier shared-file concern is resolved.
+
+Files changed: `.kiro/steering/screen-reader-output.md`, `.kiro/specs/screen-reader-focus/tasks.md`, `.kiro/specs/save-progress/tasks.md`, `docs/kiro-features.md`, `docs/kiro-process.md`, `src/main.ts`.
+
+Time taken: about 25 minutes.
+
+What went wrong or surprised you: entry 115's auto-load claim had been wrong for two days — the steering file never auto-matched by description because its own front matter was invalid YAML, yet a body did show in context (via the always-on steering-reminder path), which is what made the bad claim look true. A malformed `description:` fails quietly: no crash, just no description-matching. The lesson is to validate steering front matter as YAML, not eyeball it.
+
+What was learned: an `inclusion: auto` description containing a colon must be quoted, or YAML swallows the rest as a nested key and the file silently drops out of the auto-inclusion index. "The rules showed up in context" is not proof of auto-inclusion; activating via `disclose_context` after a clean parse is.

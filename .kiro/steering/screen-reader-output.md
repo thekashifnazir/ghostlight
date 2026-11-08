@@ -1,7 +1,7 @@
 ---
 inclusion: auto
 name: screen-reader-output
-description: Use when changing anything the player hears: live-region text, keys, hints, onboarding.
+description: "Use when changing anything the player hears: live-region text, keys, hints, onboarding."
 ---
 
 # Screen reader output
