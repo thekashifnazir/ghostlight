@@ -16,9 +16,20 @@ web/.wrangler/
 .agents/
 # Raw screen-capture footage for the demo video — large binaries, not source.
 docs/video-raw/
+# Survey room screenshots are game art (game data). The repo never holds game
+# data: commit the state/verbs/meta dumps and the drafts, never the picture.
+packs/survey/**/screenshot.png
 # Player replay fixtures are committed test data, not logs. The global
 # gitignore has *.log; un-ignore these so they are tracked.
 !src/fixtures/*.a11y.log
+# sr-harness run reports (raw NVDA speech + per-run JSON) are local artifacts,
+# not source. Ignore the reports dir but keep the committed run summary.
+tests/sr/reports/
+!tests/sr/reports/summary.md
+# sr-harness sample NVDA speech logs are committed test fixtures. The global
+# gitignore has *.log; un-ignore these so they are tracked.
+!tests/sr/sample-pass.log
+!tests/sr/sample-fail.log
 # never ignore .kiro
 !.kiro/
 !.kiro/**
