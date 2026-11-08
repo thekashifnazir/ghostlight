@@ -35,6 +35,13 @@ import { ListMode } from "./ui/list-mode.js";
 import { LiveRegion } from "./ui/live-region.js";
 import { VerbMenu } from "./ui/verb-menu.js";
 
+// Build stamp, replaced by Vite's define at build and dev-server start. A
+// tester reading F1 help can tell us the exact build they played, so a bug
+// report maps to a commit. Declared so TypeScript knows the globals exist.
+declare const __BUILD_HASH__: string;
+declare const __BUILD_DATE__: string;
+const BUILD_LINE = `Ghostlight build ${__BUILD_HASH__}, ${__BUILD_DATE__}.`;
+
 const HELP_TEXT =
   "Controls. Left and Right cycle the things, people and exits in the room. " +
   "Up or Enter interacts with the focused thing. Down examines it. " +
@@ -49,7 +56,8 @@ const HELP_TEXT =
   "F1 reads this help. Escape skips. " +
   "S scans the room as sound, left to right, then counts what is here. " +
   "N and P step to the next and previous thing, playing its place. " +
-  "M mutes the sonar sound; the text keeps working.";
+  "M mutes the sonar sound; the text keeps working. " +
+  BUILD_LINE;
 
 /** Spoken when the player asks for a hint but nothing is offered yet. */
 const NO_HINT_TEXT = "There is nothing to hint at right now.";

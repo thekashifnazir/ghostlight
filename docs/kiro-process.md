@@ -1491,3 +1491,32 @@ Files changed: `docs/kiro-process.md` (this entry). The spec-check also wrote re
 Time taken: about 10 minutes for this logging pass.
 What went wrong or surprised you: three criteria split the reviewers (Req 3.2, 7.5, 8.5), each a scoring disagreement from substantially the same evidence rather than a factual dispute — the recurring theme is whether unit-level resolver proof satisfies a criterion worded around end-to-end player behaviour or a specific test location. No failing tests. One quirk: the literal `description-variants` vitest filter matched nothing because the test files are named with the shorter `variants` stem.
 What was learned: acceptance criteria worded around what the player hears, or around a specific test-file location, need either an integration test or a wording that matches where the code actually lives; otherwise independent reviewers legitimately split between "met at the boundary" and "untested/unmet end to end".
+## 115 · tooling · 2026-11-08 · Auto-inclusion steering for screen-reader output
+What was asked: add a steering file `.kiro/steering/screen-reader-output.md` with auto inclusion (the `inclusion: auto` front-matter plus `name` and `description`), description "Use when changing anything the player hears: live-region text, keys, hints, onboarding", carrying the rules: one key press gives one live-region update; never leak hover labels or engine debug text; every sound has a text line; new keys must be checked against `src/ui/controller.ts` and listed in F1 help. Then show it auto-loading on a matching request.
+
+What Kiro did: confirmed the auto-inclusion format against the existing steering files (`always` in `accessibility.md`/`process-log.md`, `fileMatch` + `fileMatchPattern` in `pack-writing.md`, `manual` in `engine-gotchas.md`) and a web lookup of Kiro's inclusion modes, which agree that `auto` files expose a `name` + `description` summary and load their full body on demand when a request matches the description. Wrote `screen-reader-output.md` with that front matter and four rule sections (one-press-one-update; no hover labels or raw `A11Y`/`printErr` text in the live region; every sound paired with a text line; new keys checked against `controller.ts` and added to `HELP_TEXT`), framed as sitting on top of `accessibility.md`.
+
+Auto-load demonstrated: immediately after creating the file I made a request that touches its topic (changing live-region text / keys / help). The system injected the full `screen-reader-output` rule body into context as an active `[Workspace]` rule on that turn — pulled in by description match, not by me reading the file. That injection is the proof it auto-loads. (The `disclose_context` tool reported the file was not in its catalog, because that catalog was indexed at session start, before the file existed; the live auto-inclusion path picked it up regardless.)
+
+Files changed: `.kiro/steering/screen-reader-output.md` (new), `docs/kiro-features.md` (Steering: auto row → in use), `docs/kiro-process.md` (this entry).
+
+Time taken: about 15 minutes.
+
+What went wrong or surprised you: `disclose_context` could not activate the file by name because its available-items list is a session-start snapshot and the file was brand new. The actual auto-inclusion mechanism is separate from that tool and did fire, so the feature works; the tool's stale catalog was the only wrinkle.
+
+What was learned: a freshly written `inclusion: auto` steering file is matched and injected on the next topic-matching request in the same session, even though the on-demand `disclose_context` catalog is only refreshed at session start. The injection, not the tool, is the evidence to capture.
+
+## 116 · tooling · 2026-11-08 · Vibe-coded build stamp in F1 help (no spec)
+What was asked: as an honest vibe-coding comparison (no spec), add a build line to F1 help — "Ghostlight build <short git hash>, <date>" — injected by Vite at build time, so testers can tell us which build they used. Plus one paragraph comparing the vibe path with the spec path.
+
+What Kiro did: vibe-coded directly, no requirements/design/tasks. In `vite.config.ts` added a `define` block setting `__BUILD_HASH__` (from `git rev-parse --short HEAD`, falling back to `"unknown"` if git is absent) and `__BUILD_DATE__` (today's ISO date), both JSON-stringified so Vite inlines them as literals. In `src/main.ts` declared the two globals and composed `BUILD_LINE = "Ghostlight build <hash>, <date>."`, then appended it to the existing single `HELP_TEXT` string so F1 stays one composed live-region update with no new key — honouring the screen-reader-output rules written in entry 115. Typecheck (`tsc --noEmit`) clean; `vite build` clean; confirmed the literal `Ghostlight build 12848e8, 2026-11-08` is baked into `dist/assets/index-*.js` and the hash matches `git rev-parse --short HEAD`. Did not redeploy (the ask was build-time injection, not a deploy).
+
+Comparison (vibe vs spec): this change took one pass and a few minutes because it is small, self-contained, reversible, and has an obvious correctness check (grep the hash out of the bundle, compare to HEAD) — exactly the shape where a spec is pure overhead: writing requirements → design → tasks would have cost more than the feature. The spec path earns its keep on the opposite kind of work: multi-file features with real acceptance criteria, licence- or accessibility-sensitive behaviour, and anything two people need to review or a workflow needs to audit later (the sonar and description-variants spec-checks only work because each criterion was written down first). The honest line: vibe for a leaf change with a cheap, local check; spec when the thing has criteria worth auditing or a blast radius worth gating. The build stamp is a leaf; it stayed vibe.
+
+Files changed: `vite.config.ts`, `src/main.ts`, `docs/kiro-features.md` (Vibe coding row → in use), `docs/kiro-process.md` (this entry).
+
+Time taken: about 10 minutes.
+
+What went wrong or surprised you: a piped `vite build` returned exit -1 with empty inline output (the familiar terminal-harness gotcha); re-ran with the output redirected to a log file and read the log, which showed a clean build and the new bundle. No feature-code surprises.
+
+What was learned: injecting a build stamp through Vite `define` is the clean seam — the value is inlined at build/dev-server start, the app reads a plain constant, and no runtime git call or extra endpoint is needed. Fits the single-update F1 rule because it is just another clause in the one help string.
