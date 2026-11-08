@@ -18,7 +18,7 @@ export default defineConfig({
   // The live boot check (live.spec.ts) and the save-progress continue-after-
   // reload check (save-continue.spec.ts). Both need the real wasm build and
   // skip with a clear message when it is absent.
-  testMatch: /(live|save-continue)\.spec\.ts$/,
+  testMatch: /(live|save-continue|save-key)\.spec\.ts$/,
   fullyParallel: false,
   reporter: "list",
   // A cold wasm instantiation plus the game-data fetch can take well over the

@@ -96,7 +96,19 @@ export function parseA11yLine(line: string): EngineEvent | null {
     }
 
     case "A11Y_SAVED": {
-      const slot = Number.parseInt(rest, 10);
+      // The engine emits the JSON form `A11Y_SAVED {"slot":N,"chapter":C,
+      // "room":R}` (engine/a11y.cpp dispatchSave). Parse the slot out of that.
+      // A bare `A11Y_SAVED N` is also accepted for forward/backward safety and
+      // older recorded logs. Anything else is malformed and returns null.
+      const trimmed = rest.trim();
+      if (trimmed.startsWith("{")) {
+        const parsed = parseJson<{ slot?: unknown }>(trimmed);
+        const slot = parsed?.slot;
+        return typeof slot === "number" && Number.isFinite(slot)
+          ? { type: "saved", slot }
+          : null;
+      }
+      const slot = Number.parseInt(trimmed, 10);
       return Number.isFinite(slot) ? { type: "saved", slot } : null;
     }
 

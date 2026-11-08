@@ -783,17 +783,17 @@ export async function boot(): Promise<void> {
 
   startButton.addEventListener("click", startPlaying);
 
-  // Onboarding Continue / New game (save-progress R3). A returning player's
-  // page loads fresh (no slot in the adapter yet), so Continue reuses the load
-  // path: record a "continue from slot" intent and reload; the reloaded page
-  // reads that intent, boots --save-slot, and announces "Loaded: <room>". New
-  // game starts fresh through the normal gate, leaving the save in place.
+  // Onboarding Continue / New game (save-progress R3). When a save exists,
+  // Continue boots the saved slot on the click itself (the click is the user
+  // gesture that unlocks audio), with no page reload and no second start gate;
+  // New game starts fresh, leaving the save in place.
   //
-  // When a load intent is already pending at this load (loadSlot set), we are
-  // the continue reload itself: skip the choice and start straight into the
-  // slot. Otherwise probe the browser store; only when a save exists do we show
-  // the choice. The probe is read-only and falls through to a plain new game on
-  // any error or when there is no save (R3.6).
+  // When a load intent is already pending at this load (loadSlot set, from the
+  // mid-session load key's reload), we are the continue reload itself: skip the
+  // choice and auto-start straight into the slot below. Otherwise probe the
+  // browser store; only when a save exists do we show the choice. The probe is
+  // read-only and falls through to a plain new game on any error or when there
+  // is no save (R3.6).
   let gateHandlesAnyKey = true; // the "press any key to begin" default
   const showResumeChoice =
     !replayName && !log && loadSlot === undefined && resumeChoice &&
@@ -813,14 +813,16 @@ export async function boot(): Promise<void> {
       gateHandlesAnyKey = false;
       const resumeSlot = result.latestSlot;
       continueButton.addEventListener("click", () => {
-        if (resumeSlot === undefined) {
-          void startPlaying();
-          return;
+        if (resumeSlot !== undefined) {
+          // The click is the user gesture that unlocks audio, so boot the
+          // loaded slot right here — no page reload, no second start gate.
+          // Setting the slot on the live adapter before start() makes boot
+          // launch with --save-slot (save-progress R3.4, R5.1), and
+          // bootedIntoSlot makes the first room read as "Loaded: <room>".
+          if (adapter instanceof LiveAdapter) adapter.setSaveSlot(resumeSlot);
+          bootedIntoSlot = true;
         }
-        // Reuse the load path: record the slot and reload into the continue
-        // boot. The reloaded page announces "Loaded: <room>".
-        setLoadIntent(resumeSlot);
-        location.reload();
+        void startPlaying();
       });
       newGameButton.addEventListener("click", () => void startPlaying());
       // Announce the choice as functional text (R3.3).
@@ -831,12 +833,26 @@ export async function boot(): Promise<void> {
     }
   }
 
+  // A pending load intent (the mid-session load key reloaded the page to boot
+  // --save-slot) auto-starts without waiting at the gate: the player already
+  // chose to load, so make boot happen rather than silently parking them at a
+  // Start gate after the reload. The adapter was built with `loadSlot` via
+  // chooseAdapter above, and bootedIntoSlot is already true, so the first room
+  // reads as "Loaded: <room>". Audio may start suspended (no fresh gesture on a
+  // programmatic reload); the SDL glue resumes it on the next keypress and the
+  // game is fully usable as text meanwhile, so no functional content is lost.
+  if (loadSlot !== undefined) {
+    gateHandlesAnyKey = false;
+    void startPlaying();
+  }
+
   // The gate's "any key begins" shortcut, kept for a fresh start. Suppressed
-  // when the Continue / New game choice is showing (the buttons own the keys).
+  // when the Continue / New game choice is showing (the buttons own the keys)
+  // or when a load intent already auto-started boot.
   startGate.addEventListener(
     "keydown",
     (ev) => {
-      if (!gateHandlesAnyKey) return; // let the resume-choice buttons handle it
+      if (!gateHandlesAnyKey) return; // handled by buttons or load-intent start
       ev.preventDefault();
       void startPlaying();
     },

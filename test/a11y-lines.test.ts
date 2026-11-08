@@ -80,8 +80,23 @@ describe("parseA11yLine", () => {
     });
   });
 
-  it("parses an A11Y_SAVED line into a slot number", () => {
+  it("parses the engine's JSON A11Y_SAVED line into a slot number", () => {
+    // The real engine emits the JSON form (engine/a11y.cpp dispatchSave).
+    expect(
+      parseA11yLine('A11Y_SAVED {"slot":1,"chapter":1,"room":62}'),
+    ).toEqual({ type: "saved", slot: 1 });
+    expect(
+      parseA11yLine('A11Y_SAVED {"slot":9,"chapter":2,"room":14}'),
+    ).toEqual({ type: "saved", slot: 9 });
+  });
+
+  it("still accepts a bare A11Y_SAVED slot number", () => {
     expect(parseA11yLine("A11Y_SAVED 3")).toEqual({ type: "saved", slot: 3 });
+  });
+
+  it("returns null for an A11Y_SAVED JSON payload with no numeric slot", () => {
+    expect(parseA11yLine('A11Y_SAVED {"chapter":1}')).toBeNull();
+    expect(parseA11yLine("A11Y_SAVED {bad json")).toBeNull();
   });
 
   it("strips a WARNING: prefix and trailing ! that ScummVM may add", () => {

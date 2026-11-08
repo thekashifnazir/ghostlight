@@ -69,7 +69,7 @@ export class LiveAdapter implements EngineAdapter {
   /** The base URL the wasm and /data are served from (Worker root by default). */
   private readonly baseUrl: string | undefined;
   /** When set, boot loads this save slot at launch (--save-slot=<n>). */
-  private readonly saveSlot: number | undefined;
+  private saveSlot: number | undefined;
 
   /**
    * @param module a pre-booted Module (tests may inject one). Omitted in the
@@ -84,6 +84,17 @@ export class LiveAdapter implements EngineAdapter {
     this.module = module;
     this.baseUrl = baseUrl;
     this.saveSlot = saveSlot;
+  }
+
+  /**
+   * Choose the save slot to boot into, before `start()` is called. The
+   * onboarding Continue button uses this to resume from a save on the same
+   * boot that its click triggers — so the click's user gesture unlocks audio
+   * and boots the loaded slot in one step, with no second start gate and no
+   * page reload (save-progress R3.4, R5.1). A no-op once booted.
+   */
+  setSaveSlot(slot: number | undefined): void {
+    this.saveSlot = slot;
   }
 
   onEvent(listener: (e: EngineEvent) => void): () => void {
