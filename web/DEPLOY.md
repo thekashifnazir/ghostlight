@@ -70,9 +70,26 @@ Ghostlight, an accessibility front-end for ScummVM. The ScummVM engine running
 it is modified (a small accessibility patch in engine/, GPL-3.0-or-later); the
 game data itself is the unmodified ScummVM freeware distribution. See the
 game's own readme.txt in this folder, and https://www.scummvm.org/ for ScummVM.
+
+The complete corresponding source for the modified GPL ScummVM build (the
+engine/ files, hooks.patch, the pinned ScummVM commit, the build script and the
+GPL text) is served on the live site at /source/.
 NOTE
 
-# 4. Deploy the Worker + static assets.
+# 4. GPL source offer. The served scummvm.wasm is a modified GPL ScummVM build,
+#    so the corresponding source must be offered alongside it. Assemble /source/
+#    from the committed landing page (web/source/) plus the actual modification
+#    source and the GPL text (copied from the real repo files, so they never
+#    drift from what built the wasm).
+mkdir -p web/public/source
+cp web/source/index.html         web/public/source/index.html
+cp engine/a11y.cpp               web/public/source/a11y.cpp
+cp engine/a11y.h                 web/public/source/a11y.h
+cp engine/hooks.patch            web/public/source/hooks.patch
+cp engine/COPYING                web/public/source/COPYING
+cp scripts/build-web.sh          web/public/source/build-web.sh
+
+# 5. Deploy the Worker + static assets.
 npx wrangler deploy --config web/wrangler.jsonc
 ```
 
@@ -87,7 +104,11 @@ from R2 on first load.
   handling is needed.
 - **Licensing.** The served wasm is ScummVM (GPL-3.0-or-later); the hosted copy
   carries ScummVM's notices and the game readme plus the `MODIFIED.txt` notice
-  above. The Ghostlight page, Worker and config are MIT.
+  above. The GPL's corresponding-source requirement is met by serving the
+  modification source at `/source/` (step 4 above): the `engine/` files,
+  `hooks.patch`, the pinned ScummVM commit (`ad351d1e`) with a GitHub link, the
+  `build-web.sh` script, short build steps and the GPL text. The page footer
+  links to it. The Ghostlight page, Worker and config are MIT.
 - **No committed game data, no committed key.** `web/public/` is gitignored and
   rebuilt each deploy; credentials are supplied at deploy time by name.
 

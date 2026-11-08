@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Ghostlight — source code (GPL)</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #11101a;
+        --fg: #f4f2ff;
+        --accent: #ffd166;
+        --muted: #b9b4d0;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0 auto;
+        max-width: 48rem;
+        padding: 2rem 1.25rem 4rem;
+        background: var(--bg);
+        color: var(--fg);
+        font: 16px/1.6 system-ui, "Segoe UI", sans-serif;
+      }
+      h1 { font-size: 1.4rem; }
+      h2 { font-size: 1.1rem; margin-top: 2rem; }
+      a { color: var(--accent); }
+      code, pre {
+        font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+      }
+      pre {
+        background: #1c1930;
+        border: 1px solid #2a2740;
+        border-radius: 0.4rem;
+        padding: 0.75rem 1rem;
+        overflow-x: auto;
+        font-size: 0.9rem;
+      }
+      ul { padding-left: 1.25rem; }
+      li { margin: 0.25rem 0; }
+      .muted { color: var(--muted); }
+    </style>
+  </head>
+  <body>
+    <h1>Ghostlight — source code (GPL)</h1>
+
+    <p>
+      The live Ghostlight site serves a modified build of
+      <a href="https://www.scummvm.org/">ScummVM</a> as WebAssembly
+      (<code>scummvm.wasm</code>). ScummVM is licensed under the GNU General
+      Public License, version 3 or later, and so is our modified build. This
+      page carries the corresponding source for the modification, as the GPL
+      requires.
+    </p>
+
+    <h2>What the modification is</h2>
+    <p>
+      Ghostlight adds a small, self-contained accessibility layer to ScummVM's
+      Drascula engine. It is new code (<code>engine/a11y.cpp</code>,
+      <code>engine/a11y.h</code>) plus a short patch that hooks it into the
+      engine's own sources (<code>engine/hooks.patch</code>). Nothing else in
+      the upstream engine is changed.
+    </p>
+
+    <h2>The modification source</h2>
+    <ul>
+      <li><a href="a11y.cpp"><code>engine/a11y.cpp</code></a> — the accessibility layer</li>
+      <li><a href="a11y.h"><code>engine/a11y.h</code></a> — its header</li>
+      <li><a href="hooks.patch"><code>engine/hooks.patch</code></a> — the hooks into ScummVM's Drascula engine</li>
+      <li><a href="build-web.sh"><code>scripts/build-web.sh</code></a> — the reproducible WebAssembly build script</li>
+    </ul>
+
+    <h2>Upstream ScummVM (the unmodified base)</h2>
+    <p>
+      The build is based on ScummVM at the pinned commit
+      <code>ad351d1e</code>
+      (<code>ad351d1e9d64912c61b4049fe608d003e639b4cc</code>):
+    </p>
+    <ul>
+      <li>
+        <a
+          href="https://github.com/scummvm/scummvm/commit/ad351d1e9d64912c61b4049fe608d003e639b4cc"
+          >github.com/scummvm/scummvm @ ad351d1e</a
+        >
+      </li>
+    </ul>
+    <p class="muted">
+      Clone it with
+      <code>git clone https://github.com/scummvm/scummvm.git</code> and check out
+      that commit.
+    </p>
+
+    <h2>How to rebuild the wasm from this source</h2>
+    <ol>
+      <li>Check out ScummVM at commit <code>ad351d1e</code> into <code>vendor/scummvm</code>.</li>
+      <li>Copy <code>a11y.cpp</code> and <code>a11y.h</code> into <code>engines/drascula/</code> and add <code>a11y.o</code> to that engine's <code>module.mk</code>.</li>
+      <li>Apply <code>hooks.patch</code> to the ScummVM tree (<code>git apply hooks.patch</code>).</li>
+      <li>Configure and build with ScummVM's Emscripten port (Drascula engine, Ogg/Vorbis on), then <code>make dist-emscripten</code>.</li>
+    </ol>
+    <p>
+      <code>build-web.sh</code> above does all of this automatically. In short:
+    </p>
+    <pre>scripts/fetch.sh        # fetch ScummVM @ ad351d1e into vendor/
+scripts/build-web.sh    # copy engine/ in, apply hooks.patch, build scummvm.wasm</pre>
+
+    <h2>Licence</h2>
+    <p>
+      The ScummVM engine and this modified build are
+      <strong>GPL-3.0-or-later</strong>. The full licence text:
+    </p>
+    <ul>
+      <li><a href="COPYING"><code>COPYING</code></a> — GNU General Public License, version 3</li>
+    </ul>
+    <p class="muted">
+      The rest of the Ghostlight project (the web player, parser, pack format
+      and hosting Worker) is MIT-licensed; only the ScummVM engine patch and the
+      build it produces are GPL.
+    </p>
+
+    <p><a href="/">← Back to Ghostlight</a></p>
+  </body>
+</html>
