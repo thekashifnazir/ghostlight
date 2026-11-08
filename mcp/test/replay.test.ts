@@ -17,6 +17,10 @@ function tavern(): Tools {
   return new Tools(new Session(), () => new ReplayTransport("tavern"));
 }
 
+function handbag(): Tools {
+  return new Tools(new Session(), () => new ReplayTransport("ch2-handbag"));
+}
+
 /** Pull the diff out of a command tool reply's shaped data. */
 function diffOf(reply: { data: unknown }): Diff | undefined {
   return (reply.data as { diff?: Diff }).diff;
@@ -87,5 +91,42 @@ describe("tavern replay regression", () => {
     const state = tools.state();
     expect((state.data as { chapter: number; room: number }).chapter).toBe(2);
     expect((state.data as { room: number }).room).toBe(14);
+  });
+});
+
+describe("inventory folded from diffs (open 183 then open 22)", () => {
+  // Regression (Crew surveyor): open 183 adds the handbag (22) via the diff's
+  // invAdded, so open 22 must then be accepted as a held item. Before the fix,
+  // heldItemIds() only reflected a room/state snapshot's inventory, never the
+  // diff deltas, so open 22 was wrongly rejected as not held.
+  it("accepts open 22 after open 183 adds the handbag to the tracked inventory", async () => {
+    const tools = handbag();
+
+    const start = await tools.start();
+    expect((start.data as { room: number }).room).toBe(14);
+    // Only the phone (28) is held at the start; the handbag (22) is not yet.
+    expect((start.data as { inventory: number[] }).inventory).toEqual([28]);
+
+    // Walk into room 16, where the trunk (183) lives.
+    const walk = await tools.targetVerb("walk", 162);
+    expect(walk.isError).toBe(false);
+    expect((tools.state().data as { room: number }).room).toBe(16);
+
+    // Open the trunk: the diff's invAdded gains the handbag (22).
+    const openTrunk = await tools.targetVerb("open", 183);
+    expect(openTrunk.isError).toBe(false);
+    expect(diffOf(openTrunk)?.invAdded).toEqual([{ id: 22, name: "handbag" }]);
+    // The handbag is now tracked as held.
+    expect((tools.state().data as { inventory: number[] }).inventory).toContain(22);
+
+    // Open the now-held handbag (22): this is the bug. It must be ACCEPTED
+    // (reach the transport and return the recorded diff), not rejected.
+    const openHandbag = await tools.targetVerb("open", 22);
+    expect(openHandbag.isError).toBe(false);
+    expect(diffOf(openHandbag)?.said?.[0]?.text).toMatch(/ONE THOUSAND BILL/);
+    // Its contents (money 7, two coins 18) fold into the tracked inventory too.
+    const held = (tools.state().data as { inventory: number[] }).inventory;
+    expect(held).toContain(7);
+    expect(held).toContain(18);
   });
 });

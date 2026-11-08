@@ -12,6 +12,11 @@
 //    includes the new room's full object list, so we rebuild from it without an
 //    extra `state` call;
 //  - setRoom(): the `state` tool writes the current room back here.
+//
+// The tracked inventory is kept current the same way: a full room state and an
+// A11Y_INV line set it outright, and every diff's invAdded/invRemoved deltas
+// are folded onto it, so held-item target validation stays correct after an
+// item is picked up or used mid-room (not just on a room/state snapshot).
 
 import type {
   CommandResult,
@@ -52,13 +57,15 @@ export class Session {
   /**
    * Send a command through the active transport and keep currentRoom in step:
    * a room-change diff (carrying the new room's `room` and `objects`) rebuilds
-   * currentRoom from the diff. Throws if no session is running — the tool layer
-   * turns that into the "call start first" error (Req 4.3).
+   * currentRoom from the diff, and every diff's inventory deltas are folded
+   * into the tracked inventory. Throws if no session is running — the tool
+   * layer turns that into the "call start first" error (Req 4.3).
    */
   async send(cmd: Command): Promise<CommandResult> {
     const transport = this.requireTransport();
     const result = await transport.send(cmd);
     this.applyRoomChange(result);
+    this.applyInventory(result);
     return result;
   }
 
@@ -86,6 +93,46 @@ export class Session {
       chapter: diff.chapter ? diff.chapter[1] : this.currentRoom.chapter,
       objects: diff.objects ?? this.currentRoom.objects,
     };
+  }
+
+  /**
+   * Keep the tracked inventory in step with the game. A full room state carries
+   * the complete `inventory`, but a diff carries only deltas: `invAdded` and
+   * `invRemoved` item ids (a11y-diff is a sparse delta). An A11Y_INV line (the
+   * `inventory` tool) restates the full held list. So: an explicit room-state
+   * event already set the full inventory in applyRoomChange; an `inv` event
+   * replaces the tracked inventory outright; otherwise fold each diff's
+   * invAdded/invRemoved onto the running list. Without this, open 183 adds the
+   * handbag (22) but open 22 is wrongly rejected as not held.
+   */
+  private applyInventory(result: CommandResult): void {
+    if (!this.currentRoom) return;
+    // A room-state event already carried the full inventory.
+    if (result.events.some((e) => e.type === "room")) return;
+
+    // An A11Y_INV line is the authoritative full held list; refresh from it.
+    const invEvent = result.events.find((e) => e.type === "inv");
+    if (invEvent && invEvent.type === "inv") {
+      this.currentRoom = {
+        ...this.currentRoom,
+        inventory: invEvent.items.map((i) => i.id),
+      };
+      return;
+    }
+
+    // Otherwise fold the diff's inventory deltas onto the tracked list.
+    const diff = result.diff;
+    if (!diff) return;
+    const added = diff.invAdded ?? [];
+    const removed = diff.invRemoved ?? [];
+    if (added.length === 0 && removed.length === 0) return;
+
+    const removedIds = new Set(removed.map((i) => i.id));
+    const held = this.currentRoom.inventory.filter((id) => !removedIds.has(id));
+    for (const { id } of added) {
+      if (!held.includes(id)) held.push(id);
+    }
+    this.currentRoom = { ...this.currentRoom, inventory: held };
   }
 
   /** Record the room the `state` tool observed, keeping validation current. */
