@@ -157,7 +157,8 @@ A11yLayer::A11yLayer(DrasculaEngine *engine)
 	  _converseActive(false), _converseNeedChoices(false), _choicePressed(false),
 	  _choiceDiffPending(false), _choiceErrCount(0),
 	  _mainCmdDiffPending(false), _mainCmdOpenedConverse(false), _mainCmdErrCount(0),
-	  _queueHead(0), _lastSkipPollMs(0), _clickState(kClickIdle) {
+	  _queueHead(0), _inRunCommand(false), _lastSkipPollMs(0),
+	  _clickState(kClickIdle) {
 	for (int i = 0; i < 4; i++)
 		_choiceBottom[i] = 0;
 	// Register as the engine's current a11y layer so the centerText() hook in
@@ -2298,7 +2299,14 @@ bool A11yLayer::poll() {
 		_mainCmdDiffPending = true;
 		_mainCmdOpenedConverse = false;
 
+		// Mark that a command is in flight for the whole of runCommand(). The
+		// skip hook (onUpdateEvents) checks this: a `skip` it drains WHILE this
+		// is set is advancing this command's own cutscene/speech loop, so it
+		// emits no diff of its own (this command's diff covers it); a `skip` it
+		// drains with this clear has nothing to skip and emits the no-op diff.
+		_inRunCommand = true;
 		bool endedChapter = runCommand(cmd);
+		_inRunCommand = false;
 
 		if (endedChapter) {
 			// The command was a `walk` through a chapter-ending door: exitRoom()
@@ -2691,9 +2699,24 @@ void A11yLayer::onUpdateEvents() {
 	// `skip`s written together steps the cutscene forward that many lines on the
 	// next poll windows; each raiseSkip() is a separate action event the loop's
 	// getAction() consumes one at a time.
+	//
+	// A `skip` drained here settles one of two ways. When a command is in flight
+	// (_inRunCommand), this hook is running nested inside that command's own
+	// cutscene/speech loop, so the skip is advancing THAT command — its diff
+	// covers the result and we emit nothing here. When no command is in flight,
+	// the main loop is idle and there is nothing to skip: the skip is a harmless
+	// no-op, so we emit its settling diff `A11Y_DIFF {"cmd":"skip",
+	// "changed":false}` ourselves. Without it an external reader (the MCP native
+	// transport) waits its full timeout for a settle that never arrives. The
+	// takeQueuedSkip() echo already printed the `A11Y_CMD skip`, so this adds
+	// only the missing diff, giving the one-echo-plus-one-settle shape every
+	// other command has.
 	readCommandFile();
-	while (takeQueuedSkip())
+	while (takeQueuedSkip()) {
 		raiseSkip();
+		if (!_inRunCommand)
+			emitLine("A11Y_DIFF {\"cmd\":\"skip\",\"changed\":false}");
+	}
 
 	// Reclaim a fully-drained queue so a long cutscene does not leave a growing
 	// spent prefix. Only when nothing is pending — a non-`skip` command left in

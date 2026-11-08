@@ -723,6 +723,17 @@ private:
 	Common::Array<Common::String> _commandQueue;
 	uint _queueHead;
 
+	// True only while poll() is running a command through runCommand() — i.e.
+	// while a command's own walk/speech/cutscene loops may be blocking the main
+	// loop. The skip hook (onUpdateEvents) reads this to tell apart the two
+	// kinds of `skip` it drains: a `skip` taken while a command is in flight is
+	// advancing that command's cutscene/speech (its diff covers it), but a
+	// `skip` taken with no command in flight has nothing to skip — the main loop
+	// is idle — so the hook emits the no-op diff `A11Y_DIFF {"cmd":"skip",
+	// "changed":false}` itself. Without that line an external reader (the MCP
+	// native transport) waits its full timeout for a settle that never comes.
+	bool _inRunCommand;
+
 	// Wall-clock time (g_system->getMillis()) of the last command-file read done
 	// from the updateEvents() skip hook. A cutscene's delay loops call
 	// updateEvents() every ~10 ms, so reading the command file on every call
