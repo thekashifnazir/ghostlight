@@ -70,11 +70,54 @@ Code is AI-generated under my direction in Kiro.
 
 ## Run it locally
 
-Needs Node and npm.
+### Prerequisites
+
+- **Node.js and npm.** The repo pins Node **26** in [`.nvmrc`](.nvmrc) (`nvm use` picks it up). Tested on Node 26; older versions are untested.
+- **Command-line tools.** Both build scripts are bash scripts and check for their tools up front. You need:
+  - `bash`, `git`, `curl`, `unzip`, for `scripts/fetch.sh`.
+  - `git`, `curl`, `python3`, plus `make` and `tar`, for `scripts/build-web.sh`. It fetches the Emscripten SDK (emsdk, pinned to 4.0.10) with `curl` and provides `emcc`/`emconfigure`/`emmake` itself, so you do **not** need Emscripten installed beforehand. `python3` generates the `/data` HTTP index.
+  - The web build script is written for **macOS** (it sizes `make` jobs with `sysctl`; there is a `nproc` fallback for Linux).
+
+The engine is **not** committed: `scummvm.wasm` is built locally from the patch in `engine/`, so the first run compiles ScummVM to WebAssembly.
+
+### 1. Install dependencies
 
 ```sh
 npm ci
-npm run dev           # the player on a local Vite server
+```
+
+Installs exactly what `package-lock.json` pins.
+
+### 2. Fetch the game data and ScummVM source
+
+The game data is **not** in this repository: it lands in `vendor/`, which is gitignored and never committed. Fetch it with:
+
+```sh
+scripts/fetch.sh            # fetch what is missing, verify checksums
+scripts/fetch.sh --force    # re-fetch even if present
+```
+
+`fetch.sh` pulls a pinned ScummVM checkout plus the Drascula freeware game and Ogg audio packs from [ScummVM's official downloads](https://www.scummvm.org/games/#games-drascula), and verifies each download against a recorded **sha256** checksum, aborting on any mismatch.
+
+### 3. Build the engine to WebAssembly
+
+```sh
+scripts/build-web.sh        # compile scummvm.wasm (slow the first time)
+```
+
+`build-web.sh` fetches the Emscripten SDK with `curl`, applies the `engine/` patch to a separate ScummVM tree, and compiles `scummvm.wasm` into `vendor/scummvm-web/build-emscripten/`. The first run is **slow**: it downloads and activates emsdk and builds the engine from source; later runs reuse the cached SDK and tree.
+
+### 4. Run the player
+
+```sh
+npm run dev
+```
+
+This starts the Vite dev server on a fixed port. Open **http://localhost:5173/** in your browser (the port is pinned via `strictPort`, so it will not drift).
+
+### Other scripts
+
+```sh
 npm test              # the player unit and property tests
 npx tsc --noEmit      # typecheck
 ```
