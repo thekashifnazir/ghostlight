@@ -1,0 +1,35 @@
+{
+  "label": "gated-door-ch2",
+  "note": "Recorded from a real native run of the FIXED engine (scripts/make-gated-door-save.sh produces slot 8: chapter 2, room 5, spike held, flag 8 = 0; then GHOSTLIGHT_NATIVE run of use 10 136 + walk 136). Proves the gated-doors fix: use 10 136 sets flag 8 and reports door 136 opening; walk 136 then crosses room 5 -> 6. Before the fix, walk 136 settled changed:false with no room change. Paced `skip` echoes are the harness advancing the window action's speech; the test keys on each command's own diff. Not committed game data: this is only the a11y text lines the engine printed.",
+  "startRaw": "A11Y {\"chapter\":2,\"room\":5,\"hero\":{\"x\":321,\"y\":153},\"objects\":[{\"num\":135,\"name\":\"SALIDA\",\"rect\":[305,34,14,121],\"walkTo\":[306,151],\"visible\":true,\"door\":true,\"toRoom\":3},{\"num\":136,\"name\":\"WINDOW\",\"rect\":[212,72,17,35],\"walkTo\":[227,152],\"visible\":true,\"door\":false},{\"num\":213,\"name\":\"WINDOW\",\"rect\":[189,69,17,44],\"walkTo\":[227,152],\"visible\":true,\"door\":false},{\"num\":212,\"name\":\"MOON\",\"rect\":[264,16,32,32],\"walkTo\":[242,152],\"visible\":true,\"door\":false}],\"inventory\":[28,10],\"flags\":[0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,1,1,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]}",
+  "steps": [
+    {
+      "cmd": "use 10 136",
+      "raw": [
+        "A11Y_CMD use 10 136",
+        "A11Y_CMD skip",
+        "A11Y_CMD skip",
+        "A11Y_CMD skip",
+        "A11Y_CMD skip",
+        "A11Y_CMD skip",
+        "A11Y_CMD skip",
+        "A11Y_CMD skip",
+        "A11Y_CMD skip",
+        "A11Y_TEXT HA, HA, HA",
+        "A11Y_DIFF {\"cmd\":\"use 10 136\",\"doors\":[{\"num\":136,\"name\":\"WINDOW\",\"rect\":[212,72,17,35],\"walkTo\":[227,152],\"visible\":true,\"door\":true,\"toRoom\":6}],\"hero\":{\"x\":237,\"y\":153},\"invRemoved\":[{\"id\":10,\"name\":\"spike\"}],\"flags\":{\"8\":[0,1]},\"said\":[{\"color\":\"yellow\",\"text\":\"HA, HA, HA\"}],\"changed\":true}"
+      ]
+    },
+    {
+      "cmd": "walk 136",
+      "raw": [
+        "A11Y_CMD walk 136",
+        "A11Y_CMD skip",
+        "A11Y_CMD skip",
+        "A11Y_CMD skip",
+        "A11Y_CMD skip",
+        "A11Y_CMD skip",
+        "A11Y_DIFF {\"cmd\":\"walk 136\",\"room\":[5,6],\"objects\":[{\"num\":137,\"name\":\"WINDOW\",\"rect\":[20,56,39,52],\"walkTo\":[104,164],\"visible\":true,\"door\":true,\"toRoom\":5},{\"num\":138,\"name\":\"DOOR\",\"rect\":[179,72,45,71],\"walkTo\":[199,148],\"visible\":true,\"door\":false},{\"num\":139,\"name\":\"DRAWER\",\"rect\":[35,148,31,11],\"walkTo\":[78,180],\"visible\":true,\"door\":false},{\"num\":143,\"name\":\"CLOSET\",\"rect\":[241,68,56,114],\"walkTo\":[236,176],\"visible\":true,\"door\":false},{\"num\":140,\"name\":\"CRUCIFIX\",\"rect\":[40,146,21,8],\"walkTo\":[78,180],\"visible\":false,\"door\":false},{\"num\":144,\"name\":\"CANDELABRUM\",\"rect\":[68,107,27,34],\"walkTo\":[124,159],\"visible\":true,\"door\":false},{\"num\":999,\"name\":\"STATUE\",\"rect\":[151,71,20,43],\"walkTo\":[146,152],\"visible\":true,\"door\":false}],\"hero\":{\"x\":120,\"y\":157},\"changed\":true}"
+      ]
+    }
+  ]
+}

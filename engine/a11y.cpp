@@ -338,6 +338,12 @@ void A11yLayer::takeSnapshot(Snapshot &snap) const {
 	snap.objVisible.clear();
 	snap.objDoor.clear();
 	for (int l = 0; l < e->numRoomObjs; l++) {
+		// Refresh any flag-gated door for this slot before reading isDoor[l], so
+		// the door state captured here matches what exitRoom()/walkObject() will
+		// act on. In chapters 2 and 4 isDoor is only kept current by updateDoor()
+		// (rooms.cpp doors[] table); without this a gated door that has been
+		// unlocked would still read as closed in the diff. No-op elsewhere.
+		e->updateDoor(l);
 		snap.objNums.push_back(e->objectNum[l]);
 		snap.objVisible.push_back(e->visible[l]);
 		snap.objDoor.push_back(e->isDoor[l]);
@@ -380,6 +386,11 @@ Common::String A11yLayer::buildRoomState() {
 	// parse and objects.cpp checkObjects). Each object's JSON is built by
 	// objectJson() so room state and the diff report an object identically.
 	for (int l = 0; l < e->numRoomObjs; l++) {
+		// Refresh any flag-gated door for this slot before objectJson() reads
+		// isDoor[l], so the emitted exit list reflects doors the player has
+		// unlocked. updateDoor() only acts in chapters 2 and 4 (rooms.cpp doors[]
+		// table); it is a no-op everywhere else.
+		e->updateDoor(l);
 		if (l > 0)
 			json += ",";
 		json += objectJson(l);
@@ -525,6 +536,12 @@ void A11yLayer::emitDiff(const Common::String &cmd, const Snapshot &before,
 
 		for (int l = 0; l < e->numRoomObjs; l++) {
 			int num = e->objectNum[l];
+
+			// Refresh any flag-gated door before reading isDoor[l] live below, so
+			// an action that set a door's gating flag is reported as the door
+			// opening/closing (R4.4). Matches the refresh in takeSnapshot() that
+			// produced the before-snapshot. No-op outside chapters 2 and 4.
+			e->updateDoor(l);
 
 			// Find this number in the before-snapshot.
 			int bi = -1;
@@ -1793,6 +1810,17 @@ bool A11yLayer::dispatchWalk(const Common::String &arg) {
 // unchanged and emits nothing new.
 bool A11yLayer::walkObject(int slot) {
 	DrasculaEngine *e = _engine;
+
+	// Refresh the gated-door state before deciding the door path. In chapters 2
+	// and 4 some doors are flag-gated: isDoor[slot] is only brought up to date by
+	// updateDoor() (rooms.cpp doors[] table, e.g. ch2 door 136 keyed on flag 8),
+	// and the engine's own exitRoom() calls updateDoor(doorNumber) as its first
+	// step for exactly this reason. verify1() reaches exitRoom() unconditionally,
+	// so a freshly-opened gated door works on a click. We check isDoor[slot]
+	// ourselves to pick the door path, so we must refresh it the same way first —
+	// otherwise a gated door whose flag was just set still reads isDoor==0 here
+	// and a `walk` never opens it. updateDoor() is a no-op outside chapters 2/4.
+	e->updateDoor(slot);
 
 	if (e->isDoor[slot]) {
 		// The engine's own door path: walk to the door, play any door
