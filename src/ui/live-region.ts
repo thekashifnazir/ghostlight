@@ -58,6 +58,16 @@ export class LiveRegion {
    */
   private writeToggle = false;
 
+  /** The assertive region used only by {@link interrupt}. Optional. */
+  private readonly interruptRegion: HTMLElement | undefined;
+  /** Clock in ms; injectable so tests control time. */
+  private readonly now: () => number;
+  /** When the polite region was last written, and how long that line was. */
+  private lastWriteAt = Number.NEGATIVE_INFINITY;
+  private lastWriteChars = 0;
+  /** Same repeat-marker toggle as writeToggle, for the assertive region. */
+  private interruptToggle = false;
+
   /**
    * @param region the role=log element.
    * @param transcript optional visible mirror for sighted co-players.
@@ -69,9 +79,13 @@ export class LiveRegion {
     region: HTMLElement,
     transcript?: HTMLElement,
     schedule?: (fn: () => void) => void,
+    interruptRegion?: HTMLElement,
+    now?: () => number,
   ) {
     this.region = region;
     this.transcript = transcript;
+    this.interruptRegion = interruptRegion;
+    this.now = now ?? (() => Date.now());
     this.schedule =
       schedule ??
       ((fn) =>
@@ -263,6 +277,10 @@ export class LiveRegion {
    * text — so repeat, step-back and the console mirror are unaffected.
    */
   private setRegion(text: string): void {
+    // Remember when and how long, so interrupt() can guess whether the screen
+    // reader is probably still reading this line.
+    this.lastWriteAt = this.now();
+    this.lastWriteChars = text.length;
     const current = this.region.textContent ?? "";
     // Strip any marker we previously added, to compare the visible text only.
     const visible = current.replace(/\u2060$/, "");
@@ -276,6 +294,42 @@ export class LiveRegion {
       this.writeToggle = false;
       this.region.textContent = text;
     }
+  }
+
+  /**
+   * Cut off a screen reader that is probably still reading the last polite
+   * line, by writing a short real word into the assertive region.
+   *
+   * Measured on VoiceOver + Safari with recorded audio (18 variants, 2 rounds
+   * each): clearing the polite region, aria-busy, display:none, removing it, or
+   * a no-break space NEVER stops VoiceOver. Only a change to an
+   * aria-live="assertive" region does, within about 100 ms, and VoiceOver
+   * always speaks what was written (a lone space, zero-width space or "." is
+   * read as "space", "zero width space", "period"). "Picked." stopped the list
+   * and was quiet 0.42 s after the cut. Toggling aria-live off and on breaks a
+   * live region in Safari (it never announces again), so aria-live is never
+   * touched.
+   *
+   * Writes only if the last polite write was less than (its characters x 65 ms,
+   * capped at 15000 ms) ago; otherwise does nothing and returns false. The
+   * polite region, `last` and the history are left alone, so R still repeats
+   * the real last line. The repeat marker (U+2060 toggle) makes the same word
+   * twice still announce. The caller taps this to feed ?speechlog and the
+   * status line log (see main.ts).
+   */
+  interrupt(word = "Picked."): boolean {
+    if (!this.interruptRegion) return false;
+    const budgetMs = Math.min(this.lastWriteChars * 65, 15000);
+    if (!(this.now() - this.lastWriteAt < budgetMs)) return false;
+    const current = (this.interruptRegion.textContent ?? "").replace(/\u2060$/, "");
+    if (current === word) {
+      this.interruptToggle = !this.interruptToggle;
+      this.interruptRegion.textContent = this.interruptToggle ? `${word}\u2060` : word;
+    } else {
+      this.interruptToggle = false;
+      this.interruptRegion.textContent = word;
+    }
+    return true;
   }
 
   /** The last announced line, for tests and recaps. */

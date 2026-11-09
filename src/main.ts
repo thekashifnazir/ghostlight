@@ -310,7 +310,12 @@ export async function boot(): Promise<void> {
   const pack = loadBundledPack();
 
   // Build the UI pieces.
-  const live = new LiveRegion(liveEl, transcriptEl);
+  const live = new LiveRegion(
+    liveEl,
+    transcriptEl,
+    undefined,
+    doc.getElementById("live-interrupt") as HTMLElement,
+  );
   const highlight = new Highlight(highlightEl, canvas);
 
   // The readiness signal (window.__ghostlight). It observes boot, engine events
@@ -356,6 +361,20 @@ export async function boot(): Promise<void> {
     // out so its single skip only fires once the lines have stopped. Forward-
     // referenced because the scheduler is built later (it needs the adapter).
     crossingSkip?.noteLine();
+  };
+
+  // Same tap for the interrupt word: when interrupt() actually writes, record
+  // it in the status log and the ?speechlog mirror like any spoken line. It
+  // does not touch the crossing scheduler, since it is not a cutscene line.
+  const liveInterrupt = live.interrupt.bind(live);
+  live.interrupt = (word?: string): boolean => {
+    const wrote = liveInterrupt(word);
+    if (wrote) {
+      const spoken = word ?? "Picked.";
+      status.recordLine(spoken);
+      speechlog?.say(spoken);
+    }
+    return wrote;
   };
 
   const state: PlayerState = {
@@ -709,6 +728,9 @@ export async function boot(): Promise<void> {
     announce: (t) => say(t),
     choose: (n) => sendCommand({ verb: "choose", n }),
     returnToList,
+    interrupt: () => {
+      live.interrupt();
+    },
   });
 
   // The typed command box: "/" opens it; Enter parses the phrase with the

@@ -382,6 +382,18 @@
         aria-atomic="true"
       ></div>
 
+      <!-- The interrupt region: assertive, used ONLY by LiveRegion.interrupt()
+           to cut off a screen reader that is still reading a long polite line
+           (measured: VoiceOver stops within about 100 ms of a change here, and
+           nothing done to the polite region stops it). Never toggle aria-live
+           on either region: that breaks a live region in Safari for good. -->
+      <div
+        id="live-interrupt"
+        aria-live="assertive"
+        aria-atomic="true"
+        class="visually-hidden"
+      ></div>
+
       <!-- Visible transcript mirror for sighted co-players. Not the screen
            reader surface; the live region above is. -->
       <section id="transcript" aria-hidden="true" aria-label="Transcript"></section>

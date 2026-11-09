@@ -87,6 +87,10 @@ export interface ChoiceMenuCallbacks {
    *  only called when focus is NOT already on the game element, which under the
    *  focus-stays-put design is the normal case. */
   returnToList: () => void;
+  /** Optional. Called at the start of chooseAt(), just before choose, so the
+   *  page can cut off a screen reader still reading the option list over the
+   *  actor's recorded voice (see LiveRegion.interrupt). */
+  interrupt?: () => void;
 }
 
 export class ChoiceMenu {
@@ -339,6 +343,10 @@ export class ChoiceMenu {
    */
   private chooseAt(i: number): void {
     const { n } = this.options[i];
+    // First, cut off a screen reader still reading the option list over the
+    // actor's recorded voice (VoiceOver + Safari only stops for a change to an
+    // assertive region; see LiveRegion.interrupt).
+    this.cb.interrupt?.();
     this.waiting = true;
     // Mark the container busy as a state signal (used by the live linger spec
     // and any watchdog). The container is aria-hidden, so this never reaches a
