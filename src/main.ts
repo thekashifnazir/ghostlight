@@ -357,6 +357,9 @@ export async function boot(): Promise<void> {
     onVoicedSuppressed: (text) => {
       status.recordLine(text);
       speechlog?.voiced(text);
+      // A suppressed voiced line is still a cutscene line arriving: keep the
+      // crossing scheduler's quiet timer honest so its skip waits for the end.
+      crossingSkip?.noteLine();
     },
   });
 

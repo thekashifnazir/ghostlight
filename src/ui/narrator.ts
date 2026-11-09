@@ -239,12 +239,9 @@ export class Narrator {
       this.suppressVoiced(line);
       return;
     }
-    if (this.live.announceDialogue) {
-      this.live.announceDialogue(line);
-      this.lastAnnounced = line.trim();
-    } else {
-      this.announce(line);
-    }
+    // Through the normal announce path, so the main.ts tap still feeds the
+    // readiness status, ?speechlog and the crossing-skip quiet timer.
+    this.announce(line);
   }
 
   /**
