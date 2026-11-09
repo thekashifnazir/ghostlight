@@ -2129,6 +2129,19 @@ void A11yLayer::onConverseFrame(const char *phrase1, const char *phrase2,
                                 int bottom1, int bottom2, int bottom3, int bottom4) {
 	DrasculaEngine *e = _engine;
 
+	// Reply-menu fix (liveness): a conversation runs converse.cpp's own modal
+	// loop, so poll() does not run and nothing is emitted for the whole time the
+	// menu is open — liveness (max of _lastPollMs and g_lastEngineOutputMs) goes
+	// stale even though the engine is perfectly alive and simply waiting for the
+	// player. The busy watchdog already refuses to escalate while _converseActive
+	// is set, but the FIRST frames right after the conversation ends must not
+	// start the watchdog's clock from the long-stale stamp this menu left behind.
+	// Stamp _lastPollMs here (the same liveness the watchdog reads) on every
+	// converse frame, so when control returns to the main loop liveness is fresh
+	// and a brand-new stall is measured from now, not from before the menu opened.
+	if (g_system)
+		_lastPollMs = g_system->getMillis();
+
 	// (1) Release a press issued on the previous converse frame. The engine has
 	// already selected the option and run its talk()+response() (options 1-3) or
 	// set breakOut (option 4) before control returned here, so dropping the
@@ -2996,61 +3009,107 @@ void A11yLayer::dropSurplusSkips() {
 // true dead state. The watchdog only acts when there is also something queued
 // to settle — an idle engine with a stale stamp (nothing to do) is not a dead
 // state.
-void A11yLayer::runBusyWatchdog() {
-	// Nothing queued to settle: not a dead state. Reset so a later stall starts
-	// a fresh two-stage escalation.
-	if (_queueHead >= _commandQueue.size()) {
-		_watchdogStage = 0;
-		_watchdogBaseMs = 0;
-		return;
-	}
+// The pure decision behind the watchdog, factored out so it can be unit-tested
+// without a running engine (tests/engine/watchdog-decision.test.ts). It encodes exactly
+// the rules the stateful runBusyWatchdog() below applies; that function only
+// reads engine state, calls this, and carries out the returned action.
+//
+// Tester case (reply-menu drop): a VoiceOver tester opened the drunk's reply
+// menu, browsed for ~40 s, then pressed Enter on option 3. While a reply menu
+// is open the engine sits in converse.cpp's own loop — poll() does not run and
+// nothing is emitted — so liveness goes stale while the player is legitimately
+// thinking. Their queued `choose 3` would then trip the watchdog: stage 1
+// raised a skip and stage 2 cleared the queue, dropping the pick and leaving
+// them stuck on "The game didn't respond." The fix: while a conversation is
+// open (converseActive) the watchdog must NEVER escalate. onConverseFrame()
+// already consumes or rejects every queued command, so nothing can wedge there;
+// the conversation is modal and the player simply thinking is not a dead state.
+// We return kWatchdogNoop (and the caller resets the escalation) so a reply menu
+// can stay open indefinitely without the pick ever being dropped.
+A11yLayer::WatchdogAction A11yLayer::watchdogDecision(
+    bool converseActive, bool queued, uint32 liveness, uint32 lastPollMs,
+    uint32 now, int stage, uint32 baseMs) {
+	// A conversation is open: the converse loop owns every queued command, and a
+	// player browsing a reply menu looks exactly like a stale-liveness stall.
+	// Never escalate here; reset so a real stall after the conversation ends
+	// starts a fresh two-stage escalation.
+	if (converseActive)
+		return kWatchdogNoop;
 
-	// Liveness: the newer of the last poll() and the last emitted line. Either
-	// counts as the engine being alive this window.
-	uint32 liveness = _lastPollMs > g_lastEngineOutputMs
-	                  ? _lastPollMs : g_lastEngineOutputMs;
+	// Nothing queued to settle: not a dead state.
+	if (!queued)
+		return kWatchdogNoop;
 
 	// Nothing has run or been emitted yet (boot) — no stall to measure against.
 	if (liveness == 0)
-		return;
-
-	uint32 now = g_system->getMillis();
+		return kWatchdogHold;
 
 	// Reset the escalation when the engine shows it is alive again. The test is
 	// stage-aware so the watchdog's OWN stage-1 emit cannot reset its own clock:
 	//
 	//   * Stage 0 (no escalation yet): any liveness within the window means no
 	//     silent stall — a poll() this frame, or a cutscene line (the Von Braun
-	//     history draws one about every 6 s). Clear and return.
-	//   * Stage >= 1 (already skipped): the stage-1 emit itself stamps
-	//     g_lastEngineOutputMs, so a plain liveness test would read "fresh" the
-	//     very next frame and reset forever, never reaching stage 2. The only
-	//     thing that genuinely means "unwedged" here is poll() resuming — the
-	//     main loop running again — so we reset only when _lastPollMs has
-	//     advanced PAST the stall anchor (poll ran since the stall began). A
-	//     frozen poll stamp stays equal to the anchor and leaves the escalation
-	//     running toward stage 2. (A cutscene that was stalled for a full 20 s
-	//     and only then resumes drawing is already a dead-enough state to drop
-	//     the queue; normal slow cutscenes never reach stage 1 because stage 0
-	//     stays fresh off their per-picture output.)
-	if (_watchdogStage == 0) {
-		if (now - liveness < kWatchdogMs) {
-			_watchdogStage = 0;
-			_watchdogBaseMs = 0;
-			return;
-		}
+	//     history draws one about every 6 s). Clear.
+	//   * Stage >= 1 (already skipped): the stage-1 emit itself stamps the
+	//     liveness source, so a plain liveness test would read "fresh" the very
+	//     next frame and reset forever, never reaching stage 2. The only thing
+	//     that genuinely means "unwedged" here is poll() resuming — the main loop
+	//     running again — so we reset only when lastPollMs has advanced PAST the
+	//     stall anchor (poll ran since the stall began). A frozen poll stamp
+	//     stays equal to the anchor and leaves the escalation running toward
+	//     stage 2.
+	if (stage == 0) {
+		if (now - liveness < kWatchdogMs)
+			return kWatchdogNoop;
 	} else {
-		if (_lastPollMs > _watchdogBaseMs) {
-			_watchdogStage = 0;
-			_watchdogBaseMs = 0;
-			return;
-		}
+		if (lastPollMs > baseMs)
+			return kWatchdogNoop;
 	}
 
-	// Liveness is stale AND commands are queued. Anchor the stall on the
-	// liveness stamp the first time we see it, so the two windows are measured
-	// from a stable origin rather than creeping with each frame.
-	if (_watchdogStage == 0) {
+	// Liveness is stale AND commands are queued.
+	if (stage == 0)
+		return kWatchdogStage1;
+
+	// Already skipped (stage 1). Wait for a second full window measured from the
+	// same anchor before giving up on the queue.
+	if (stage == 1 && now - baseMs >= 2 * kWatchdogMs)
+		return kWatchdogStage2;
+
+	// Stall is building but no stage fires this frame; keep the current stage.
+	return kWatchdogHold;
+}
+
+void A11yLayer::runBusyWatchdog() {
+	// Liveness: the newer of the last poll() and the last emitted line. Either
+	// counts as the engine being alive this window.
+	uint32 liveness = _lastPollMs > g_lastEngineOutputMs
+	                  ? _lastPollMs : g_lastEngineOutputMs;
+	uint32 now = g_system->getMillis();
+	bool queued = _queueHead < _commandQueue.size();
+
+	// Ask the pure decision what to do. Passing _converseActive is the reply-menu
+	// fix: while a conversation is open the decision is always kWatchdogNoop, so
+	// a player thinking over a reply menu for 20-40 s never trips the watchdog
+	// and their queued `choose <n>` is never dropped.
+	WatchdogAction action = watchdogDecision(_converseActive, queued, liveness,
+	                                         _lastPollMs, now, _watchdogStage,
+	                                         _watchdogBaseMs);
+
+	switch (action) {
+	case kWatchdogNoop:
+		// Not a dead state (idle, fresh, or a conversation open). Reset so a
+		// later stall starts a fresh two-stage escalation.
+		_watchdogStage = 0;
+		_watchdogBaseMs = 0;
+		return;
+
+	case kWatchdogHold:
+		// Stall building but no stage fires yet; leave stage/anchor untouched.
+		return;
+
+	case kWatchdogStage1:
+		// Anchor the stall on the liveness stamp so the two windows are measured
+		// from a stable origin rather than creeping with each frame.
 		_watchdogBaseMs = liveness;
 		// Stage 1 is SILENT to the player: emit only the log-only diagnostic
 		// `A11Y_ERR busy-skip` (the page maps it to NO announcement) and raise
@@ -3060,21 +3119,13 @@ void A11yLayer::runBusyWatchdog() {
 		//
 		// NB: this emitLine() itself stamps g_lastEngineOutputMs, so the second
 		// window is measured from _watchdogBaseMs (captured above, before this
-		// emit) rather than from the fresh stamp — the check below uses
-		// _watchdogBaseMs, not the liveness stamp, for exactly that reason.
+		// emit) rather than from the fresh stamp.
 		emitLine("A11Y_ERR busy-skip");
 		raiseSkip();
 		_watchdogStage = 1;
 		return;
-	}
 
-	// Already skipped (stage 1). Wait for a second full window measured from the
-	// same anchor before giving up on the queue. Using _watchdogBaseMs (not the
-	// liveness stamp) means the stage-1 emit's own output stamp does not reset
-	// the clock: if the skip genuinely freed the loop, poll() resumes and
-	// liveness goes fresh (handled above, resetting the stage); if it did not,
-	// no further line is emitted and this fires one window after the anchor.
-	if (_watchdogStage == 1 && now - _watchdogBaseMs >= 2 * kWatchdogMs) {
+	case kWatchdogStage2:
 		// Stage 2: the skip did not free it. Drop any surplus skip input, clear
 		// the queue so it cannot wedge or bleed into the next room, and tell the
 		// reader the commands were dropped. The player maps this to "The game
@@ -3084,6 +3135,7 @@ void A11yLayer::runBusyWatchdog() {
 		_queueHead = 0;
 		emitLine("A11Y_ERR busy: commands dropped");
 		_watchdogStage = 2;
+		return;
 	}
 }
 

@@ -913,6 +913,28 @@ private:
 	// A no-op when poll() is fresh or nothing is queued. Fix C.
 	void runBusyWatchdog();
 
+	// What the busy watchdog should do this frame, factored out as a pure
+	// decision so it can be unit-tested without a running engine. Returns:
+	//   kWatchdogNoop     — do nothing (and reset the escalation)
+	//   kWatchdogHold     — stall is building but no stage fires yet (keep stage)
+	//   kWatchdogStage1   — emit busy-skip + raiseSkip, go to stage 1
+	//   kWatchdogStage2   — drop the queue + emit busy, go to stage 2
+	// Inputs are exactly what runBusyWatchdog() reads: whether a conversation is
+	// open (converseActive), whether a command is queued (queued), the liveness
+	// stamp and the current time (so age = now - liveness), the last poll() stamp
+	// and the current stage/anchor. Keeping it pure means the tester's reply-menu
+	// case (converseActive true, stale liveness, a `choose` queued) can be
+	// asserted directly as kWatchdogNoop. Fix (reply-menu drop).
+	enum WatchdogAction {
+		kWatchdogNoop,
+		kWatchdogHold,
+		kWatchdogStage1,
+		kWatchdogStage2
+	};
+	static WatchdogAction watchdogDecision(bool converseActive, bool queued,
+	                                       uint32 liveness, uint32 lastPollMs,
+	                                       uint32 now, int stage, uint32 baseMs);
+
 	// Emit `A11Y_PHASE <name>` if `phase` differs from the last one emitted,
 	// and remember it. Cheap: a compare and, on a change only, one emitLine().
 	void emitPhase(Phase phase);
