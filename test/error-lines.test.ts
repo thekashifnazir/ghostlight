@@ -66,4 +66,38 @@ describe("mapEngineError", () => {
     expect(r.resync).toBe(true);
     expect(r.line).not.toMatch(/\d/);
   });
+
+  // Fix C: the busy watchdog's two escalation lines (engine/a11y.cpp
+  // runBusyWatchdog) must map to the exact plain player lines the brief names,
+  // and never re-sync the room model.
+  it("maps 'busy: engine not accepting commands' to the trying-to-move-on line", () => {
+    const r = mapEngineError("busy: engine not accepting commands");
+    expect(r.line).toBe("The game is busy. Trying to move on.");
+    expect(r.resync).toBe(false);
+  });
+
+  it("maps 'busy: commands dropped' to the didn't-respond line", () => {
+    const r = mapEngineError("busy: commands dropped");
+    expect(r.line).toBe(
+      "The game didn't respond. Press L to hear where you are.",
+    );
+    expect(r.resync).toBe(false);
+  });
+
+  it("maps the busy lines case-insensitively and with surrounding whitespace", () => {
+    expect(mapEngineError("  BUSY: ENGINE NOT ACCEPTING COMMANDS ").line).toBe(
+      "The game is busy. Trying to move on.",
+    );
+    expect(mapEngineError("Busy:   commands dropped").line).toBe(
+      "The game didn't respond. Press L to hear where you are.",
+    );
+  });
+
+  it("does not leak a number or an A11Y_ prefix in either busy line", () => {
+    for (const raw of ["busy: engine not accepting commands", "busy: commands dropped"]) {
+      const { line } = mapEngineError(raw);
+      expect(line).not.toMatch(/\b\d+\b/);
+      expect(line).not.toMatch(/A11Y_/);
+    }
+  });
 });

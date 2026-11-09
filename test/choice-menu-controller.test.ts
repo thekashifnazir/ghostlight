@@ -46,7 +46,6 @@ function harness() {
   } as unknown as EngineAdapter;
 
   const lines: string[] = [];
-  const live = { announce: (t: string) => void lines.push(t) } as unknown as LiveRegion;
 
   const returnToList = vi.fn();
   const choiceMenu = new ChoiceMenu(el, {
@@ -66,6 +65,22 @@ function harness() {
   } as unknown as ListMode;
 
   const stopAudio = vi.fn();
+  const readRoom = vi.fn();
+  const repeat = vi.fn();
+  // The live region the controller sees also exposes repeat() (used by R when
+  // the phase has moved on) and resetHistoryCursor() (called on every key).
+  const live2 = {
+    announce: (t: string) => void lines.push(t),
+    repeat,
+    resetHistoryCursor: () => {},
+  } as unknown as LiveRegion;
+
+  // A mutable engine phase the test drives, read through the deps accessor.
+  let phase: "control" | "busy" | "choice" | undefined;
+  const setPhase = (p: typeof phase) => {
+    phase = p;
+  };
+
   const controller = new Controller({
     adapter,
     pack: {} as unknown as Pack,
@@ -77,9 +92,10 @@ function harness() {
       activeItemId: () => null,
     } as unknown as Inventory,
     choiceMenu,
-    live,
+    enginePhase: () => phase,
+    live: live2,
     showHighlight: () => {},
-    readRoom: () => {},
+    readRoom,
     readHelp: () => {},
     stopAudio,
     askHint: () => {},
@@ -87,7 +103,19 @@ function harness() {
     sonar: { stop: () => {} } as unknown as Sonar,
   });
 
-  return { controller, choiceMenu, adapter, sent, lines, listCalls, returnToList, stopAudio };
+  return {
+    controller,
+    choiceMenu,
+    adapter,
+    sent,
+    lines,
+    listCalls,
+    returnToList,
+    stopAudio,
+    readRoom,
+    repeat,
+    setPhase,
+  };
 }
 
 describe("Controller routing: conversation choice menu", () => {
@@ -134,14 +162,15 @@ describe("Controller routing: conversation choice menu", () => {
     expect(choiceMenu.isOpen()).toBe(true);
   });
 
-  it("R repeats all the options as one line and is consumed", () => {
-    const { controller, choiceMenu, lines } = harness();
+  it("R re-reads the engine's current choices (sends `choices`) while phase is 'choice'", () => {
+    const { controller, choiceMenu, sent, setPhase } = harness();
+    setPhase("choice");
     choiceMenu.openWith(DRUNK);
-    lines.length = 0;
     expect(controller.handleKey("r")).toBe(true);
-    expect(lines).toEqual([
-      "1. HI BOSS, HOW ARE YOU? 2. GIVE ME A DRINK. 3. GOODBYE.",
-    ]);
+    // Fix B: R asks the engine to re-emit its current choices rather than
+    // replaying this menu's cached snapshot, so the re-listed options are
+    // engine truth. A fresh A11Y_CHOICES then reopens/refreshes the menu.
+    expect(sent).toEqual([{ verb: "choices" }]);
   });
 
   it("Escape is consumed, does not close the menu, and re-states how to choose", () => {
@@ -171,5 +200,60 @@ describe("Controller routing: conversation choice menu", () => {
     // choice-menu Escape handling only applies while the menu is open.
     controller.handleKey("Escape");
     expect(sent).toContainEqual({ verb: "skip" });
+  });
+});
+
+describe("Controller Fix B: `skip` is never sent while a choice is pending", () => {
+  beforeEach(() => vi.restoreAllMocks());
+
+  it("suppresses the list-mode Escape `skip` while the engine phase is 'choice', even with the menu closed", () => {
+    // The permanent-busy dead state: during animation_16_2 the engine is in the
+    // 'choice' phase but A11Y_CHOICES has not arrived yet, so the choice menu is
+    // still closed and Escape reaches list mode. A `skip` there is exactly what
+    // wedges the engine, so it must be suppressed.
+    const { controller, choiceMenu, sent, readRoom, setPhase } = harness();
+    setPhase("choice");
+    expect(choiceMenu.isOpen()).toBe(false);
+    expect(controller.handleKey("Escape")).toBe(true);
+    expect(sent).toEqual([]); // no skip while a choice is pending
+    expect(readRoom).toHaveBeenCalled(); // the key still gives one useful update
+  });
+
+  it("still sends the list-mode Escape `skip` when the phase is 'control'", () => {
+    const { controller, choiceMenu, sent, setPhase } = harness();
+    setPhase("control");
+    expect(choiceMenu.isOpen()).toBe(false);
+    expect(controller.handleKey("Escape")).toBe(true);
+    expect(sent).toEqual([{ verb: "skip" }]);
+  });
+
+  it("still sends the list-mode Escape `skip` when no phase is known yet", () => {
+    const { controller, choiceMenu, sent } = harness();
+    // phase left undefined (no A11Y_PHASE seen yet): the guard falls back to the
+    // choice menu's open state, which is closed, so skip is allowed.
+    expect(choiceMenu.isOpen()).toBe(false);
+    expect(controller.handleKey("Escape")).toBe(true);
+    expect(sent).toEqual([{ verb: "skip" }]);
+  });
+
+  it("Enter in the choice menu chooses the focused option (never a skip) while phase is 'choice'", () => {
+    const { controller, choiceMenu, sent, setPhase } = harness();
+    setPhase("choice");
+    choiceMenu.openWith(DRUNK);
+    controller.handleKey("ArrowDown"); // focus option 2
+    expect(controller.handleKey("Enter")).toBe(true);
+    expect(sent).toEqual([{ verb: "choose", n: 2 }]);
+    expect(sent).not.toContainEqual({ verb: "skip" });
+  });
+
+  it("R does NOT resurrect a stale menu once the phase has moved on (busy): it repeats, sends no `choices`", () => {
+    const { controller, choiceMenu, sent, repeat, setPhase } = harness();
+    // The menu is still open (the page closes it on the next phase line), but
+    // the engine has already left 'choice'. R must not re-list the stale menu.
+    choiceMenu.openWith(DRUNK);
+    setPhase("busy");
+    expect(controller.handleKey("r")).toBe(true);
+    expect(sent).toEqual([]); // no `choices` sent — the menu is stale
+    expect(repeat).toHaveBeenCalled(); // just repeat the last line, one update
   });
 });

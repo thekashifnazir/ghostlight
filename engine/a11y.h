@@ -859,6 +859,42 @@ private:
 	// phase reads `busy`. 0 means poll() has not run yet.
 	uint32 _lastPollMs;
 
+	// --- Busy watchdog (Fix C: A11Y_PHASE busy can never be permanent) ------
+	//
+	// A command can leave the engine wedged so that poll() never runs again
+	// (the observed permanent-busy dead state: a conversation reply consumed a
+	// stale skip and animation_16_2 never handed control back to the main
+	// loop). Without a watchdog A11Y_PHASE would then read `busy` forever and no
+	// queued command would ever settle. onUpdateEvents() — which keeps running
+	// inside the blocking loop — watches for this: when commands are queued but
+	// poll() has not advanced its stamp for kWatchdogMs, it escalates in two
+	// stages. Stage 1 (after kWatchdogMs) emits one `A11Y_ERR busy: engine not
+	// accepting commands` and raises a skip to try to free the loop. Stage 2
+	// (after another kWatchdogMs still stuck) drops the surplus skips, clears
+	// the queue and emits `A11Y_ERR busy: commands dropped`, so the player is
+	// told and the queue cannot wedge the next room.
+	//
+	// _watchdogStage is 0 when not stuck, 1 after the stage-1 warning, 2 after
+	// the stage-2 drop; it resets to 0 whenever poll() runs (the stamp advances)
+	// or the queue drains, so a later genuine stall is caught fresh.
+	// _watchdogBaseMs is the _lastPollMs value the current stall is measured
+	// from, captured when the watchdog first sees a queued command with a stale
+	// poll stamp, so the two 8 s windows are measured from a stable origin
+	// rather than drifting with each check.
+	int _watchdogStage;
+	uint32 _watchdogBaseMs;
+
+	// How long (ms) poll() may be stalled with commands queued before each
+	// watchdog stage fires. 8 s per the Fix C spec: long enough never to trip on
+	// a normal cutscene/speech that is still advancing, short enough that a true
+	// dead state is reported and cleared within a handful of seconds.
+	static const uint32 kWatchdogMs = 8000;
+
+	// Run the busy watchdog from onUpdateEvents(): detect a stalled poll() with
+	// commands still queued and escalate (warn + raiseSkip, then drop + clear).
+	// A no-op when poll() is fresh or nothing is queued. Fix C.
+	void runBusyWatchdog();
+
 	// Emit `A11Y_PHASE <name>` if `phase` differs from the last one emitted,
 	// and remember it. Cheap: a compare and, on a change only, one emitLine().
 	void emitPhase(Phase phase);

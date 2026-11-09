@@ -159,7 +159,7 @@ A11yLayer::A11yLayer(DrasculaEngine *engine)
 	  _mainCmdDiffPending(false), _mainCmdOpenedConverse(false), _mainCmdErrCount(0),
 	  _queueHead(0), _inRunCommand(false), _lastSkipPollMs(0),
 	  _clickState(kClickIdle), _lastPhase(kPhaseNone), _probe(nullptr),
-	  _lastPollMs(0) {
+	  _lastPollMs(0), _watchdogStage(0), _watchdogBaseMs(0) {
 	for (int i = 0; i < 4; i++)
 		_choiceBottom[i] = 0;
 	// The per-engine "player in control" probe the phase logic reads. This is
@@ -1918,6 +1918,20 @@ void A11yLayer::onConverseBegin() {
 	_converseNeedChoices = true;
 	_choicePressed = false;
 
+	// Fix A (permanent-busy dead state): a conversation must never inherit a
+	// stale kActionSkip. The `talk` that opens this conversation may have been
+	// preceded by skips the player queued to clear an earlier cutscene/line
+	// (e.g. the drunk greeting), and any surplus kActionSkip left unconsumed in
+	// the engine's action buffer would otherwise be read by converse()'s own
+	// getAction() on its first frames — selecting or dismissing an option the
+	// player never chose, and in the animation_16_2 case wedging the engine in
+	// a state where no later command settles and A11Y_PHASE stays `busy`
+	// forever. Drop any such surplus once, right as the conversation opens, so
+	// the choice menu starts from clean input. dropSurplusSkips() touches only
+	// unread skip input (queued skip commands and buffered kActionSkip), never
+	// any other command or engine state.
+	dropSurplusSkips();
+
 	// Task 29 (R4.1/R7.1): converse() is running nested inside the current
 	// main-loop command's dispatch (the `talk <npc>` that opened it), so this
 	// conversation was opened BY that command. Record it, so the opening
@@ -2116,6 +2130,19 @@ void A11yLayer::onConverseFrame(const char *phrase1, const char *phrase2,
 		emitDiff(_choiceCmd, _choiceSnapshot, _choiceErrCount);
 		_choiceDiffPending = false;
 	}
+
+	// Fix A (permanent-busy dead state): after a non-ending choice's reply has
+	// run and settled (step 3b above), drop any surplus skip input before this
+	// frame re-lists the choices and reads the next command. The reply
+	// (talk()+response()) runs its own speech loop, which — like a cutscene —
+	// drains kActionSkip via getAction(); if the player had queued more skips
+	// than that reply had lines, the leftover kActionSkip would sit in the
+	// engine's action buffer and be read by the NEXT converse frame's own
+	// getAction(), dismissing or mis-selecting the re-listed options and, in the
+	// animation_16_2 path, wedging the engine so no later command settles and
+	// A11Y_PHASE never leaves `busy`. Clearing it here means each re-listed
+	// choice menu starts from clean input. Only unread skip input is touched.
+	dropSurplusSkips();
 
 	// (4) Service the command file. Append any new lines, then look at the next
 	// queued command.
@@ -2811,6 +2838,75 @@ void A11yLayer::dropSurplusSkips() {
 		_commandQueue.remove_at(_commandQueue.size() - 1);
 }
 
+// --- Busy watchdog (Fix C: A11Y_PHASE busy can never be permanent) ----------
+//
+// Called from onUpdateEvents() every frame (the one hook that keeps running
+// while a blocking loop has taken over the main loop). A command can wedge the
+// engine so poll() never runs again and A11Y_PHASE stays `busy` forever with
+// queued commands never settling (the observed dead state: a conversation reply
+// consumed a stale skip, animation_16_2 never returned control). This detects
+// that and escalates in two 8 s stages so the condition is reported and cleared
+// rather than being silent and permanent.
+//
+// "poll() has not run for 8 s" is read from _lastPollMs, the stamp poll() sets
+// at the top of every frame it runs: while the main loop is live the stamp is
+// never more than a frame or two old, so the watchdog never trips in normal
+// play; once a nested loop has taken over, the stamp freezes and the age grows.
+// The watchdog only acts when there is also something queued to settle — an
+// idle engine with a stale stamp (nothing to do) is not a dead state.
+void A11yLayer::runBusyWatchdog() {
+	// Nothing queued to settle: not a dead state. Reset so a later stall starts
+	// a fresh two-stage escalation.
+	if (_queueHead >= _commandQueue.size()) {
+		_watchdogStage = 0;
+		_watchdogBaseMs = 0;
+		return;
+	}
+
+	// poll() never ran yet (boot) — no stall to measure against.
+	if (_lastPollMs == 0)
+		return;
+
+	uint32 now = g_system->getMillis();
+
+	// poll() is fresh: the main loop is live and draining the queue normally, so
+	// there is no stall. Clear any escalation in progress.
+	if (now - _lastPollMs < kWatchdogMs) {
+		_watchdogStage = 0;
+		_watchdogBaseMs = 0;
+		return;
+	}
+
+	// poll() is stale AND commands are queued. Anchor the stall on the poll
+	// stamp the first time we see it, so the two windows are measured from a
+	// stable origin rather than creeping with each frame.
+	if (_watchdogStage == 0) {
+		_watchdogBaseMs = _lastPollMs;
+		// Stage 1: tell the reader the engine is not accepting commands and try
+		// to free the blocking loop with one skip (the same input a stuck
+		// cutscene/line responds to). raiseSkip() only pushes one kActionSkip;
+		// if the loop is genuinely dead it does nothing and stage 2 follows.
+		emitLine("A11Y_ERR busy: engine not accepting commands");
+		raiseSkip();
+		_watchdogStage = 1;
+		return;
+	}
+
+	// Already warned (stage 1). Wait for a second full window measured from the
+	// same anchor before giving up on the queue.
+	if (_watchdogStage == 1 && now - _watchdogBaseMs >= 2 * kWatchdogMs) {
+		// Stage 2: the skip did not free it. Drop any surplus skip input, clear
+		// the queue so it cannot wedge or bleed into the next room, and tell the
+		// reader the commands were dropped. The player maps this to "The game
+		// didn't respond. Press L to hear where you are."
+		dropSurplusSkips();
+		_commandQueue.clear();
+		_queueHead = 0;
+		emitLine("A11Y_ERR busy: commands dropped");
+		_watchdogStage = 2;
+	}
+}
+
 // Hook body: run from the end of DrasculaEngine::updateEvents() every frame.
 // Because a cutscene/speech loop can call updateEvents() every ~10 ms, reading
 // the command file on each call would churn the filesystem; so we throttle to
@@ -2823,6 +2919,13 @@ void A11yLayer::dropSurplusSkips() {
 void A11yLayer::onUpdateEvents() {
 	if (!g_system)
 		return;
+
+	// Fix C: run the busy watchdog first, before the skip-read throttle below.
+	// It is timed off _lastPollMs (the poll() stall), not the 250 ms skip-read
+	// cadence, so it must not be gated by that throttle — a wedged engine still
+	// calls updateEvents() every frame, which is exactly when the watchdog needs
+	// to fire. It is a no-op whenever poll() is fresh or nothing is queued.
+	runBusyWatchdog();
 
 	// Throttle: at most one command-file read per ~250 ms from this hook. poll()
 	// still reads every frame when the main loop is running; this cap only

@@ -7,7 +7,7 @@
 // commands through the adapter targeting hotspot numbers, and returns focus to
 // the list after actions.
 
-import type { Command, Diff, EngineAdapter } from "../engine/adapter.js";
+import type { Command, Diff, EngineAdapter, EnginePhase } from "../engine/adapter.js";
 import type { Hotspot } from "../model/hotspot-list.js";
 import type { Pack } from "../model/pack.js";
 import type { Sonar } from "../sonar/sonar.js";
@@ -56,6 +56,17 @@ export interface ControllerDeps {
    * to route to.
    */
   choiceMenu?: ChoiceMenu;
+  /**
+   * The engine's own control phase (A11Y_PHASE), read live. Fix B: a `skip`
+   * must never be sent while the engine is in the 'choice' phase (a choice menu
+   * is open and the engine is BLOCKED waiting for a pick), and R while a choice
+   * menu is open must re-read the engine's CURRENT choices only when the phase
+   * is still 'choice' — never resurrect a stale menu once the phase has moved on
+   * to 'busy'/'control'. Optional so controller unit tests that do not exercise
+   * phase behaviour need not wire it; when absent, the controller falls back to
+   * the choice menu's own open/closed state (the previous behaviour).
+   */
+  enginePhase?: () => EnginePhase | undefined;
   /**
    * The typed command box: "/" opens it; it parses and sends commands.
    * Optional so controller unit tests that exercise only list/menu/inventory
@@ -251,6 +262,17 @@ export class Controller {
         this.d.load();
         return true;
       case "Escape":
+        // Fix B: never send `skip` while the engine is waiting on a choice.
+        // When the choice menu is open this handler is unreachable (the choice
+        // menu owns the keyboard, and its Escape re-states how to choose), but
+        // the engine can also be in the 'choice' phase with the menu not yet
+        // open (e.g. mid animation_16_2, before A11Y_CHOICES arrives). A `skip`
+        // there is what drives the permanent-busy dead state, so suppress it:
+        // re-read the room instead so the key still produces one useful update.
+        if (this.isChoicePending()) {
+          this.d.readRoom();
+          return true;
+        }
         this.d.adapter.send({ verb: "skip" });
         return true;
       default:
@@ -303,11 +325,31 @@ export class Controller {
   }
 
   /**
+   * True when the engine is waiting on a conversation choice (Fix B). This is
+   * true when the engine's live phase is 'choice', OR — as a fallback for when
+   * no phase accessor is wired — when the choice menu is open. It gates the
+   * list-mode Escape `skip`: a `skip` sent while a choice is pending is what
+   * drives the permanent-busy dead state, so it must be suppressed even in the
+   * window where the engine is already in the 'choice' phase but the choice
+   * menu has not yet opened (mid animation_16_2, before A11Y_CHOICES arrives).
+   */
+  private isChoicePending(): boolean {
+    if (this.inChoicePhase()) return true;
+    return this.d.choiceMenu?.isOpen() ?? false;
+  }
+
+  /** True only when the engine's live phase is 'choice' (Fix B). */
+  private inChoicePhase(): boolean {
+    return this.d.enginePhase?.() === "choice";
+  }
+
+  /**
    * Keys for the conversation choice menu (A11Y_CHOICES). The engine is BLOCKED
    * waiting for a pick, so this menu owns the keyboard: Up/Down (and Left/Right
    * for parity with the other menus) move roving focus, Enter picks the focused
    * option, a number key 1-9 picks that option directly (the engine numbers the
-   * choices 1..N), and R repeats all the options as one line. Escape does NOT
+   * choices 1..N), and R re-reads the engine's current choices while the engine
+   * is still in the 'choice' phase (Fix B). Escape does NOT
    * close the menu — there is nothing to cancel back to while the engine waits —
    * so it instead re-states how to choose. Every key here is consumed so none
    * reaches the engine's own input (gotcha 7); a number key that is out of range
@@ -337,7 +379,27 @@ export class Controller {
         return true;
       case "r":
       case "R":
-        menu.repeatAll();
+        // Fix B: R re-reads the engine's CURRENT choices, but only while the
+        // engine is still in the 'choice' phase. If the phase has moved on
+        // (busy/control) the open menu is stale — the conversation advanced by
+        // another path — so re-listing its cached options would resurrect a
+        // menu the engine is no longer waiting on. In that case just repeat the
+        // last spoken line (one key, one update) and leave the stale menu be.
+        //
+        // When the phase IS 'choice', ask the engine to re-emit its choices
+        // (`choices` -> A11Y_CHOICES) so the re-listed options are engine truth,
+        // not a snapshot this menu happens to hold. When no phase accessor is
+        // wired (older controller tests), fall back to the menu's own cached
+        // repeat, matching the previous behaviour.
+        if (this.d.enginePhase) {
+          if (this.inChoicePhase()) {
+            this.d.adapter.send({ verb: "choices" });
+          } else {
+            this.d.live.repeat();
+          }
+        } else {
+          menu.repeatAll();
+        }
         return true;
       case "Escape":
         menu.explainNoEscape();

@@ -53,6 +53,13 @@ const GENERIC_LINE = "That didn't work. Press L to hear the room.";
  *   - "<n> is a verb slot, not an inventory item …"  -> bad target, no re-sync
  *   - "item <n> is not in the inventory"             -> bad item, no re-sync
  *
+ * Fix C adds the busy watchdog's two lines (engine/a11y.cpp runBusyWatchdog),
+ * mapped to plain player lines with no re-sync:
+ *   - "busy: engine not accepting commands" -> "The game is busy. Trying to
+ *     move on."
+ *   - "busy: commands dropped"              -> "The game didn't respond. Press
+ *     L to hear where you are."
+ *
  * Everything else (a malformed command, an unknown verb, a bad save slot) maps
  * to a generic number-free line and never re-syncs.
  */
@@ -75,6 +82,22 @@ export function mapEngineError(message: string): MappedError {
   if (/^item\s+\d+\s+is not in the inventory$/i.test(text)) {
     return {
       line: "You aren't carrying that any more. Press Tab for your inventory.",
+      resync: false,
+    };
+  }
+
+  // "busy: engine not accepting commands" / "busy: commands dropped": the Fix C
+  // busy watchdog (engine/a11y.cpp). The engine wedged so A11Y_PHASE busy would
+  // otherwise be permanent; the watchdog reports it in two stages. Map each to a
+  // plain, number-free player line. Neither re-syncs the room model (the room is
+  // unchanged; the watchdog is about the engine not responding, not a drifted
+  // object list) — the second line itself tells the player to press L.
+  if (/^busy:\s*engine not accepting commands$/i.test(text)) {
+    return { line: "The game is busy. Trying to move on.", resync: false };
+  }
+  if (/^busy:\s*commands dropped$/i.test(text)) {
+    return {
+      line: "The game didn't respond. Press L to hear where you are.",
       resync: false,
     };
   }

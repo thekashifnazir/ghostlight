@@ -10,6 +10,7 @@ import type {
   Diff,
   EngineAdapter,
   EngineEvent,
+  EnginePhase,
   RoomState,
 } from "./engine/adapter.js";
 import { LiveAdapter } from "./engine/live-adapter.js";
@@ -256,6 +257,13 @@ export async function boot(): Promise<void> {
     inventory: [],
   };
   let currentList: Hotspot[] = [];
+  // The engine's most recent control phase (A11Y_PHASE control|busy|choice).
+  // Tracked here so the controller can read engine truth for Fix B: it must
+  // never send `skip` while the phase is 'choice', and R in the choice menu
+  // re-reads the engine's current choices only while the phase is still
+  // 'choice'. Updated in handleEvent's 'phase' case. Undefined until the first
+  // A11Y_PHASE line (older recordings may never emit one).
+  let lastEnginePhase: EnginePhase | undefined;
   // One-shot: the spoken key orientation is announced on the first room the
   // player reaches after Start, and never again (later rooms arrive as diffs).
   let onboardingDone = false;
@@ -627,6 +635,9 @@ export async function boot(): Promise<void> {
     choiceMenu,
     commandBox,
     live,
+    // The engine's live control phase, for Fix B (suppress `skip` while a
+    // choice is pending; R re-reads engine choices only while in 'choice').
+    enginePhase: () => lastEnginePhase,
     // Open the examine window so the engine's hover/examine A11Y_TEXT lines for
     // this look are filtered from the text path until the look diff arrives.
     beginExamine: () => narrator.beginExamine(),
@@ -708,6 +719,9 @@ export async function boot(): Promise<void> {
         // Command echo; nothing to announce (the diff carries the result).
         break;
       case "phase":
+        // Track engine truth for the controller (Fix B): the live phase gates
+        // the list-mode Escape `skip` and the choice-menu R re-read.
+        lastEnginePhase = e.phase;
         // Engine-truth control phase (A11Y_PHASE). It drives the readiness
         // signal via status.onEvent(e) above and is internal diagnostics, not
         // player output, so nothing is announced here
