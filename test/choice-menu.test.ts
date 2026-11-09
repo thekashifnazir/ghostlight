@@ -111,24 +111,98 @@ describe("ChoiceMenu", () => {
     expect(announce).not.toHaveBeenCalled();
   });
 
-  it("Enter picks the focused option's engine number and returns focus", () => {
-    const { menu, choose, returnToList } = setup();
+  it("Enter picks the focused option's engine number and enters the waiting state without returning focus", () => {
+    const { el, menu, choose, returnToList } = setup();
     menu.openWith(DRUNK);
     menu.next(); // focus option 2 (GIVE ME A DRINK, engine n=2)
     menu.chooseCurrent();
     expect(choose).toHaveBeenCalledWith(2);
-    expect(returnToList).toHaveBeenCalled();
-    expect(menu.isOpen()).toBe(false);
+    // Fix 1: within one conversation the menu KEEPS focus and does NOT bounce
+    // back to #game. It stays open, enters the waiting state, and marks the
+    // listbox aria-busy until the engine's next choices (or the end) arrive.
+    expect(returnToList).not.toHaveBeenCalled();
+    expect(menu.isOpen()).toBe(true);
+    expect(menu.isWaiting()).toBe(true);
+    expect(el.getAttribute("aria-busy")).toBe("true");
+    expect(el.hidden).toBe(false);
   });
 
-  it("a number key picks that option directly, regardless of focus", () => {
+  it("a number key picks that option directly, entering the waiting state", () => {
     const { menu, choose, returnToList } = setup();
     menu.openWith(DRUNK);
     // Focus is on option 1, but pressing 3 picks option 3.
     menu.chooseNumber(3);
     expect(choose).toHaveBeenCalledWith(3);
-    expect(returnToList).toHaveBeenCalled();
+    expect(returnToList).not.toHaveBeenCalled();
+    expect(menu.isOpen()).toBe(true);
+    expect(menu.isWaiting()).toBe(true);
+  });
+
+  it("while waiting, Enter, the arrows and number keys are ignored with no speech or pick", () => {
+    const { el, menu, choose, announce } = setup();
+    menu.openWith(DRUNK);
+    menu.chooseCurrent(); // pick option 1 -> waiting
+    expect(choose).toHaveBeenCalledTimes(1);
+    const focusedWhileWaiting = document.activeElement;
+    announce.mockClear();
+    // Every pick/nav key is a silent no-op while the engine processes the pick.
+    menu.next();
+    menu.prev();
+    menu.chooseCurrent();
+    menu.chooseNumber(2);
+    expect(choose).toHaveBeenCalledTimes(1); // still just the first pick
+    expect(announce).not.toHaveBeenCalled(); // no speech
+    // Focus stays put inside the listbox (never bounced to #game).
+    expect(document.activeElement).toBe(focusedWhileWaiting);
+    expect(el.getAttribute("aria-busy")).toBe("true");
+  });
+
+  it("while waiting, R still re-reads the options", () => {
+    const { menu, announce } = setup();
+    menu.openWith(DRUNK);
+    menu.chooseCurrent(); // -> waiting
+    announce.mockClear();
+    menu.repeatAll();
+    expect(announce).toHaveBeenCalledWith(
+      "Choices, 3 options. 1. HI BOSS, HOW ARE YOU? 2. GIVE ME A DRINK. 3. GOODBYE.",
+    );
+  });
+
+  it("keeps focus in the menu across two rounds and returns to #game once at the end", () => {
+    const { el, menu, choose, returnToList } = setup();
+    // Round 1: open and pick. Focus stays in the listbox; no return to #game.
+    menu.openWith(DRUNK);
+    const firstFocus = document.activeElement;
+    expect(el.contains(firstFocus)).toBe(true);
+    menu.chooseCurrent();
+    expect(menu.isWaiting()).toBe(true);
+    expect(el.contains(document.activeElement)).toBe(true); // still in the menu
+    expect(returnToList).not.toHaveBeenCalled();
+
+    // Round 2: the engine offers a follow-up question. openWith replaces the
+    // options in place, clears the waiting/busy state, and focuses option 1 —
+    // without the menu ever losing focus to #game.
+    const followUp: ChoiceOption[] = [
+      { n: 1, text: "YES." },
+      { n: 2, text: "NO." },
+    ];
+    menu.openWith(followUp);
+    expect(menu.isWaiting()).toBe(false);
+    expect(el.hasAttribute("aria-busy")).toBe(false);
+    const items = el.querySelectorAll('[role="option"]');
+    expect(document.activeElement).toBe(items[0]);
+    expect(returnToList).not.toHaveBeenCalled(); // STILL no bounce between rounds
+
+    // Pick again -> waiting, then the conversation ends (control phase) and the
+    // page closes the menu, which returns focus to #game EXACTLY once.
+    menu.chooseCurrent();
+    expect(returnToList).not.toHaveBeenCalled();
+    menu.close();
     expect(menu.isOpen()).toBe(false);
+    expect(el.hidden).toBe(true);
+    expect(returnToList).toHaveBeenCalledTimes(1);
+    // Picks sent: one per round.
+    expect(choose).toHaveBeenCalledTimes(2);
   });
 
   it("ignores an out-of-range number key (menu stays open, nothing chosen)", () => {
@@ -141,14 +215,30 @@ describe("ChoiceMenu", () => {
     expect(choose).not.toHaveBeenCalled();
   });
 
-  it("R repeats all the options as one line", () => {
+  it("R repeats all the options numbered, with the count header and full stops", () => {
     const { menu, announce } = setup();
     menu.openWith(DRUNK);
     announce.mockClear();
     menu.repeatAll();
     expect(announce).toHaveBeenCalledTimes(1);
     expect(announce).toHaveBeenCalledWith(
-      "1. HI BOSS, HOW ARE YOU? 2. GIVE ME A DRINK. 3. GOODBYE.",
+      "Choices, 3 options. 1. HI BOSS, HOW ARE YOU? 2. GIVE ME A DRINK. 3. GOODBYE.",
+    );
+  });
+
+  it("adds a full stop to an option that has no ending punctuation, keeping the engine's text", () => {
+    const { menu, announce } = setup();
+    // Two options without terminal punctuation, one with a question mark.
+    menu.openWith([
+      { n: 1, text: "Hi boss, how are you?" },
+      { n: 2, text: "This is quite groovy, huh" },
+      { n: 3, text: "I'd better not say anything" },
+    ]);
+    announce.mockClear();
+    menu.repeatAll();
+    expect(announce).toHaveBeenCalledWith(
+      "Choices, 3 options. 1. Hi boss, how are you? " +
+        "2. This is quite groovy, huh. 3. I'd better not say anything.",
     );
   });
 
@@ -180,14 +270,17 @@ describe("ChoiceMenu", () => {
     expect(announce).toHaveBeenLastCalledWith("Choices, 2 options.");
   });
 
-  it("close() hides the menu and clears it, without choosing", () => {
-    const { el, menu, choose } = setup();
+  it("close() hides the menu, clears it, and returns focus to #game once, without choosing", () => {
+    const { el, menu, choose, returnToList } = setup();
     menu.openWith(DRUNK);
     menu.close();
     expect(menu.isOpen()).toBe(false);
     expect(el.hidden).toBe(true);
     expect(el.querySelectorAll('[role="option"]')).toHaveLength(0);
     expect(choose).not.toHaveBeenCalled();
+    // Closing at the end of the conversation hands focus back to #game once, so
+    // focus never stays trapped on a now-hidden listbox option (Fix 1).
+    expect(returnToList).toHaveBeenCalledTimes(1);
   });
 
   it("ignores key methods while closed", () => {

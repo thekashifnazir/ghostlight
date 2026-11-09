@@ -77,7 +77,9 @@ describe("LiveRegion", () => {
       live.stepBack(); // "One."
       live.stepBack(); // already oldest; stays on "One."
       live.stepBack();
-      expect(region.textContent).toBe("Earlier: One.");
+      // Repeated step-backs at the oldest line toggle an invisible marker so
+      // each one re-reads (Fix 3); strip it to assert the visible recall text.
+      expect(region.textContent?.replace(/\u2060$/, "")).toBe("Earlier: One.");
     });
 
     it("remembers at most 20 earlier lines", () => {
@@ -86,7 +88,7 @@ describe("LiveRegion", () => {
       for (let i = 0; i < 22; i++) live.announce(`L${i}`);
       // Step back 25 times; it should stop at the oldest kept line, L1.
       for (let i = 0; i < 25; i++) live.stepBack();
-      expect(region.textContent).toBe("Earlier: L1");
+      expect(region.textContent?.replace(/\u2060$/, "")).toBe("Earlier: L1");
     });
 
     it("resetHistoryCursor makes the next Shift+R start from the most recent earlier line", () => {
@@ -130,6 +132,65 @@ describe("LiveRegion", () => {
 
   it("composes the N of M focus line", () => {
     expect(LiveRegion.focusLine("skull", 2, 7)).toBe("skull, 3 of 7");
+  });
+
+  describe("repeat re-reads every time, even for identical text (Fix 3)", () => {
+    // A polite live region only re-announces when its text actually changes.
+    // A screen reader reading the SAME string twice is silent the second time,
+    // so pressing R twice used to read the line only once. The region write now
+    // forces a DOM change (an invisible marker toggled on identical writes), so
+    // every R is read.
+    const WJ = "\u2060"; // the invisible WORD JOINER marker
+
+    it("R twice produces two distinct DOM values (two reads)", () => {
+      live.announce("A repeatable line.");
+      const first = region.textContent;
+      live.repeat();
+      const afterFirstR = region.textContent;
+      live.repeat();
+      const afterSecondR = region.textContent;
+      // Each R changed the DOM, so a polite region re-reads each time.
+      expect(afterFirstR).not.toBe(first);
+      expect(afterSecondR).not.toBe(afterFirstR);
+      // The visible, spoken text is unchanged apart from the invisible marker.
+      expect(afterFirstR?.replace(WJ, "")).toBe("A repeatable line.");
+      expect(afterSecondR?.replace(WJ, "")).toBe("A repeatable line.");
+    });
+
+    it("the invisible marker never leaks into lastLine, history or the transcript", () => {
+      live.announce("Clean line.");
+      live.repeat(); // adds the marker to the region only
+      // lastLine is the clean text (so R and recaps stay correct).
+      expect(live.lastLine()).toBe("Clean line.");
+      expect(live.lastLine()).not.toContain(WJ);
+      // The transcript mirror carries the clean text, no marker.
+      const lines = Array.from(transcript.querySelectorAll("p")).map(
+        (p) => p.textContent,
+      );
+      for (const l of lines) expect(l).not.toContain(WJ);
+      // A following Shift+R step-back recalls the clean earlier line, no marker.
+      live.announce("Second clean line.");
+      live.stepBack();
+      expect(region.textContent?.replace(WJ, "")).toBe("Earlier: Clean line.");
+    });
+
+    it("a genuinely new, distinct line is written clean (no marker)", () => {
+      live.announce("First.");
+      live.announce("Second.");
+      // Distinct consecutive lines carry no marker — only identical repeats do.
+      expect(region.textContent).toBe("Second.");
+    });
+
+    it("announcing the same text twice in a row still changes the DOM", () => {
+      live.announce("Same line.");
+      const first = region.textContent;
+      live.announce("Same line.");
+      const second = region.textContent;
+      expect(second).not.toBe(first);
+      expect(second?.replace(WJ, "")).toBe("Same line.");
+      // History records the clean duplicate, not the marker.
+      expect(live.lastLine()).toBe("Same line.");
+    });
   });
 
   it("composes the room announcement: name, short, things, exits", () => {

@@ -44,6 +44,21 @@ export class LiveRegion {
   private readonly schedule: (fn: () => void) => void;
 
   /**
+   * Flips on every region write (Fix 3). A polite live region only re-reads
+   * when its text actually CHANGES, so writing the same string twice (R pressed
+   * twice on the same line) is silent the second time — the DOM did not change.
+   * To make every write re-read, {@link setRegion} appends a trailing
+   * zero-width marker whose presence alternates with this flag, so the region's
+   * textContent is guaranteed to differ from its previous value even when the
+   * visible text is identical. The marker is invisible (U+2060 WORD JOINER,
+   * which carries no sound and no width) and is NEVER added to `last`, the
+   * history, the transcript or the ?speechlog mirror — only to the live
+   * region's own textContent — so repeat/step-back and the console mirror all
+   * keep the clean text.
+   */
+  private writeToggle = false;
+
+  /**
    * @param region the role=log element.
    * @param transcript optional visible mirror for sighted co-players.
    * @param schedule how to defer the next paced dialogue line; defaults to
@@ -81,8 +96,10 @@ export class LiveRegion {
     this.backCursor = 0;
     this.last = line;
     // Replacing textContent is what makes a polite region re-announce the new
-    // line rather than appending and reading the whole history.
-    this.region.textContent = line;
+    // line rather than appending and reading the whole history. setRegion
+    // guarantees the DOM actually changes even when `line` equals what the
+    // region already holds, so a repeat is never silently dropped (Fix 3).
+    this.setRegion(line);
     if (this.transcript) {
       const p = this.transcript.ownerDocument.createElement("p");
       p.textContent = line;
@@ -155,8 +172,9 @@ export class LiveRegion {
     // a following synchronous line such as "Chapter 2: ..." and overwrote it,
     // so dialogue is written immediately; with voiced lines off by default the
     // backlog a focus move used to hear is mostly gone. dropPendingDialogue()
-    // stays as the hook for any queued writes.
-    this.region.textContent = line;
+    // stays as the hook for any queued writes. setRegion guarantees a DOM change
+    // even when two consecutive dialogue lines are identical (Fix 3).
+    this.setRegion(line);
   }
 
   /**
@@ -183,7 +201,7 @@ export class LiveRegion {
     const next = this.pendingDialogue.shift();
     if (next === undefined) return;
     // Write only the region (bookkeeping already happened in announceDialogue).
-    this.region.textContent = next;
+    this.setRegion(next);
     if (this.pendingDialogue.length > 0) this.scheduleFlush();
   }
 
@@ -192,9 +210,10 @@ export class LiveRegion {
   repeat(): void {
     this.backCursor = 0;
     if (this.last) {
-      // Clear first so replacing with the same text still triggers a re-read.
-      this.region.textContent = "";
-      this.region.textContent = this.last;
+      // setRegion guarantees the DOM changes even when the region already holds
+      // this exact line, so pressing R twice is read twice rather than the
+      // second press being silently dropped (Fix 3).
+      this.setRegion(this.last);
     }
   }
 
@@ -211,10 +230,9 @@ export class LiveRegion {
     if (this.backCursor < this.history.length) this.backCursor += 1;
     const line = this.history[this.backCursor - 1];
     const recall = `Earlier: ${line}`;
-    // Clear first so replacing with the same text (repeated Shift+R at the
-    // oldest line) still triggers a re-read in the polite region.
-    this.region.textContent = "";
-    this.region.textContent = recall;
+    // setRegion guarantees a DOM change even when repeated Shift+R lands on the
+    // same oldest line, so it is re-read rather than going silent (Fix 3).
+    this.setRegion(recall);
     if (this.transcript) {
       const p = this.transcript.ownerDocument.createElement("p");
       p.textContent = recall;
@@ -227,6 +245,37 @@ export class LiveRegion {
    *  so the next Shift+R starts again from the most recent earlier line). */
   resetHistoryCursor(): void {
     this.backCursor = 0;
+  }
+
+  /**
+   * Write `text` to the live region so a polite screen reader always re-reads
+   * it, even when it equals what the region already holds (Fix 3). A polite
+   * region only speaks on an actual text change, so writing the same string
+   * twice (two R presses on one line, or two identical dialogue lines) is
+   * silent the second time. To force a change, a single trailing zero-width
+   * WORD JOINER (U+2060) is toggled on/off ONLY when the new visible text
+   * equals what the region currently shows: the textContent then differs from
+   * its previous value on every such write while the visible, spoken text is
+   * unchanged (the WORD JOINER has no width and no sound). A genuinely new line
+   * is written clean, so distinct announcements never carry the marker. The
+   * marker lives ONLY in the region's own textContent — never in `last`, the
+   * history, the transcript or the ?speechlog mirror, which all keep the clean
+   * text — so repeat, step-back and the console mirror are unaffected.
+   */
+  private setRegion(text: string): void {
+    const current = this.region.textContent ?? "";
+    // Strip any marker we previously added, to compare the visible text only.
+    const visible = current.replace(/\u2060$/, "");
+    if (visible === text) {
+      // Same visible line again: flip the invisible marker so the DOM changes
+      // and the polite region re-reads it (Fix 3).
+      this.writeToggle = !this.writeToggle;
+      this.region.textContent = this.writeToggle ? `${text}\u2060` : text;
+    } else {
+      // A new line: write it clean and reset the toggle.
+      this.writeToggle = false;
+      this.region.textContent = text;
+    }
   }
 
   /** The last announced line, for tests and recaps. */

@@ -909,14 +909,18 @@ export async function boot(): Promise<void> {
         // happened." even on a build/recording where the choice menu arrives
         // only as a phase line.
         narrator.onPhase(e.phase);
-        // Close the keyboard choice menu when the engine LEAVES the choice
-        // phase on its own — the conversation ended by some other path (a
-        // choice the player made advances it, or the engine closed the menu),
-        // so 'control'/'busy' here means the menu is stale and must not keep
-        // owning the keyboard. A fresh set of choices (a follow-up question)
-        // arrives as its own A11Y_CHOICES and reopens/replaces the menu above,
-        // which re-enters the 'choice' phase, so this never fights that.
-        if (e.phase !== "choice" && choiceMenu.isOpen()) {
+        // Close the keyboard choice menu only when the conversation has ENDED —
+        // the engine has SETTLED to the control phase with no further choices
+        // (Fix 1). The busy phase BETWEEN picks (the engine processing a pick
+        // before offering a follow-up question) must NOT close it: the menu is
+        // waiting in place, keeping focus, so the screen reader does not bounce
+        // out to #game and back on every round. A follow-up question arrives as
+        // its own A11Y_CHOICES and replaces the options in place (openWith
+        // clears the waiting state), re-entering the 'choice' phase. Only the
+        // settled 'control' phase means there is nothing more to pick, so the
+        // menu closes and returns focus to #game exactly once (choiceMenu.close
+        // calls returnToList). A hidden listbox never keeps focus.
+        if (e.phase === "control" && choiceMenu.isOpen()) {
           choiceMenu.close();
         }
         break;

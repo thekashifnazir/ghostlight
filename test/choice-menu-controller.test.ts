@@ -136,22 +136,40 @@ describe("Controller routing: conversation choice menu", () => {
     expect(listCalls).toEqual([]);
   });
 
-  it("Enter picks the focused option and sends choose n", () => {
+  it("Enter picks the focused option and sends choose n, keeping the menu open and waiting", () => {
     const { controller, choiceMenu, sent, returnToList } = harness();
     choiceMenu.openWith(DRUNK);
     controller.handleKey("ArrowDown"); // focus option 2
     expect(controller.handleKey("Enter")).toBe(true);
     expect(sent).toEqual([{ verb: "choose", n: 2 }]);
-    expect(returnToList).toHaveBeenCalled();
-    expect(choiceMenu.isOpen()).toBe(false);
+    // Fix 1: the menu does NOT return focus between picks; it stays open and
+    // waiting for the engine's reply (the next choices, or the end).
+    expect(returnToList).not.toHaveBeenCalled();
+    expect(choiceMenu.isOpen()).toBe(true);
+    expect(choiceMenu.isWaiting()).toBe(true);
   });
 
-  it("a number key picks that option directly and sends choose n", () => {
+  it("a number key picks that option directly and sends choose n, keeping the menu open and waiting", () => {
     const { controller, choiceMenu, sent } = harness();
     choiceMenu.openWith(DRUNK);
     expect(controller.handleKey("3")).toBe(true);
     expect(sent).toEqual([{ verb: "choose", n: 3 }]);
-    expect(choiceMenu.isOpen()).toBe(false);
+    expect(choiceMenu.isOpen()).toBe(true);
+    expect(choiceMenu.isWaiting()).toBe(true);
+  });
+
+  it("while waiting for the engine's reply, Enter and number keys are consumed but pick nothing", () => {
+    const { controller, choiceMenu, sent } = harness();
+    choiceMenu.openWith(DRUNK);
+    expect(controller.handleKey("Enter")).toBe(true); // pick option 1 -> waiting
+    expect(sent).toEqual([{ verb: "choose", n: 1 }]);
+    // Further picks are ignored (consumed, so they never reach the engine's
+    // input, but they send no second choose while the engine is processing).
+    expect(controller.handleKey("Enter")).toBe(true);
+    expect(controller.handleKey("2")).toBe(true);
+    expect(controller.handleKey("ArrowDown")).toBe(true);
+    expect(sent).toEqual([{ verb: "choose", n: 1 }]);
+    expect(choiceMenu.isWaiting()).toBe(true);
   });
 
   it("an out-of-range number key is still consumed but sends nothing", () => {
@@ -174,7 +192,9 @@ describe("Controller routing: conversation choice menu", () => {
     // already holds as one composed line — whatever the phase — and never asks
     // the engine, so no `choices` command is sent.
     expect(sent).toEqual([]);
-    expect(lines).toEqual(["1. HI BOSS, HOW ARE YOU? 2. GIVE ME A DRINK. 3. GOODBYE."]);
+    expect(lines).toEqual([
+      "Choices, 3 options. 1. HI BOSS, HOW ARE YOU? 2. GIVE ME A DRINK. 3. GOODBYE.",
+    ]);
   });
 
   it("Escape is consumed, does not close the menu, and re-states how to choose", () => {
@@ -293,7 +313,9 @@ describe("Controller Fix B: `skip` is never sent while a choice is pending", () 
     expect(controller.handleKey("r")).toBe(true);
     expect(sent).toEqual([]); // no `choices` sent
     expect(repeat).not.toHaveBeenCalled(); // not a last-line repeat
-    expect(lines).toEqual(["1. HI BOSS, HOW ARE YOU? 2. GIVE ME A DRINK. 3. GOODBYE."]);
+    expect(lines).toEqual([
+      "Choices, 3 options. 1. HI BOSS, HOW ARE YOU? 2. GIVE ME A DRINK. 3. GOODBYE.",
+    ]);
   });
 
   it("with the menu closed and phase 'choice', R asks the engine for its choices (sends `choices`)", () => {
