@@ -11,6 +11,7 @@ import type { Command, Diff, EngineAdapter } from "../engine/adapter.js";
 import type { Hotspot } from "../model/hotspot-list.js";
 import type { Pack } from "../model/pack.js";
 import type { Sonar } from "../sonar/sonar.js";
+import type { ChoiceMenu } from "./choice-menu.js";
 import type { CommandBox } from "./command-box.js";
 import type { Inventory } from "./inventory.js";
 import type { ListMode } from "./list-mode.js";
@@ -45,6 +46,16 @@ export interface ControllerDeps {
   list: ListMode;
   verbMenu: VerbMenu;
   inventory: Inventory;
+  /**
+   * The conversation choice menu (A11Y_CHOICES). When open the engine is
+   * BLOCKED waiting for a pick, so it owns the keyboard ahead of every other
+   * mode: Up/Down move, Enter and the number keys 1-9 pick, R repeats the
+   * options, and Escape does not close it (there is nothing to cancel back to).
+   * Optional so controller unit tests that exercise only list/menu/inventory
+   * behaviour need not construct one; when absent, there is never a choice menu
+   * to route to.
+   */
+  choiceMenu?: ChoiceMenu;
   /**
    * The typed command box: "/" opens it; it parses and sends commands.
    * Optional so controller unit tests that exercise only list/menu/inventory
@@ -125,7 +136,11 @@ export class Controller {
       (this.d.live as Partial<LiveRegion>).resetHistoryCursor?.();
     }
 
-    // Mode-specific routing first.
+    // Mode-specific routing first. The choice menu is modal — the engine is
+    // blocked waiting for a pick — so it owns the keyboard ahead of the verb
+    // menu and the inventory (neither of which can be open at the same time,
+    // but checking it first makes the priority explicit).
+    if (this.d.choiceMenu?.isOpen()) return this.handleChoiceMenuKey(key);
     if (this.d.verbMenu.isOpen()) return this.handleVerbMenuKey(key);
     if (this.d.inventory.isOpen()) return this.handleInventoryKey(key);
     return this.handleListKey(key, shift);
@@ -283,6 +298,62 @@ export class Controller {
         this.d.inventory.cancel();
         return true;
       default:
+        return false;
+    }
+  }
+
+  /**
+   * Keys for the conversation choice menu (A11Y_CHOICES). The engine is BLOCKED
+   * waiting for a pick, so this menu owns the keyboard: Up/Down (and Left/Right
+   * for parity with the other menus) move roving focus, Enter picks the focused
+   * option, a number key 1-9 picks that option directly (the engine numbers the
+   * choices 1..N), and R repeats all the options as one line. Escape does NOT
+   * close the menu — there is nothing to cancel back to while the engine waits —
+   * so it instead re-states how to choose. Every key here is consumed so none
+   * reaches the engine's own input (gotcha 7); a number key that is out of range
+   * for the current options is still consumed (chooseNumber ignores it) so a
+   * stray digit never falls through to a game action.
+   *
+   * "/" still opens the typed command box even while the menu is open, so a
+   * player who prefers typing can type "choose 2" (or a bare number) instead of
+   * using the arrows — parseContext.pendingChoice reflects the open menu, so the
+   * parser resolves that to a choice. The menu stays open underneath; picking
+   * via the box sends the same `choose n` and the engine's reply closes it.
+   */
+  private handleChoiceMenuKey(key: string): boolean {
+    const menu = this.d.choiceMenu;
+    if (!menu) return false;
+    switch (key) {
+      case "ArrowDown":
+      case "ArrowRight":
+        menu.next();
+        return true;
+      case "ArrowUp":
+      case "ArrowLeft":
+        menu.prev();
+        return true;
+      case "Enter":
+        menu.chooseCurrent();
+        return true;
+      case "r":
+      case "R":
+        menu.repeatAll();
+        return true;
+      case "Escape":
+        menu.explainNoEscape();
+        return true;
+      case "/":
+        // Open the typed command box (if wired). The player can type a choice
+        // ("choose 2" or a bare number) instead of using the arrows.
+        if (!this.d.commandBox) return false;
+        this.d.commandBox.openBox();
+        return true;
+      default:
+        // A number key 1-9 picks that option directly.
+        if (/^[1-9]$/.test(key)) {
+          menu.chooseNumber(Number.parseInt(key, 10));
+          return true;
+        }
         return false;
     }
   }

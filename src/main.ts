@@ -32,6 +32,7 @@ import type { Pack as HintPack } from "../packs/tools/src/types.js";
 // packs/drascula-en.json at dev and build time.
 import packJson from "../packs/drascula-en.json";
 import { CommandBox } from "./ui/command-box.js";
+import { ChoiceMenu } from "./ui/choice-menu.js";
 import { Controller } from "./ui/controller.js";
 import { Narrator } from "./ui/narrator.js";
 import { Highlight } from "./ui/highlight.js";
@@ -53,6 +54,9 @@ const HELP_TEXT =
   "Press V for more actions: open, close, talk, push. " +
   "Tab opens your inventory; choose an item to make it active, then interact " +
   "with a thing to use it. Backspace cancels. " +
+  "When someone offers you choices in a conversation, a choice menu opens: " +
+  "use Up and Down to move, Enter or a number key to pick, and R to hear the " +
+  "options again. " +
   "Slash opens a command box: type a plain command such as talk to " +
   "drunk, press Enter to send it, or Escape to close. " +
   "R repeats the last line; Shift plus R steps back through earlier lines. " +
@@ -201,6 +205,7 @@ export async function boot(): Promise<void> {
   const highlightEl = doc.getElementById("highlight") as HTMLElement;
   const verbMenuEl = doc.getElementById("verb-menu") as HTMLElement;
   const inventoryEl = doc.getElementById("inventory") as HTMLElement;
+  const choiceMenuEl = doc.getElementById("choice-menu") as HTMLElement;
   const commandBoxEl = doc.getElementById("command-box") as HTMLElement;
   const commandBoxInput = doc.getElementById(
     "command-box-input",
@@ -486,6 +491,19 @@ export async function boot(): Promise<void> {
     chapter: () => state.chapter,
   });
 
+  // The conversation choice menu (A11Y_CHOICES). Opened by the `choices` event
+  // below when the engine offers choices; picking an option sends
+  // `choose <n>` through the same command seam as every other verb (so the
+  // narration window and readiness signal stay in step), then returns focus to
+  // the game element. Its announcement goes through the narrator (`say`) so the
+  // "Choices, N options." line keeps the text-vs-said de-dup memory in step
+  // like every other composed line.
+  const choiceMenu = new ChoiceMenu(choiceMenuEl, {
+    announce: (t) => say(t),
+    choose: (n) => sendCommand({ verb: "choose", n }),
+    returnToList,
+  });
+
   // The typed command box: "/" opens it; Enter parses the phrase with the
   // existing parser against the current hotspot list and inventory, and sends
   // the resolved command through the same adapter seam the list and menus use.
@@ -503,10 +521,15 @@ export async function boot(): Promise<void> {
         id,
         name: pack.itemName(id, state.chapter) ?? `item ${id}`,
       })),
-    // No conversation state is tracked at the page level yet; the vending and
-    // other non-conversation fixtures never set these. Kept as a seam so a
-    // future conversation mode can enrich it without touching the box.
-    parseContext: () => ({ inConversation: false, pendingChoice: false }),
+    // The parse context reflects the conversation choice menu: while it is open
+    // the engine is waiting for a pick, so a typed bare number (and "choose 2")
+    // resolves to a choice (parser pendingChoice path), matching the number
+    // keys the choice menu binds. inConversation follows the same signal — a
+    // choice menu is only open mid-conversation.
+    parseContext: () => ({
+      inConversation: choiceMenu.isOpen(),
+      pendingChoice: choiceMenu.isOpen(),
+    }),
     returnToList,
     // A typed look/examine at a hotspot runs the controller's examine path, so
     // it reads the pack description (what Down reads) rather than the engine's
@@ -600,6 +623,7 @@ export async function boot(): Promise<void> {
     list,
     verbMenu,
     inventory,
+    choiceMenu,
     commandBox,
     live,
     // Open the examine window so the engine's hover/examine A11Y_TEXT lines for
@@ -637,10 +661,20 @@ export async function boot(): Promise<void> {
         announceText(e.line);
         break;
       case "choices":
-        // Announce the open choice menu through the narrator, which also
-        // records that this command produced a choice menu so its settle diff
-        // never says "Nothing happened." over it.
-        narrator.choices(e.choices.map((c) => `${c.n}. ${c.text}`).join(" "));
+        // A conversation offered choices and the engine is now WAITING for the
+        // player to pick one. Open the keyboard choice menu so a blind player
+        // can pick with the arrows, Enter or a number key (before this, the
+        // player had no keyboard way in and was stuck — the drunk in the
+        // tavern). The menu announces "Choices, N options." and focuses option
+        // 1, whose text the screen reader reads from the focused menuitem; it
+        // does not repeat the option text in the live region (screen-reader-
+        // focus R6). markChoices() records that this command produced a choice
+        // menu WITHOUT announcing a second numbered line, so the settle diff
+        // still never says "Nothing happened." over the open menu.
+        narrator.markChoices();
+        choiceMenu.openWith(
+          e.choices.map((c) => ({ n: c.n, text: c.text })),
+        );
         break;
       case "inv":
         inventory.setItems(e.items.map((i) => i.id));
@@ -672,6 +706,16 @@ export async function boot(): Promise<void> {
         // happened." even on a build/recording where the choice menu arrives
         // only as a phase line.
         narrator.onPhase(e.phase);
+        // Close the keyboard choice menu when the engine LEAVES the choice
+        // phase on its own — the conversation ended by some other path (a
+        // choice the player made advances it, or the engine closed the menu),
+        // so 'control'/'busy' here means the menu is stale and must not keep
+        // owning the keyboard. A fresh set of choices (a follow-up question)
+        // arrives as its own A11Y_CHOICES and reopens/replaces the menu above,
+        // which re-enters the 'choice' phase, so this never fights that.
+        if (e.phase !== "choice" && choiceMenu.isOpen()) {
+          choiceMenu.close();
+        }
         break;
     }
   }

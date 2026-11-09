@@ -50,6 +50,7 @@ const BARTENDER_DESC = "A big bald man in a vest, leaning on the bar.";
 const LIVE = "#live-region";
 const BOX = "#command-box";
 const INPUT = "#command-box-input";
+const CHOICE_MENU = "#choice-menu";
 
 // The readiness signal the player publishes on window.__ghostlight
 // (src/engine/status.ts), now driven by the engine's own `A11Y_PHASE` line
@@ -391,17 +392,23 @@ test.describe("live sweep (Chrome + WebKit)", () => {
     await expect(live).toContainText(ROOM_62_SHORT, { timeout: 30_000 });
   });
 
-  test("typed 'talk to drunk' behaves exactly like Enter on the drunk", async ({
+  test("typed 'talk to drunk' behaves exactly like Enter on the drunk, and a choice can be picked", async ({
     page,
   }) => {
-    // The regression guard for the typed-conversation bug: an earlier build had
-    // typed "talk to drunk" leave the engine in a conversation state WITHOUT
-    // showing the choices ("Nothing happened.", then "Progress can't be saved
-    // right now."), whereas Enter on the drunk in the list opened the choice
-    // menu correctly. Both routes send the same `talk 53`, so they must end in
-    // the SAME readiness phase with the SAME announced lines. The drunk opens a
-    // choice menu, so both must reach phase 'choice' and announce the numbered
-    // choices.
+    // The regression guard for the typed-conversation bug AND the choice-menu
+    // gap: an earlier build had typed "talk to drunk" leave the engine in a
+    // conversation state WITHOUT showing the choices ("Nothing happened.", then
+    // "Progress can't be saved right now."), whereas Enter on the drunk in the
+    // list opened the choice state correctly. Both routes send the same
+    // `talk 53`, so they must end in the SAME readiness phase with the SAME
+    // announced lines. The drunk opens a choice menu, so both must reach phase
+    // 'choice' and announce the choice menu.
+    //
+    // Before the keyboard choice menu existed there was ALSO no way to PICK a
+    // choice once the menu opened — the engine sat blocked and a blind player
+    // was stuck. This test now also proves that, once the menu is open, pressing
+    // the number key 1 picks the first option and the conversation continues:
+    // the engine leaves the 'choice' phase and a fresh line arrives.
     //
     // It needs a long budget: the drunk's lead-in dialogue plays before the
     // menu opens, on two separate boots.
@@ -430,6 +437,8 @@ test.describe("live sweep (Chrome + WebKit)", () => {
         undefined,
         { timeout: 240_000 },
       );
+      // The keyboard choice menu is open and visible (a roving-focus role=menu).
+      await expect(page.locator(CHOICE_MENU)).toBeVisible();
       return liveText(page);
     };
 
@@ -440,10 +449,12 @@ test.describe("live sweep (Chrome + WebKit)", () => {
     const enterChoiceLine = (await waitForChoiceMenu()).trim();
     const enterPhase = await phase(page);
 
-    // The choice UI is shown (phase 'choice') and announced (the live region
-    // carries the numbered options a screen reader reads).
+    // The choice UI is shown (phase 'choice') and announced. The menu announces
+    // the menu name and count ("Choices, N options."), NOT a numbered list —
+    // the focused option's text is read by the screen reader from the menuitem
+    // button, so the live region is not double-spoken (screen-reader-focus R6).
     expect(enterPhase).toBe("choice");
-    expect(enterChoiceLine).toMatch(/\b1\./); // the menu enumerates options
+    expect(enterChoiceLine).toMatch(/Choices, \d+ options?\./);
 
     // The drunk `talk 53` bug: the engine opened the menu, then its settling
     // changed:false diff announced "Nothing happened." ~1 ms later, replacing
@@ -455,6 +466,32 @@ test.describe("live sweep (Chrome + WebKit)", () => {
     const enterNewest = (await newestLine(page)).trim();
     expect(enterNewest.toLowerCase()).not.toContain("nothing happened");
     expect(enterNewest).toBe(enterChoiceLine);
+
+    // Pick the first option with the number key 1 — the keyboard way a blind
+    // player answers the drunk. The menu is modal (it owns the keyboard while
+    // the engine waits), so 1 sends `choose 1`. The conversation then CONTINUES:
+    // the engine leaves the 'choice' phase and a fresh line arrives (the drunk's
+    // reply, or the next question). Capture the line count before, so we can
+    // prove a NEW line landed.
+    const seqBeforePick = await page.evaluate(
+      () => window.__ghostlight?.lineSeq ?? 0,
+    );
+    await page.keyboard.press("1"); // choose 1
+    // The engine leaves the choice phase (it accepts a command and moves on).
+    await page.waitForFunction(
+      () => window.__ghostlight?.phase !== "choice",
+      undefined,
+      { timeout: 120_000 },
+    );
+    // The menu closed once the engine left the choice phase.
+    await expect(page.locator(CHOICE_MENU)).toBeHidden();
+    // A new functional line arrived after the pick (the conversation continued,
+    // it did not wedge): the recorded line sequence advanced.
+    await page.waitForFunction(
+      (before) => (window.__ghostlight?.lineSeq ?? 0) > before,
+      seqBeforePick,
+      { timeout: 120_000 },
+    );
 
     // --- Path B: typed "talk to drunk" via the command box -------------------
     // A fresh boot so the drunk conversation starts from the same state as Path
@@ -480,10 +517,10 @@ test.describe("live sweep (Chrome + WebKit)", () => {
     expect(typedPhase).toBe("choice");
     expect(typedPhase).toBe(enterPhase);
     // ...show the choice UI, and never surface the old bug's lines.
-    expect(typedChoiceLine).toMatch(/\b1\./);
+    expect(typedChoiceLine).toMatch(/Choices, \d+ options?\./);
     expect(typedChoiceLine.toLowerCase()).not.toContain("nothing happened");
     expect(typedChoiceLine.toLowerCase()).not.toContain("can't be saved");
-    // ...and announce the SAME choices as Enter did (same lines).
+    // ...and announce the SAME choice line as Enter did.
     expect(typedChoiceLine).toBe(enterChoiceLine);
 
     // And, as in Path A, the newest recorded line once the menu is open must be

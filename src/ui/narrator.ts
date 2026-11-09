@@ -117,6 +117,19 @@ export class Narrator {
   }
 
   /**
+   * Record that the command in flight produced a choice menu, WITHOUT announcing
+   * a numbered line. The keyboard choice menu (ui/choice-menu.ts) now owns the
+   * live-region announcement for choices — it says "Choices, N options." and
+   * the focused option is read by the screen reader from the menuitem button —
+   * so the player opens that menu and calls this to keep the "Nothing happened."
+   * suppression working, instead of calling choices() (which would announce a
+   * second, numbered line and double-speak the options).
+   */
+  markChoices(): void {
+    this.producedChoices = true;
+  }
+
+  /**
    * Note the engine's own control phase for the command in flight. A change to
    * 'choice' means a conversation menu is open and waiting; the settle diff
    * must not say "Nothing happened." for it. 'control'/'busy' carry no such
