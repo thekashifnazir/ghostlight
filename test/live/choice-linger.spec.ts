@@ -99,11 +99,12 @@ test.describe("live: lingering in a reply menu", () => {
   });
 
   // VoiceOver tester, 9 Nov 17:21: after picking option 3 the engine re-offered
-  // the SAME four options and the menu rebuilt itself, jumping focus to option 1
+  // the SAME four options and the menu rebuilt itself, jumping back to option 1
   // and re-announcing "Pick a reply", which sounded like the menu restarting.
-  // Same options back: focus stays on the picked option, nothing re-announced,
-  // and the picked option is marked "already asked".
-  test("the same replies coming back keep focus where the player was", async ({ page }) => {
+  // Same options back: the current option stays where the player was, nothing
+  // is re-announced, and the picked option is marked "already asked". The menu
+  // never moves DOM focus, so "where the player was" is the .current highlight.
+  test("the same replies coming back keep the current option where the player was", async ({ page }) => {
     test.setTimeout(180_000);
     const spoken: string[] = [];
     page.on("console", (m) => {
@@ -124,7 +125,7 @@ test.describe("live: lingering in a reply menu", () => {
     await page.keyboard.press("Enter");
     await waitPhase(page, ["choice"], 60_000);
     await expect(page.locator(MENU)).toBeVisible();
-    const before = await page.locator(`${MENU} [role=option]`).allTextContents();
+    const before = await page.locator(`${MENU} button`).allTextContents();
 
     await page.keyboard.press("ArrowDown");
     await page.keyboard.press("ArrowDown");
@@ -139,15 +140,24 @@ test.describe("live: lingering in a reply menu", () => {
       MENU,
       { timeout: 60_000 },
     );
-    const after = await page.locator(`${MENU} [role=option]`).allTextContents();
+    const after = await page.locator(`${MENU} button`).allTextContents();
     test.skip(
       after.map((t) => t.replace(", already asked", "")).join("|") !== before.join("|"),
       "the engine offered a different set this time; the same-set path was not exercised",
     );
-    const focused = await page.evaluate(() => document.activeElement?.getAttribute("aria-posinset"));
-    expect(focused).toBe("3");
+    // The player's position is kept: the current highlight (a CSS class, since
+    // the menu never moves DOM focus) stays on the third option, not reset to
+    // option 1. Nothing new was announced (no fresh "Pick a reply" line).
+    // The current option is still the third one the player moved to.
+    const currentIndex = await page.evaluate(
+      (sel) => [...document.querySelectorAll(`${sel} button`)].findIndex((b) => b.classList.contains("current")),
+      MENU,
+    );
+    expect(currentIndex).toBe(2);
+    // Focus never left the game element.
+    expect(await page.evaluate(() => document.activeElement?.id)).toBe("game");
     expect(spoken.filter((l) => l.startsWith("Pick a reply")).length).toBe(promptsBefore);
-    await expect(page.locator(`${MENU} [role=option]`).nth(2)).toContainText("already asked");
+    await expect(page.locator(`${MENU} button`).nth(2)).toContainText("already asked");
   });
 });
 
