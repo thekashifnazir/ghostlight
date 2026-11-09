@@ -693,10 +693,13 @@ export async function boot(): Promise<void> {
   // The conversation choice menu (A11Y_CHOICES). Opened by the `choices` event
   // below when the engine offers choices; picking an option sends
   // `choose <n>` through the same command seam as every other verb (so the
-  // narration window and readiness signal stay in step), then returns focus to
-  // the game element. Its announcement goes through the narrator (`say`) so the
-  // "Pick a reply, N options." line keeps the text-vs-said de-dup memory in step
-  // like every other composed line.
+  // narration window and readiness signal stay in step). The menu NEVER moves
+  // DOM focus: it is aria-hidden and every option is spoken through the live
+  // region with focus staying on #game, so VoiceOver does not speak its
+  // "selectable list item" hint over the actors. returnToList is only a guarded
+  // safety net in close(). Its announcements go through the narrator (`say`) so
+  // the "Pick a reply…" and "Option N of M…" lines keep the text-vs-said de-dup
+  // memory in step like every other composed line.
   const choiceMenu = new ChoiceMenu(choiceMenuEl, {
     announce: (t) => say(t),
     choose: (n) => sendCommand({ verb: "choose", n }),
@@ -887,13 +890,13 @@ export async function boot(): Promise<void> {
         // player to pick one. Open the keyboard choice menu so a blind player
         // can pick with the arrows, Enter or a number key (before this, the
         // player had no keyboard way in and was stuck — the drunk in the
-        // tavern). The menu announces "Choices, N options." and focuses option
-        // 1, whose text the screen reader reads from the focused listbox option;
-        // it
-        // does not repeat the option text in the live region (screen-reader-
-        // focus R6). markChoices() records that this command produced a choice
-        // menu WITHOUT announcing a second numbered line, so the settle diff
-        // still never says "Nothing happened." over the open menu.
+        // tavern). The menu announces one line through the live region,
+        // "Pick a reply, N options. Option 1: <text>", with focus staying on
+        // #game (it never moves focus to an option, which is what made
+        // VoiceOver talk over the actors). markChoices() records that this
+        // command produced a choice menu WITHOUT announcing a second numbered
+        // line, so the settle diff still never says "Nothing happened." over
+        // the open menu.
         narrator.markChoices();
         choiceMenu.openWith(
           e.choices.map((c) => ({ n: c.n, text: c.text, used: c.used })),
@@ -953,16 +956,15 @@ export async function boot(): Promise<void> {
         // only as a phase line.
         narrator.onPhase(e.phase);
         // Close the keyboard choice menu only when the conversation has ENDED —
-        // the engine has SETTLED to the control phase with no further choices
-        // (Fix 1). The busy phase BETWEEN picks (the engine processing a pick
-        // before offering a follow-up question) must NOT close it: the menu is
-        // waiting in place, keeping focus, so the screen reader does not bounce
-        // out to #game and back on every round. A follow-up question arrives as
-        // its own A11Y_CHOICES and replaces the options in place (openWith
-        // clears the waiting state), re-entering the 'choice' phase. Only the
-        // settled 'control' phase means there is nothing more to pick, so the
-        // menu closes and returns focus to #game exactly once (choiceMenu.close
-        // calls returnToList). A hidden listbox never keeps focus.
+        // the engine has SETTLED to the control phase with no further choices.
+        // The busy phase BETWEEN picks (the engine processing a pick before
+        // offering a follow-up question) must NOT close it: the menu waits in
+        // place. A follow-up question arrives as its own A11Y_CHOICES and
+        // replaces the options in place (openWith clears the waiting state),
+        // re-entering the 'choice' phase. Only the settled 'control' phase
+        // means there is nothing more to pick, so the menu closes. Focus never
+        // moved off #game while the menu was open, so close() does not bounce
+        // focus; it calls returnToList only as a guarded safety net.
         if (e.phase === "control" && choiceMenu.isOpen()) {
           choiceMenu.close();
         }

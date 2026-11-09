@@ -49,26 +49,33 @@ test.describe("conversation choice menu (replay)", () => {
     // choice menu (A11Y_CHOICES + phase 'choice').
     await page.keyboard.press("Enter");
 
-    // The menu is visible and announced as the prompt and count only — NOT
-    // the numbered option list (that would double-speak the focused option).
+    // The menu is visible and announced as one line through the live region:
+    // the prompt, the count, and the first option. It never moves DOM focus to
+    // an option (a focused option made VoiceOver talk over the actors), so the
+    // first option is read from the live region, not from a focused widget.
     await expect(page.locator(CHOICE_MENU)).toBeVisible();
-    await expect(live(page)).toContainText("Pick a reply, 3 options.");
+    await expect(live(page)).toContainText(
+      "Pick a reply, 3 options. Option 1: HI BOSS, HOW ARE YOU?",
+    );
 
-    // The menu is a role=listbox with three roving-focus options; option 1 is
-    // focused, selected, and carries aria-posinset/aria-setsize for the reader.
-    // The listbox role (not role=menu) stops VoiceOver adding its wrong menu
-    // hint ("Control-Option-Space to choose, Escape to close").
-    await expect(page.locator(CHOICE_MENU)).toHaveAttribute("role", "listbox");
-    const items = page.locator(`${CHOICE_MENU} [role="option"]`);
+    // The menu is aria-hidden with visual-only buttons (no role=listbox/option
+    // and no "Replies" name), and focus stays on the game element.
+    await expect(page.locator(CHOICE_MENU)).toHaveAttribute(
+      "aria-hidden",
+      "true",
+    );
+    const items = page.locator(`${CHOICE_MENU} button`);
     await expect(items).toHaveCount(3);
-    await expect(items.first()).toBeFocused();
     await expect(items.first()).toHaveText("HI BOSS, HOW ARE YOU?");
-    await expect(items.first()).toHaveAttribute("aria-posinset", "1");
-    await expect(items.first()).toHaveAttribute("aria-setsize", "3");
-    await expect(items.first()).toHaveAttribute("aria-selected", "true");
+    // The current option is shown with a CSS class, not focus or ARIA.
+    await expect(items.first()).toHaveClass(/current/);
+    const onGame = await page.evaluate(
+      () => document.activeElement === document.getElementById("game"),
+    );
+    expect(onGame).toBe(true);
   });
 
-  test("arrows move focus silently; R repeats the options as one line", async ({
+  test("arrows move through the options, announced through the live region; R repeats them", async ({
     page,
   }) => {
     await start(page, "drunk-choices");
@@ -76,13 +83,20 @@ test.describe("conversation choice menu (replay)", () => {
     await page.keyboard.press("Enter"); // open the menu
     await expect(page.locator(CHOICE_MENU)).toBeVisible();
 
-    const items = page.locator(`${CHOICE_MENU} [role="option"]`);
-    // Down moves roving focus to option 2 (no live-region write for the move;
-    // the focused button is what the screen reader reads).
+    const items = page.locator(`${CHOICE_MENU} button`);
+    // Down moves to option 2 and announces it through the live region; DOM
+    // focus stays on the game element (no focused option to talk over actors).
     await page.keyboard.press("ArrowDown");
-    await expect(items.nth(1)).toBeFocused();
+    await expect(live(page)).toContainText("Option 2 of 3: GIVE ME A DRINK.");
+    await expect(items.nth(1)).toHaveClass(/current/);
     await page.keyboard.press("ArrowUp");
-    await expect(items.first()).toBeFocused();
+    await expect(live(page)).toContainText(
+      "Option 1 of 3: HI BOSS, HOW ARE YOU?",
+    );
+    const onGame = await page.evaluate(
+      () => document.activeElement === document.getElementById("game"),
+    );
+    expect(onGame).toBe(true);
 
     // R repeats all the options as one composed line.
     await page.keyboard.press("r");

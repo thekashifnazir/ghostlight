@@ -124,14 +124,16 @@ describe("Controller routing: conversation choice menu", () => {
   beforeEach(() => vi.restoreAllMocks());
 
   it("routes arrows to the menu and consumes them (none reach list mode)", () => {
-    const { controller, choiceMenu, listCalls } = harness();
+    const { controller, choiceMenu, lines, listCalls } = harness();
     choiceMenu.openWith(DRUNK);
-    const items = document.querySelectorAll('[role="option"]');
+    lines.length = 0;
 
+    // Down/Right move to the next option and announce it through the live
+    // region; the menu never moves DOM focus (that is the whole fix).
     expect(controller.handleKey("ArrowDown")).toBe(true);
-    expect(document.activeElement).toBe(items[1]);
+    expect(lines).toContain("Option 2 of 3: GIVE ME A DRINK.");
     expect(controller.handleKey("ArrowUp")).toBe(true);
-    expect(document.activeElement).toBe(items[0]);
+    expect(lines).toContain("Option 1 of 3: HI BOSS, HOW ARE YOU?");
     // List navigation was never touched while the menu owned the keyboard.
     expect(listCalls).toEqual([]);
   });

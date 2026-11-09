@@ -262,6 +262,16 @@
         outline-offset: 1px;
         background: #2a2740;
       }
+
+      /* The choice menu never moves DOM focus (it is aria-hidden; see the
+         markup comment), so :focus-visible never fires on its buttons. The
+         current option is shown visually with the .current class instead, set
+         by ChoiceMenu.highlightCurrent. This is sighted-only feedback. */
+      #choice-menu button.current {
+        outline: 2px solid var(--accent);
+        outline-offset: 1px;
+        background: #2a2740;
+      }
     </style>
   </head>
   <body>
@@ -326,17 +336,18 @@
           <!-- Inventory: a keyboard list of carried items. -->
           <div id="inventory" role="menu" aria-label="Inventory" hidden></div>
 
-          <!-- Choice menu: a roving-focus listbox for conversation choices.
+          <!-- Choice menu: a visual-only list of conversation choices.
                Opened by main.ts when the engine offers choices (A11Y_CHOICES /
                phase 'choice'); the engine is BLOCKED waiting for a pick, so the
                player cannot close it by hand (Escape re-states how to choose).
-               A role=listbox (not role=menu) so VoiceOver does not add its own
-               "Control-Option-Space to choose, Escape to close" menu hint,
-               which is wrong here — Enter picks and Escape does not close. The
-               options are role=option with aria-selected on the focused one.
-               Closed by main.ts when the engine leaves the choice phase or a
-               fresh set of choices replaces it. -->
-          <div id="choice-menu" role="listbox" aria-label="Replies" hidden></div>
+               It is aria-hidden so VoiceOver and NVDA never land on an option:
+               a focused option made VoiceOver speak its "selectable list item"
+               hint over the actors. Every option a screen reader hears comes
+               from the live region instead, with focus staying on #game, the
+               same path the room list uses. The buttons stay for sighted
+               players and mouse clicks only. Closed by main.ts when the engine
+               leaves the choice phase or a fresh set of choices replaces it. -->
+          <div id="choice-menu" aria-hidden="true" hidden></div>
 
           <!-- Typed command box: "/" opens it. A labelled single-line input that
                parses a plain-English phrase and sends the resolved command. -->

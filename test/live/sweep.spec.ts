@@ -439,7 +439,8 @@ test.describe("live sweep (Chrome + WebKit)", () => {
         undefined,
         { timeout: 240_000 },
       );
-      // The keyboard choice menu is open and visible (a roving-focus role=menu).
+      // The keyboard choice menu is open and visible. It never moves DOM focus:
+      // it is aria-hidden and every option is spoken through the live region.
       await expect(page.locator(CHOICE_MENU)).toBeVisible();
       return liveText(page);
     };
@@ -452,12 +453,12 @@ test.describe("live sweep (Chrome + WebKit)", () => {
     const enterPhase = await phase(page);
 
     // The choice UI is shown (phase 'choice') and announced. The menu announces
-    // the menu prompt and count ("Pick a reply, N options."), NOT a numbered list —
-    // the focused option's text is read by the screen reader from the listbox
-    // option button, so the live region is not double-spoken (screen-reader-
-    // focus R6).
+    // one live-region line: the prompt, the count, and the first option
+    // ("Pick a reply, N options. Option 1: <text>"), with focus staying on the
+    // game element rather than moving to an option (which made VoiceOver talk
+    // over the actors).
     expect(enterPhase).toBe("choice");
-    expect(enterChoiceLine).toMatch(/Pick a reply, \d+ options?\./);
+    expect(enterChoiceLine).toMatch(/Pick a reply, \d+ options?\. Option 1/);
 
     // The drunk `talk 53` bug: the engine opened the menu, then its settling
     // changed:false diff announced "Nothing happened." ~1 ms later, replacing

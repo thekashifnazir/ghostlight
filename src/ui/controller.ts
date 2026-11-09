@@ -412,21 +412,23 @@ export class Controller {
   /**
    * Keys for the conversation choice menu (A11Y_CHOICES). The engine is BLOCKED
    * waiting for a pick, so this menu owns the keyboard: Up/Down (and Left/Right
-   * for parity with the other menus) move roving focus, Enter picks the focused
-   * option, a number key 1-9 picks that option directly (the engine numbers the
-   * choices 1..N), and R repeats the options the menu already holds locally —
-   * whatever the engine phase, with no engine round-trip (Fix B). H asks the
-   * ghost for a hint and L reads the room, each as one live-region line with the
-   * menu left open so the next key still picks (Fix 1). Escape does NOT close
-   * the menu — there is nothing to cancel back to while the engine waits — so it
-   * instead re-states how to choose. Every key here is consumed so none
-   * reaches the engine's own input (gotcha 7); a number key that is out of range
-   * for the current options is still consumed (chooseNumber ignores it) so a
-   * stray digit never falls through to a game action.
+   * for parity with the other menus) move through the options, announcing each
+   * one through the live region (the menu never moves DOM focus; a focused
+   * option made VoiceOver talk over the actors), Enter picks the current option,
+   * a number key 1-9 picks that option directly (the engine numbers the choices
+   * 1..N), and R repeats the options the menu already holds locally, whatever
+   * the engine phase, with no engine round-trip (Fix B). H asks the ghost for a
+   * hint and L reads the room, each as one live-region line with the menu left
+   * open so the next key still picks. Escape does NOT close the menu (there is
+   * nothing to cancel back to while the engine waits), so it instead re-states
+   * how to choose. Every key here is consumed so none reaches the engine's own
+   * input (gotcha 7); a number key that is out of range for the current options
+   * is still consumed (chooseNumber ignores it) so a stray digit never falls
+   * through to a game action.
    *
    * "/" still opens the typed command box even while the menu is open, so a
    * player who prefers typing can type "choose 2" (or a bare number) instead of
-   * using the arrows — parseContext.pendingChoice reflects the open menu, so the
+   * using the arrows: parseContext.pendingChoice reflects the open menu, so the
    * parser resolves that to a choice. The menu stays open underneath; picking
    * via the box sends the same `choose n` and the engine's reply closes it.
    */
@@ -467,8 +469,8 @@ export class Controller {
         // H asks the ghost for a hint without leaving the choice menu. The
         // engine is blocked waiting for a pick, but a stuck player may still
         // want a nudge about the conversation; the hint is a live-region line
-        // and the menu's roving focus is untouched, so it stays open and the
-        // next arrow/Enter/number still picks (Fix 1). stopAudio() already ran
+        // and the menu's current option is untouched, so it stays open and the
+        // next arrow/Enter/number still picks. stopAudio() already ran
         // at the top of handleKey, so any playing whisper is stopped first.
         this.d.askHint();
         return true;

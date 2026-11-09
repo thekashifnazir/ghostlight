@@ -170,12 +170,14 @@ export class Narrator {
 
   /**
    * Record that the command in flight produced a choice menu, WITHOUT announcing
-   * a numbered line. The keyboard choice menu (ui/choice-menu.ts) now owns the
-   * live-region announcement for choices — it says "Pick a reply, N options." and
-   * the focused option is read by the screen reader from the menuitem button —
-   * so the player opens that menu and calls this to keep the "Nothing happened."
-   * suppression working, instead of calling choices() (which would announce a
-   * second, numbered line and double-speak the options).
+   * a numbered line. The keyboard choice menu (ui/choice-menu.ts) owns the
+   * live-region announcement for choices: it says "Pick a reply, N options.
+   * Option 1: <text>" through its own announce callback (which routes to say),
+   * and each move announces "Option <n> of <N>: <text>". It never moves DOM
+   * focus (a focused option made VoiceOver talk over the actors), so there is no
+   * focused menuitem to read from. The page calls this to keep the "Nothing
+   * happened." suppression working, instead of calling choices() (which would
+   * announce a second line over the menu's own open line).
    */
   markChoices(): void {
     this.producedChoices = true;
