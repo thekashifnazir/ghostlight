@@ -290,7 +290,9 @@ test.describe("live sweep (Chrome + WebKit)", () => {
     for (let i = 0; i < 6 && !handedOver; i++) {
       await page.keyboard.press("h"); // ask the ghost for a hint (safe; no skip)
       await waitReady(page, 30_000);
-      if ((await liveText(page)).toLowerCase().includes("curtained doorway")) {
+      // The hint is recorded (not read over the ghost's voice), so check the
+      // readiness signal's last line, which both paths update.
+      if ((await page.evaluate(() => window.__ghostlight?.lastLine ?? "")).toLowerCase().includes("curtained doorway")) {
         handedOver = true;
       }
     }

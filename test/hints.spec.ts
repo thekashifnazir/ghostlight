@@ -23,6 +23,18 @@ function live(page: Page) {
   return page.locator(LIVE);
 }
 
+/**
+ * The hint the player got, whether it was announced to the live region or (with
+ * the ghost's recorded voice playing and voiced lines off, the default) only
+ * recorded so the ghost's voice is not doubled by the screen reader. Both paths
+ * record it as the readiness signal's last line.
+ */
+async function expectHint(page: Page, text: string): Promise<void> {
+  await expect
+    .poll(() => page.evaluate(() => window.__ghostlight?.lastLine ?? ""), { timeout: 5000 })
+    .toContain(text);
+}
+
 test.describe("hint key: tiers in order", () => {
   test("H announces the nudge, then the clue, then the answer", async ({ page }) => {
     await start(page, "ch2-vending"); // chapter 2, room 15, flag 20 = 0
@@ -30,23 +42,15 @@ test.describe("hint key: tiers in order", () => {
     // The offered target in room 15 is ch2.handbag (no offered milestone lists
     // room 15, so required-over-optional then file order picks it).
     await page.keyboard.press("h");
-    await expect(live(page)).toContainText(
-      "B.J. was staying in your room. Did she leave anything behind?",
-    );
+    await expectHint(page, "B.J. was staying in your room. Did she leave anything behind?");
     await page.keyboard.press("h");
-    await expect(live(page)).toContainText(
-      "Something in the guest bedroom can be opened.",
-    );
+    await expectHint(page, "Something in the guest bedroom can be opened.");
     await page.keyboard.press("h");
-    await expect(live(page)).toContainText(
-      "In the guest bedroom, open the trunk under the window.",
-    );
+    await expectHint(page, "In the guest bedroom, open the trunk under the window.");
     // Asking again repeats the answer, every time, never cutting off (R3.3).
     for (let i = 0; i < 3; i++) {
       await page.keyboard.press("h");
-      await expect(live(page)).toContainText(
-        "In the guest bedroom, open the trunk under the window.",
-      );
+      await expectHint(page, "In the guest bedroom, open the trunk under the window.");
     }
   });
 });
@@ -74,7 +78,7 @@ test.describe("hint key: folded flags drive the reached set", () => {
 
     // Before progress: the ghost hints at ch1.room (rooms include 62).
     await page.keyboard.press("h");
-    await expect(live(page)).toContainText("It's late, and you'll need somewhere to sleep.");
+    await expectHint(page, "It's late, and you'll need somewhere to sleep.");
 
     // Replay the fixture's recorded commands in order (look 52, look 100,
     // talk 52). talk 52's diff sets flag 0 = 1, which the player folds forward,
@@ -87,9 +91,9 @@ test.describe("hint key: folded flags drive the reached set", () => {
     // Now ch1.room is reached, so the hint no longer mentions sleeping where it
     // started; the ghost moves on to the next offered milestone (ch1.bed).
     await page.keyboard.press("h");
-    const line = (await live(page).textContent()) ?? "";
+    await expectHint(page, "You've got a room. Time for bed.");
+    const line = await page.evaluate(() => window.__ghostlight?.lastLine ?? "");
     expect(line).not.toContain("It's late, and you'll need somewhere to sleep.");
-    expect(line).toContain("You've got a room. Time for bed.");
   });
 });
 
