@@ -363,16 +363,20 @@ export async function boot(): Promise<void> {
     crossingSkip?.noteLine();
   };
 
-  // Same tap for the interrupt word: when interrupt() actually writes, record
-  // it in the status log and the ?speechlog mirror like any spoken line. It
-  // does not touch the crossing scheduler, since it is not a cutscene line.
+  // Same tap for interrupt(). The default cut is silent (two invisible
+  // characters), so it is NOT a spoken line: it is logged as "[cut]" to the
+  // console under ?speechlog only, never in the status log. A cut with an
+  // explicit word is spoken, so it is recorded like any spoken line.
   const liveInterrupt = live.interrupt.bind(live);
   live.interrupt = (word?: string): boolean => {
     const wrote = liveInterrupt(word);
     if (wrote) {
-      const spoken = word ?? "Picked.";
-      status.recordLine(spoken);
-      speechlog?.say(spoken);
+      if (word === undefined) {
+        if (speechlog) console.log("[cut]");
+      } else {
+        status.recordLine(word);
+        speechlog?.say(word);
+      }
     }
     return wrote;
   };
@@ -416,6 +420,9 @@ export async function boot(): Promise<void> {
     onVoicedSuppressed: (text) => {
       status.recordLine(text);
       speechlog?.voiced(text);
+      // An actor's recorded line is starting: cut any long readout still in
+      // progress so the screen reader does not talk over it.
+      live.interrupt();
       // A suppressed voiced line is still a cutscene line arriving: keep the
       // crossing scheduler's quiet timer honest so its skip waits for the end.
       crossingSkip?.noteLine();

@@ -11,6 +11,10 @@ import type { Hotspot } from "../model/hotspot-list.js";
 /** How many earlier lines Shift+R can step back through. */
 const HISTORY_LIMIT = 20;
 
+/** Silent cut payloads: two characters each, never one (one is read by name). */
+const SILENT_CUT_A = "\u00a0\u00a0"; // two no-break spaces
+const SILENT_CUT_B = "\u200b\u200b"; // two zero-width spaces
+
 export class LiveRegion {
   private readonly region: HTMLElement;
   private readonly transcript: HTMLElement | undefined;
@@ -298,29 +302,38 @@ export class LiveRegion {
 
   /**
    * Cut off a screen reader that is probably still reading the last polite
-   * line, by writing a short real word into the assertive region.
+   * line, silently, by changing the assertive region's content.
    *
-   * Measured on VoiceOver + Safari with recorded audio (18 variants, 2 rounds
-   * each): clearing the polite region, aria-busy, display:none, removing it, or
-   * a no-break space NEVER stops VoiceOver. Only a change to an
-   * aria-live="assertive" region does, within about 100 ms, and VoiceOver
-   * always speaks what was written (a lone space, zero-width space or "." is
-   * read as "space", "zero width space", "period"). "Picked." stopped the list
-   * and was quiet 0.42 s after the cut. Toggling aria-live off and on breaks a
-   * live region in Safari (it never announces again), so aria-live is never
-   * touched.
+   * Measured on VoiceOver + Safari with recorded audio (2 rounds each): clearing
+   * the polite region, aria-busy, display:none, removing it, or a no-break space
+   * in the polite region NEVER stops VoiceOver. Only a change to an
+   * aria-live="assertive" region does. A real word ("Picked.") stops it in
+   * about 420 ms but is spoken. A SINGLE invisible character is read out by
+   * name ("space", "zero width space"). TWO invisible characters stop VoiceOver
+   * within about 250 ms and it says nothing: two no-break spaces, two
+   * zero-width spaces, and U+2060 + U+200B + U+2060 all did this. So the
+   * default write is two characters, alternating between the two pairs so
+   * consecutive cuts always change the content. Toggling aria-live off and on
+   * breaks a live region in Safari (it never announces again), so aria-live is
+   * never touched.
    *
    * Writes only if the last polite write was less than (its characters x 65 ms,
    * capped at 15000 ms) ago; otherwise does nothing and returns false. The
-   * polite region, `last` and the history are left alone, so R still repeats
-   * the real last line. The repeat marker (U+2060 toggle) makes the same word
-   * twice still announce. The caller taps this to feed ?speechlog and the
-   * status line log (see main.ts).
+   * polite region, `last`, the history and the transcript are left alone, so R
+   * still repeats the real last line and the silent cut is never recorded as a
+   * spoken line. `word` is optional (tests or future use); when given it is
+   * written as a spoken word with the U+2060 repeat marker. The caller taps
+   * this to log "[cut]" under ?speechlog (see main.ts).
    */
-  interrupt(word = "Picked."): boolean {
+  interrupt(word?: string): boolean {
     if (!this.interruptRegion) return false;
     const budgetMs = Math.min(this.lastWriteChars * 65, 15000);
     if (!(this.now() - this.lastWriteAt < budgetMs)) return false;
+    if (word === undefined) {
+      this.interruptToggle = !this.interruptToggle;
+      this.interruptRegion.textContent = this.interruptToggle ? SILENT_CUT_A : SILENT_CUT_B;
+      return true;
+    }
     const current = (this.interruptRegion.textContent ?? "").replace(/\u2060$/, "");
     if (current === word) {
       this.interruptToggle = !this.interruptToggle;
