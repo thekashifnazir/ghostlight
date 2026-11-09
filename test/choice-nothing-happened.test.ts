@@ -4,7 +4,8 @@ import { Narrator, type NarratorLive } from "../src/ui/narrator.js";
 
 // The drunk `talk 53` bug (seen live via window.__ghostlight.lines): Enter on
 // the drunk sends `talk 53`, the engine opens a choice menu and announces
-// "1. HI BOSS, HOW ARE YOU? 2. …", then one millisecond later its settling
+// "Pick a reply, 3 options. Option 1: HI BOSS, HOW ARE YOU? …", then one
+// millisecond later its settling
 // `changed:false` diff announced "Nothing happened." — which, in the
 // single-line polite live region, REPLACED the choice line, so a screen reader
 // read only "Nothing happened." The fix: "Nothing happened." is spoken only
@@ -20,7 +21,8 @@ function recorder(): NarratorLive & { lines: string[] } {
 }
 
 /** The drunk's opening choice menu, exactly as the choices event composes it. */
-const DRUNK_CHOICES = "1. HI BOSS, HOW ARE YOU? 2. GIVE ME A DRINK. 3. GOODBYE.";
+const DRUNK_CHOICES =
+  "Pick a reply, 3 options. Option 1: HI BOSS, HOW ARE YOU? Option 2: GIVE ME A DRINK. Option 3: GOODBYE.";
 
 /** A `talk 53` settle diff: nothing moved, nothing said (the real-engine case). */
 function talkSettleDiff(): Diff {

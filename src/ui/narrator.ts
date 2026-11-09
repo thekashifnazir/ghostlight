@@ -158,10 +158,10 @@ export class Narrator {
   }
 
   /**
-   * Announce the open choice menu (one line, "1. … 2. …") and record that this
-   * command produced a choice menu, so its settle diff never says "Nothing
-   * happened." over it. The line is still the newest live-region line a screen
-   * reader reads.
+   * Announce the open choice menu (one composed line, "Pick a reply, N options.
+   * Option 1: … Option 2: …") and record that this command produced a choice
+   * menu, so its settle diff never says "Nothing happened." over it. The line is
+   * still the newest live-region line a screen reader reads.
    */
   choices(line: string): void {
     this.producedChoices = true;
@@ -171,7 +171,7 @@ export class Narrator {
   /**
    * Record that the command in flight produced a choice menu, WITHOUT announcing
    * a numbered line. The keyboard choice menu (ui/choice-menu.ts) now owns the
-   * live-region announcement for choices — it says "Choices, N options." and
+   * live-region announcement for choices — it says "Pick a reply, N options." and
    * the focused option is read by the screen reader from the menuitem button —
    * so the player opens that menu and calls this to keep the "Nothing happened."
    * suppression working, instead of calling choices() (which would announce a

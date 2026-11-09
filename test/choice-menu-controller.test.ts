@@ -193,7 +193,7 @@ describe("Controller routing: conversation choice menu", () => {
     // the engine, so no `choices` command is sent.
     expect(sent).toEqual([]);
     expect(lines).toEqual([
-      "Choices, 3 options. 1. HI BOSS, HOW ARE YOU? 2. GIVE ME A DRINK. 3. GOODBYE.",
+      "Pick a reply, 3 options. Option 1: HI BOSS, HOW ARE YOU? Option 2: GIVE ME A DRINK. Option 3: GOODBYE.",
     ]);
   });
 
@@ -314,7 +314,7 @@ describe("Controller Fix B: `skip` is never sent while a choice is pending", () 
     expect(sent).toEqual([]); // no `choices` sent
     expect(repeat).not.toHaveBeenCalled(); // not a last-line repeat
     expect(lines).toEqual([
-      "Choices, 3 options. 1. HI BOSS, HOW ARE YOU? 2. GIVE ME A DRINK. 3. GOODBYE.",
+      "Pick a reply, 3 options. Option 1: HI BOSS, HOW ARE YOU? Option 2: GIVE ME A DRINK. Option 3: GOODBYE.",
     ]);
   });
 

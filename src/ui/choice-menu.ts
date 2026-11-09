@@ -15,9 +15,9 @@
 // menu, press Escape." — which is wrong here (Enter picks, Escape does not
 // close). A listbox of options carries no such hint, so VoiceOver describes a
 // selectable list, which matches how this menu actually behaves. The listbox
-// itself keeps the accessible name "Choices"; the verb and inventory menus are
-// left as role=menu. The open line gives the menu name and count only
-// ("Choices, N options."); the focused option's text is read by the screen
+// itself has the accessible name "Replies"; the verb and inventory menus are
+// left as role=menu. The open line gives a short prompt and the count only
+// ("Pick a reply, N options."); the focused option's text is read by the screen
 // reader, not repeated in the live region.
 //
 // Two rules differ from the verb menu and the inventory, because here the
@@ -76,11 +76,11 @@ export class ChoiceMenu {
   constructor(el: HTMLElement, cb: ChoiceMenuCallbacks) {
     this.el = el;
     this.cb = cb;
-    // The container is the listbox itself: a role=listbox named "Choices",
+    // The container is the listbox itself: a role=listbox named "Replies",
     // holding role=option buttons. Set here (not only in markup) so a menu
     // built in a bare test container is a proper listbox too.
     this.el.setAttribute("role", "listbox");
-    this.el.setAttribute("aria-label", "Choices");
+    this.el.setAttribute("aria-label", "Replies");
     this.el.hidden = true;
   }
 
@@ -103,7 +103,7 @@ export class ChoiceMenu {
    * option 1 — all without the menu ever losing focus to #game, so the screen
    * reader does not bounce out and back between rounds (Fix 1).
    *
-   * The live line gives the menu name and count only; the focused option 1
+   * The live line gives a short prompt and the count only; the focused option 1
    * button carries its text (plus aria-posinset/aria-setsize), which the screen
    * reader reads once on focus. Announcing the option text here too would
    * double-speak it (screen-reader-focus R6.1), exactly as the inventory does.
@@ -140,7 +140,7 @@ export class ChoiceMenu {
     this.el.hidden = false;
     this.focusCurrent();
     this.cb.announce(
-      `Choices, ${total} option${total === 1 ? "" : "s"}.`,
+      `Pick a reply, ${total} option${total === 1 ? "" : "s"}.`,
     );
   }
 
@@ -181,14 +181,17 @@ export class ChoiceMenu {
   }
 
   /**
-   * Repeat all the options as one coherent live-region line (R key), numbered
-   * with clear pauses and each option terminated by a full stop, so a screen
-   * reader reads them as distinct sentences rather than running them together:
-   * "Choices, N options. 1. … 2. … 3. …". The engine is waiting and the focused
-   * button already read option 1 on open, but after moving around a player may
-   * want the whole list again; this composes it as a single update, not a burst
-   * of separate announcements (screen-reader-output: one key press, one update).
-   * Works while waiting too, so R still re-reads the list after a pick (Fix 1).
+   * Repeat all the options as one coherent live-region line (R key), each
+   * prefixed by "Option <n>:" and terminated by sentence-final punctuation, so a
+   * screen reader reads them as distinct sentences rather than running them
+   * together (the bare trailing "2." form read as a sentence end and glued the
+   * next number onto the previous option under VoiceOver):
+   * "Pick a reply, N options. Option 1: … Option 2: … Option 3: …". The engine
+   * is waiting and the focused button already read option 1 on open, but after
+   * moving around a player may want the whole list again; this composes it as a
+   * single update, not a burst of separate announcements (screen-reader-output:
+   * one key press, one update). Works while waiting too, so R still re-reads the
+   * list after a pick (Fix 1).
    */
   repeatAll(): void {
     if (!this.open) return;
@@ -279,16 +282,21 @@ function endWithStop(text: string): string {
 }
 
 /**
- * Compose the full read of the choices as one coherent line (Fix 2): the menu
- * name and count, then each option numbered by its engine number and ended with
- * a full stop, e.g.
- *   "Choices, 4 options. 1. Hi boss, how are you? 2. And how is the family? …"
- * The count line and the per-option full stops give a screen reader clear
- * sentence breaks so the options do not run together. Exported for the tests.
+ * Compose the full read of the options as one coherent line (Fix 2): a short
+ * prompt and the count, then each option labelled "Option <n>:" (its engine
+ * number) and ended with a full stop, e.g.
+ *   "Pick a reply, 4 options. Option 1: Hi boss, how are you? Option 2: And how is the family? …"
+ * Labelling each option "Option N:" rather than a bare "N." keeps the number at
+ * the START of its own option, so VoiceOver can no longer read a trailing "2."
+ * as a sentence end and glue the next number onto the previous option. The
+ * count line and the per-option full stops give clear sentence breaks so the
+ * options do not run together. Exported for the tests.
  */
 export function composeChoicesLine(options: ChoiceOption[]): string {
   const total = options.length;
-  const header = `Choices, ${total} option${total === 1 ? "" : "s"}.`;
-  const items = options.map((o) => `${o.n}. ${endWithStop(o.text)}`).join(" ");
+  const header = `Pick a reply, ${total} option${total === 1 ? "" : "s"}.`;
+  const items = options
+    .map((o) => `Option ${o.n}: ${endWithStop(o.text)}`)
+    .join(" ");
   return items.length > 0 ? `${header} ${items}` : header;
 }

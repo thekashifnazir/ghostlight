@@ -34,11 +34,11 @@ function setup() {
 describe("ChoiceMenu", () => {
   beforeEach(() => vi.restoreAllMocks());
 
-  it("the container is a listbox named Choices, not a role=menu", () => {
+  it("the container is a listbox named Replies, not a role=menu", () => {
     const { el, menu } = setup();
     // The listbox role (not role=menu) stops VoiceOver adding its menu hint.
     expect(el.getAttribute("role")).toBe("listbox");
-    expect(el.getAttribute("aria-label")).toBe("Choices");
+    expect(el.getAttribute("aria-label")).toBe("Replies");
     menu.openWith(DRUNK);
     expect(el.getAttribute("role")).toBe("listbox");
     // No menu/menuitem roles anywhere — those are what trigger the wrong hint.
@@ -73,12 +73,12 @@ describe("ChoiceMenu", () => {
     expect(items[2].getAttribute("aria-posinset")).toBe("3");
   });
 
-  it("opens with the menu name and count only; the option text is not repeated in the live region", () => {
+  it("opens with the prompt and count only; the option text is not repeated in the live region", () => {
     const { menu, announce } = setup();
     menu.openWith(DRUNK);
-    // The open line gives the menu name and count only; the focused option 1
+    // The open line gives the prompt and count only; the focused option 1
     // button carries its text, read once by the screen reader (R6.1).
-    expect(announce).toHaveBeenLastCalledWith("Choices, 3 options.");
+    expect(announce).toHaveBeenLastCalledWith("Pick a reply, 3 options.");
     for (const call of announce.mock.calls) {
       expect(String(call[0])).not.toContain("HI BOSS");
     }
@@ -87,7 +87,7 @@ describe("ChoiceMenu", () => {
   it("uses the singular 'option' for a single choice", () => {
     const { menu, announce } = setup();
     menu.openWith([{ n: 1, text: "GOODBYE." }]);
-    expect(announce).toHaveBeenLastCalledWith("Choices, 1 option.");
+    expect(announce).toHaveBeenLastCalledWith("Pick a reply, 1 option.");
   });
 
   it("navigation moves roving focus (and aria-selected) but writes nothing to the live region", () => {
@@ -164,7 +164,7 @@ describe("ChoiceMenu", () => {
     announce.mockClear();
     menu.repeatAll();
     expect(announce).toHaveBeenCalledWith(
-      "Choices, 3 options. 1. HI BOSS, HOW ARE YOU? 2. GIVE ME A DRINK. 3. GOODBYE.",
+      "Pick a reply, 3 options. Option 1: HI BOSS, HOW ARE YOU? Option 2: GIVE ME A DRINK. Option 3: GOODBYE.",
     );
   });
 
@@ -215,14 +215,14 @@ describe("ChoiceMenu", () => {
     expect(choose).not.toHaveBeenCalled();
   });
 
-  it("R repeats all the options numbered, with the count header and full stops", () => {
+  it("R repeats all the options, each prefixed 'Option n:', with the prompt header and full stops", () => {
     const { menu, announce } = setup();
     menu.openWith(DRUNK);
     announce.mockClear();
     menu.repeatAll();
     expect(announce).toHaveBeenCalledTimes(1);
     expect(announce).toHaveBeenCalledWith(
-      "Choices, 3 options. 1. HI BOSS, HOW ARE YOU? 2. GIVE ME A DRINK. 3. GOODBYE.",
+      "Pick a reply, 3 options. Option 1: HI BOSS, HOW ARE YOU? Option 2: GIVE ME A DRINK. Option 3: GOODBYE.",
     );
   });
 
@@ -237,8 +237,8 @@ describe("ChoiceMenu", () => {
     announce.mockClear();
     menu.repeatAll();
     expect(announce).toHaveBeenCalledWith(
-      "Choices, 3 options. 1. Hi boss, how are you? " +
-        "2. This is quite groovy, huh. 3. I'd better not say anything.",
+      "Pick a reply, 3 options. Option 1: Hi boss, how are you? " +
+        "Option 2: This is quite groovy, huh. Option 3: I'd better not say anything.",
     );
   });
 
@@ -267,7 +267,7 @@ describe("ChoiceMenu", () => {
     expect(items).toHaveLength(2);
     expect(items[0].textContent).toBe("YES.");
     expect(document.activeElement).toBe(items[0]);
-    expect(announce).toHaveBeenLastCalledWith("Choices, 2 options.");
+    expect(announce).toHaveBeenLastCalledWith("Pick a reply, 2 options.");
   });
 
   it("close() hides the menu, clears it, and returns focus to #game once, without choosing", () => {

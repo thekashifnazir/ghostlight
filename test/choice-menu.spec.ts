@@ -49,10 +49,10 @@ test.describe("conversation choice menu (replay)", () => {
     // choice menu (A11Y_CHOICES + phase 'choice').
     await page.keyboard.press("Enter");
 
-    // The menu is visible and announced as the menu name and count only — NOT
+    // The menu is visible and announced as the prompt and count only — NOT
     // the numbered option list (that would double-speak the focused option).
     await expect(page.locator(CHOICE_MENU)).toBeVisible();
-    await expect(live(page)).toContainText("Choices, 3 options.");
+    await expect(live(page)).toContainText("Pick a reply, 3 options.");
 
     // The menu is a role=listbox with three roving-focus options; option 1 is
     // focused, selected, and carries aria-posinset/aria-setsize for the reader.
@@ -87,7 +87,7 @@ test.describe("conversation choice menu (replay)", () => {
     // R repeats all the options as one composed line.
     await page.keyboard.press("r");
     await expect(live(page)).toContainText(
-      "1. HI BOSS, HOW ARE YOU? 2. GIVE ME A DRINK. 3. GOODBYE.",
+      "Option 1: HI BOSS, HOW ARE YOU? Option 2: GIVE ME A DRINK. Option 3: GOODBYE.",
     );
     // The menu is still open (R only repeats; it does not pick or close).
     await expect(page.locator(CHOICE_MENU)).toBeVisible();

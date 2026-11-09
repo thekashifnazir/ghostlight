@@ -659,7 +659,7 @@ export async function boot(): Promise<void> {
   // `choose <n>` through the same command seam as every other verb (so the
   // narration window and readiness signal stay in step), then returns focus to
   // the game element. Its announcement goes through the narrator (`say`) so the
-  // "Choices, N options." line keeps the text-vs-said de-dup memory in step
+  // "Pick a reply, N options." line keeps the text-vs-said de-dup memory in step
   // like every other composed line.
   const choiceMenu = new ChoiceMenu(choiceMenuEl, {
     announce: (t) => say(t),
