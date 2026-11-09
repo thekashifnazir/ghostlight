@@ -144,7 +144,13 @@ export type Command =
   | { verb: "choices" }
   | { verb: "choose"; n: number }
   | { verb: "skip" }
-  | { verb: "save"; slot: number };
+  | { verb: "save"; slot: number }
+  // Re-request the engine's full room state. The engine re-emits the current
+  // room as an `A11Y` line (engine/a11y.cpp `state`/`dump`), which the player
+  // handles exactly like a room entry. Used to re-sync the player's room model
+  // with engine truth after an error shows the two have drifted (an object the
+  // player listed is no longer in the engine's room). It changes no game state.
+  | { verb: "state" };
 
 /**
  * The seam the player talks to the engine through. `start()` boots and emits
@@ -172,6 +178,8 @@ export function serializeCommand(cmd: Command): string {
       return "skip";
     case "save":
       return `save ${cmd.slot}`;
+    case "state":
+      return "state";
     default:
       return `${cmd.verb} ${cmd.target}`;
   }

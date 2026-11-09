@@ -14,6 +14,7 @@ import type {
 } from "./engine/adapter.js";
 import { LiveAdapter } from "./engine/live-adapter.js";
 import { ReplayAdapter } from "./engine/replay-adapter.js";
+import { mapEngineError } from "./engine/error-lines.js";
 import { StatusTracker } from "./engine/status.js";
 import { Persistence, probeSaves } from "./engine/persistence.js";
 import { SaveManager } from "./engine/save-manager.js";
@@ -680,12 +681,22 @@ export async function boot(): Promise<void> {
         inventory.setItems(e.items.map((i) => i.id));
         break;
       case "error":
-        // An autosave's save error must never be spoken: it would clobber the
-        // room line at a room change. The save manager swallows (and logs) such
-        // an error when an autosave is in flight; every other error — including
-        // a manual save's failure, which surfaces through onSaved/the watchdog
-        // — is announced as usual (save-progress R2.5).
-        if (!saveManager.handleError(e.message)) say(e.message);
+        // Raw engine A11Y_ERR text (e.g. "object 171 is not in this room")
+        // must NEVER reach the player's live region: it carries internal
+        // hotspot/item numbers and is developer diagnostics, not player output
+        // (screen-reader-output.md). First give the save manager its chance to
+        // swallow an in-flight autosave's own error (it logs that itself);
+        // otherwise map the raw message to a plain, number-free player line,
+        // log the raw text for debugging, announce the mapped line, and — when
+        // the error means the player's room model has drifted from the engine's
+        // (an object the player listed is not in the engine's room) — re-request
+        // the engine's room state so applyRoom re-reads the room back in sync.
+        if (!saveManager.handleError(e.message)) {
+          console.warn(`[ghostlight] engine error: ${e.message}`);
+          const mapped = mapEngineError(e.message);
+          say(mapped.line);
+          if (mapped.resync) sendCommand({ verb: "state" });
+        }
         break;
       case "saved":
         // The save manager decides what to announce: "Saved." for a manual
@@ -1114,15 +1125,26 @@ export async function boot(): Promise<void> {
   // The gate's "any key begins" shortcut, kept for a fresh start. Suppressed
   // when the Continue / New game choice is showing (the buttons own the keys)
   // or when a load intent already auto-started boot.
-  startGate.addEventListener(
-    "keydown",
-    (ev) => {
-      if (!gateHandlesAnyKey) return; // handled by buttons or load-intent start
+  //
+  // F1 is the one exception: on the gate it reads the controls (the same
+  // HELP_TEXT as in-game F1) and must NOT start the game — a tester pressing
+  // F1 to learn the keys found it launched straight into play instead. So the
+  // handler intercepts F1 first, announces the help text, and returns without
+  // starting, leaving the gate visible and the shortcut live for a later key.
+  // It is a plain (not once) listener so F1 can be pressed repeatedly; any
+  // other key still starts and then the started/gateHandlesAnyKey guards make
+  // further presses no-ops.
+  startGate.addEventListener("keydown", (ev) => {
+    if (!gateHandlesAnyKey) return; // handled by buttons or load-intent start
+    if (ev.key === "F1") {
+      // Read the controls without starting; keep the gate up.
       ev.preventDefault();
-      void startPlaying();
-    },
-    { once: true },
-  );
+      live.announce(HELP_TEXT);
+      return;
+    }
+    ev.preventDefault();
+    void startPlaying();
+  });
 
   // Announce the start gate's instruction in the live region, so a screen
   // reader conveys it as text like every other functional line, not only as
