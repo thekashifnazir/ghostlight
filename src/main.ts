@@ -1106,6 +1106,10 @@ export async function boot(): Promise<void> {
   const startPlaying = async (): Promise<void> => {
     if (started) return;
     started = true;
+    // Drop the document-level "press a key to begin" listener now that play has
+    // started: the in-game keydown handler owns the keys from here, and the
+    // gate shortcut must never fire again.
+    doc.removeEventListener("keydown", gateKeydown);
     startGate.hidden = true;
     // Tell the readiness signal the engine is booting: 'loading' for a Continue
     // / load boot (bootedIntoSlot), 'booting' for a fresh start. The first room
@@ -1282,7 +1286,13 @@ export async function boot(): Promise<void> {
     // point and are ignored. Spreading the string handles astral characters.
     return [...ev.key].length === 1;
   };
-  startGate.addEventListener("keydown", (ev) => {
+  // Listen at the document level, not on #start-gate, so the shortcut works no
+  // matter where focus sits. The gate's Start/Continue buttons are focused when
+  // shown, but a click on the page background moves focus to <body>; a listener
+  // bound to the gate element would then miss the keypress entirely (Edge: click
+  // background, press Enter, nothing happened). startPlaying removes this
+  // listener once play begins, so it only lives while the gate is up.
+  const gateKeydown = (ev: KeyboardEvent): void => {
     if (!gateHandlesAnyKey) return; // handled by buttons or load-intent start
     if (ev.key === "F1" || ev.key === "?") {
       // Read the controls without starting; keep the gate up. '?' (a single
@@ -1300,7 +1310,8 @@ export async function boot(): Promise<void> {
     if (!startsTheGame(ev)) return;
     ev.preventDefault();
     void startPlaying();
-  });
+  };
+  doc.addEventListener("keydown", gateKeydown);
 
   // Announce the start gate's instruction in the live region, so a screen
   // reader conveys it as text like every other functional line, not only as

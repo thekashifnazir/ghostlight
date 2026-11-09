@@ -88,4 +88,25 @@ test.describe("exploration keys on the start gate must not begin the game", () =
     await expect(page.locator(GATE)).toBeHidden({ timeout: 10_000 });
     await expect(live(page)).toContainText("Here:");
   });
+
+  // Start-gate bug (reproduced in Edge): clicking the page background moves
+  // focus off the gate's Start button onto <body>, and a keydown listener bound
+  // to #start-gate never saw the following keypress, so Enter/Space/a letter did
+  // nothing. The listener must live at the document level so the "begin"
+  // shortcut works regardless of where focus sits.
+  test("clicking the page background then pressing Enter still starts the game", async ({
+    page,
+  }) => {
+    await page.goto("/?replay=tavern");
+    await expect(page.locator(GATE)).toBeVisible();
+
+    // Click the page background (the body), moving focus away from the gate's
+    // Start button — the exact gesture that used to break the shortcut in Edge.
+    await page.locator("body").click({ position: { x: 2, y: 2 } });
+
+    // Enter still begins: the gate hides and the first room is read.
+    await page.keyboard.press("Enter");
+    await expect(page.locator(GATE)).toBeHidden({ timeout: 10_000 });
+    await expect(live(page)).toContainText("Here:");
+  });
 });

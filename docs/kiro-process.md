@@ -1896,3 +1896,20 @@ Time taken: about 40 minutes.
 What went wrong or surprised you: the syncfs serialiser needed care — a first draft put the `.finally` promotion only on the first flush, so the promoted follow-up occupied `running` with no cleanup of its own and a later commit could start a third concurrent sync (or wedge the queue). Pulling every flush through one `startFlush()` that wears the promotion fixed it; the deferred-flush test (release flushes one at a time, count how many actually started) is what made the three-commits-one-sync and third-commit-during-follow-up cases provable rather than hand-waved. The two-tier help broke one pre-existing e2e assertion (`interaction.spec.ts` pressed F1 once and expected a full-page line); updating it to two presses was the right fix, not loosening the short page.
 
 What was learned: a "queue at most one more" serialiser is only correct if the queued item is subject to the same bookkeeping as the first — the invariant has to hold for every item that occupies the in-flight slot, not just the opening pair, so the cleanup belongs on a single shared path. And a two-tier help needs a reset signal wired into the controller's per-key path (the same place the line-history cursor resets), otherwise "F1 after another key starts short again" silently fails while the consecutive-press expansion still works.
+
+## 132 · player · 2026-11-09 · Fix: start gate ignored keys after a background click (Edge)
+
+What was asked: a start-screen bug reproduced in Edge — load the page, click anywhere on the page background, then press Enter, Space or a letter, and nothing starts. The "press any key to begin" keydown listener was bound to `#start-gate` only, and the background click moves focus to `<body>`, so the listener never saw the keypress. Fix: while the gate is up, listen at the document level with the same startsTheGame / F1 / `?` rules, and remove that listener once the game starts; keep Tab, arrows and modifiers ignored. Add a Playwright test (click the background, press Enter, game boots), run typecheck + `npm test` + `test:e2e`, commit only my files to main, don't deploy.
+
+What Kiro did:
+- `src/main.ts`: moved the gate's "begin" keydown shortcut off `#start-gate` onto `document`. The inline listener is now a named `gateKeydown` handler attached with `doc.addEventListener("keydown", gateKeydown)`; its `gateHandlesAnyKey` guard, the F1/`?` help branch and the `startsTheGame` filter (Enter / Space / a single printable char begin; Tab, arrows, Escape, modifiers and Ctrl/Alt/Meta chords are ignored) are unchanged, so exploration keys still never start the game. `startPlaying` now calls `doc.removeEventListener("keydown", gateKeydown)` as its first act, so the shortcut only lives while the gate is up and the in-game keydown handler owns the keys once play begins.
+- Test: `test/start-gate-explore.spec.ts` — a new case "clicking the page background then pressing Enter still starts the game": clicks `<body>` (moving focus off the Start button, the exact Edge gesture), presses Enter, and asserts the gate hides and the first room is read. The existing 15 explore-key cases still pass unchanged.
+- Verified: `npm run typecheck` (exit 0), `npm test` (50 files, 389 tests passed), `npm run test:e2e` (63 passed, 0 flaky) all green.
+
+Files changed: `src/main.ts`, `test/start-gate-explore.spec.ts`, `docs/kiro-process.md`.
+
+Time taken: about 20 minutes.
+
+What went wrong or surprised you: nothing. The listener was already structured so only the attach target needed to change; keeping the `startsTheGame` filter and the F1/`?` branch intact meant the ignore-exploration-keys guarantee carried over to the document-level listener for free.
+
+What was learned: a "press any key" gate shortcut must listen at the document level, not on the gate element, because a stray click on the page background silently moves focus to `<body>` and an element-scoped keydown listener then goes deaf. Pairing the document listener with an explicit `removeEventListener` in the start path keeps it from lingering into play.
