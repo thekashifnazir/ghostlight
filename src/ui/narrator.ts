@@ -58,6 +58,25 @@ export class Narrator {
   private producedChoices = false;
   private producedDialogue = false;
   private enteredChoicePhase = false;
+  /**
+   * The dialogue/narration lines (trimmed) streamed live through text() during
+   * the command currently in flight, oldest first. Reset by beginCommand() when
+   * a new command is sent.
+   *
+   * This is the memory the text-vs-said de-dup needs that `lastAnnounced` alone
+   * cannot provide: a talk streams its whole conversation line by line as the
+   * engine says each one (A11Y_TEXT), and then the settling A11Y_DIFF carries
+   * the WHOLE conversation again in its `said` array. `lastAnnounced` only
+   * remembers the single most recent line, so it drops the last repeat but
+   * re-announces the other N−1 in one burst — which NVDA reads as a jumble, and
+   * which floods R (repeat) and Shift+R (history) with the whole conversation.
+   * By recording every streamed line here, said() can skip each `said` line
+   * that was already streamed (matched by text, in order) and announce only the
+   * lines that were NOT streamed (the non-streamed and chapter-crossing paths),
+   * so each conversation line reaches the live region — and the history —
+   * exactly once.
+   */
+  private streamedThisCommand: string[] = [];
 
   constructor(live: NarratorLive) {
     this.live = live;
@@ -103,6 +122,7 @@ export class Narrator {
     this.producedChoices = false;
     this.producedDialogue = false;
     this.enteredChoicePhase = false;
+    this.streamedThisCommand = [];
   }
 
   /**
@@ -164,21 +184,65 @@ export class Narrator {
       return;
     }
     this.producedDialogue = true;
+    // Record this streamed line (trimmed) so the settling diff's `said` — which
+    // repeats the whole conversation — can skip the lines already streamed and
+    // re-announce only lines that were NOT streamed. Recorded on the SAME
+    // filtered path that announces it, so a dropped hover/examine-noise line is
+    // never recorded and never wrongly suppresses a matching real `said` line.
+    this.streamedThisCommand.push(line.trim());
     this.announce(line);
   }
 
   /**
    * Announce a diff's spoken text. Closes the examine window on a look diff
    * (its text events have all arrived by now), applies the diff-path generic
-   * look filter, and drops a `said` line equal to the last line already
-   * announced (the text-vs-said duplicate). Returns whether this was a look
-   * diff, so the caller can skip "Nothing happened." for it.
+   * look filter, and de-duplicates `said` lines already announced.
+   *
+   * Two de-dup layers, both needed:
+   *
+   *  1. A `said` line already STREAMED live during this same command (through
+   *     text(), recorded in streamedThisCommand) is dropped. A talk streams its
+   *     whole conversation line by line as the engine says each one, then the
+   *     settling diff carries the WHOLE conversation again in `said`. Without
+   *     this, all N lines are re-announced in one burst — NVDA reads it as a
+   *     jumble and repeats the last line, and R/Shift+R are flooded with the
+   *     whole conversation. The match is by text, in order: each `said` line is
+   *     checked against the next not-yet-consumed streamed line, so if the
+   *     engine legitimately repeats a line twice only the extra occurrences
+   *     past what was streamed are announced.
+   *  2. A `said` line equal to the single last line already announced
+   *     (lastAnnounced) is dropped — the long-standing text-vs-said duplicate
+   *     for a one-line reply, and a belt-and-braces guard for any line that was
+   *     not streamed this command (e.g. announced by the player composing it).
+   *
+   * Lines that were NOT streamed are announced — the non-streamed path (a plain
+   * one-line engine reply) and the chapter-crossing path (a diff whose `said`
+   * carries the crossing's narration with no prior stream) both still speak, so
+   * nothing is lost.
+   *
+   * Returns whether this was a look diff, so the caller can skip "Nothing
+   * happened." for it.
    */
   said(diff: Diff): boolean {
     const isLook = diff.cmd?.startsWith("look ") === true;
     if (isLook) this.examining = false;
+    // A cursor over the lines streamed live this command. Each `said` line that
+    // matches the next un-consumed streamed line (by trimmed text) is a repeat
+    // of something the player already heard and is skipped; the cursor then
+    // advances so later `said` lines match later streamed lines, preserving
+    // order. A `said` line that does not match the next streamed line is not a
+    // streamed repeat and is announced (subject to the lastAnnounced guard).
+    let streamCursor = 0;
     for (const line of suppressGenericLook(diff)) {
-      if (line.text.trim() === this.lastAnnounced) continue;
+      const text = line.text.trim();
+      if (
+        streamCursor < this.streamedThisCommand.length &&
+        this.streamedThisCommand[streamCursor] === text
+      ) {
+        streamCursor += 1;
+        continue;
+      }
+      if (text === this.lastAnnounced) continue;
       this.announce(line.text);
     }
     return isLook;
