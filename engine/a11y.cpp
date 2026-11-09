@@ -46,6 +46,22 @@ namespace Drascula {
 // (the engine runs one frame at a time), so no synchronisation is needed.
 static uint32 g_errCount = 0;
 
+// Wall-clock time (g_system->getMillis()) of the last line emitLine() wrote.
+// ANY a11y output — an A11Y room line, an A11Y_DIFF, A11Y_TEXT, a `said` line,
+// an A11Y_PHASE, an A11Y_ERR — stamps this. The busy watchdog measures its
+// stall from max(_lastPollMs, g_lastEngineOutputMs): a legitimate long cutscene
+// that is still making progress (e.g. the Von Braun history, animation_16_2,
+// which draws a fresh picture about every 6 s WITHOUT returning control to the
+// main loop, so poll() never runs and _lastPollMs freezes) keeps stamping this
+// through each A11Y_TEXT/`said` line, so the watchdog sees recent activity and
+// does NOT trip. The watchdog fires only when poll() is stale AND no line has
+// been emitted for the whole window — a truly silent dead state. Module-local
+// and single-threaded, like g_errCount, so no synchronisation is needed. It is
+// a module static because emitLine() is a file-scope helper (not a member), so
+// it has no `this` to stamp; the watchdog, a member, reads it alongside the
+// member _lastPollMs. 0 means nothing has been emitted yet.
+static uint32 g_lastEngineOutputMs = 0;
+
 // --- Cross-chapter diff carrier (task 17/18, R4.3 / design "Settling") ------
 //
 // A `walk` through a chapter-ending door (chapter 1's door 105) runs
@@ -119,6 +135,14 @@ static void emitLine(const Common::String &line) {
 
 	if (!g_system)
 		return;
+
+	// Stamp the engine-output liveness clock BEFORE writing: any emitted line is
+	// a sign of life the busy watchdog counts (Fix C tuning), so a legitimate
+	// slow cutscene that is still drawing text keeps the watchdog quiet even
+	// though poll() is not running. Stamped only when g_system exists, the same
+	// guard the write below uses, so the stamp and the write stay in lock-step.
+	g_lastEngineOutputMs = g_system->getMillis();
+
 	Common::String out = line + "\n";
 	g_system->logMessage(LogMessageType::kError, out.c_str());
 }
@@ -2845,15 +2869,20 @@ void A11yLayer::dropSurplusSkips() {
 // engine so poll() never runs again and A11Y_PHASE stays `busy` forever with
 // queued commands never settling (the observed dead state: a conversation reply
 // consumed a stale skip, animation_16_2 never returned control). This detects
-// that and escalates in two 8 s stages so the condition is reported and cleared
-// rather than being silent and permanent.
+// that and escalates in two 20 s stages so the condition is reported and
+// cleared rather than being silent and permanent.
 //
-// "poll() has not run for 8 s" is read from _lastPollMs, the stamp poll() sets
-// at the top of every frame it runs: while the main loop is live the stamp is
-// never more than a frame or two old, so the watchdog never trips in normal
-// play; once a nested loop has taken over, the stamp freezes and the age grows.
-// The watchdog only acts when there is also something queued to settle — an
-// idle engine with a stale stamp (nothing to do) is not a dead state.
+// LIVENESS is max(_lastPollMs, g_lastEngineOutputMs): the newer of the last
+// poll() stamp (main loop live) and the last emitted-line stamp (a cutscene
+// still drawing text). A nested cutscene like the Von Braun history
+// (animation_16_2) never returns control to the main loop — so poll() freezes —
+// yet it draws a fresh picture about every 6 s, each stamping
+// g_lastEngineOutputMs through its A11Y_TEXT/`said` output. Measuring the stall
+// from the liveness stamp means that legitimate slow progress keeps the
+// watchdog quiet; only a window with NEITHER a poll() NOR any emitted line is a
+// true dead state. The watchdog only acts when there is also something queued
+// to settle — an idle engine with a stale stamp (nothing to do) is not a dead
+// state.
 void A11yLayer::runBusyWatchdog() {
 	// Nothing queued to settle: not a dead state. Reset so a later stall starts
 	// a fresh two-stage escalation.
@@ -2863,37 +2892,75 @@ void A11yLayer::runBusyWatchdog() {
 		return;
 	}
 
-	// poll() never ran yet (boot) — no stall to measure against.
-	if (_lastPollMs == 0)
+	// Liveness: the newer of the last poll() and the last emitted line. Either
+	// counts as the engine being alive this window.
+	uint32 liveness = _lastPollMs > g_lastEngineOutputMs
+	                  ? _lastPollMs : g_lastEngineOutputMs;
+
+	// Nothing has run or been emitted yet (boot) — no stall to measure against.
+	if (liveness == 0)
 		return;
 
 	uint32 now = g_system->getMillis();
 
-	// poll() is fresh: the main loop is live and draining the queue normally, so
-	// there is no stall. Clear any escalation in progress.
-	if (now - _lastPollMs < kWatchdogMs) {
-		_watchdogStage = 0;
-		_watchdogBaseMs = 0;
-		return;
+	// Reset the escalation when the engine shows it is alive again. The test is
+	// stage-aware so the watchdog's OWN stage-1 emit cannot reset its own clock:
+	//
+	//   * Stage 0 (no escalation yet): any liveness within the window means no
+	//     silent stall — a poll() this frame, or a cutscene line (the Von Braun
+	//     history draws one about every 6 s). Clear and return.
+	//   * Stage >= 1 (already skipped): the stage-1 emit itself stamps
+	//     g_lastEngineOutputMs, so a plain liveness test would read "fresh" the
+	//     very next frame and reset forever, never reaching stage 2. The only
+	//     thing that genuinely means "unwedged" here is poll() resuming — the
+	//     main loop running again — so we reset only when _lastPollMs has
+	//     advanced PAST the stall anchor (poll ran since the stall began). A
+	//     frozen poll stamp stays equal to the anchor and leaves the escalation
+	//     running toward stage 2. (A cutscene that was stalled for a full 20 s
+	//     and only then resumes drawing is already a dead-enough state to drop
+	//     the queue; normal slow cutscenes never reach stage 1 because stage 0
+	//     stays fresh off their per-picture output.)
+	if (_watchdogStage == 0) {
+		if (now - liveness < kWatchdogMs) {
+			_watchdogStage = 0;
+			_watchdogBaseMs = 0;
+			return;
+		}
+	} else {
+		if (_lastPollMs > _watchdogBaseMs) {
+			_watchdogStage = 0;
+			_watchdogBaseMs = 0;
+			return;
+		}
 	}
 
-	// poll() is stale AND commands are queued. Anchor the stall on the poll
-	// stamp the first time we see it, so the two windows are measured from a
-	// stable origin rather than creeping with each frame.
+	// Liveness is stale AND commands are queued. Anchor the stall on the
+	// liveness stamp the first time we see it, so the two windows are measured
+	// from a stable origin rather than creeping with each frame.
 	if (_watchdogStage == 0) {
-		_watchdogBaseMs = _lastPollMs;
-		// Stage 1: tell the reader the engine is not accepting commands and try
-		// to free the blocking loop with one skip (the same input a stuck
+		_watchdogBaseMs = liveness;
+		// Stage 1 is SILENT to the player: emit only the log-only diagnostic
+		// `A11Y_ERR busy-skip` (the page maps it to NO announcement) and raise
+		// one skip to try to free the blocking loop (the same input a stuck
 		// cutscene/line responds to). raiseSkip() only pushes one kActionSkip;
 		// if the loop is genuinely dead it does nothing and stage 2 follows.
-		emitLine("A11Y_ERR busy: engine not accepting commands");
+		//
+		// NB: this emitLine() itself stamps g_lastEngineOutputMs, so the second
+		// window is measured from _watchdogBaseMs (captured above, before this
+		// emit) rather than from the fresh stamp — the check below uses
+		// _watchdogBaseMs, not the liveness stamp, for exactly that reason.
+		emitLine("A11Y_ERR busy-skip");
 		raiseSkip();
 		_watchdogStage = 1;
 		return;
 	}
 
-	// Already warned (stage 1). Wait for a second full window measured from the
-	// same anchor before giving up on the queue.
+	// Already skipped (stage 1). Wait for a second full window measured from the
+	// same anchor before giving up on the queue. Using _watchdogBaseMs (not the
+	// liveness stamp) means the stage-1 emit's own output stamp does not reset
+	// the clock: if the skip genuinely freed the loop, poll() resumes and
+	// liveness goes fresh (handled above, resetting the stage); if it did not,
+	// no further line is emitted and this fires one window after the anchor.
 	if (_watchdogStage == 1 && now - _watchdogBaseMs >= 2 * kWatchdogMs) {
 		// Stage 2: the skip did not free it. Drop any surplus skip input, clear
 		// the queue so it cannot wedge or bleed into the next room, and tell the
@@ -2921,10 +2988,12 @@ void A11yLayer::onUpdateEvents() {
 		return;
 
 	// Fix C: run the busy watchdog first, before the skip-read throttle below.
-	// It is timed off _lastPollMs (the poll() stall), not the 250 ms skip-read
-	// cadence, so it must not be gated by that throttle — a wedged engine still
-	// calls updateEvents() every frame, which is exactly when the watchdog needs
-	// to fire. It is a no-op whenever poll() is fresh or nothing is queued.
+	// It is timed off the engine liveness stamp — max(_lastPollMs,
+	// g_lastEngineOutputMs) — not the 250 ms skip-read cadence, so it must not
+	// be gated by that throttle — a wedged engine still calls updateEvents()
+	// every frame, which is exactly when the watchdog needs to fire. It is a
+	// no-op whenever the engine is still showing life (poll() fresh or a line
+	// emitted within the window) or nothing is queued.
 	runBusyWatchdog();
 
 	// Throttle: at most one command-file read per ~250 ms from this hook. poll()

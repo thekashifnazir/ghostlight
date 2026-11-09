@@ -270,6 +270,30 @@ describe("StatusTracker phase transitions (replay adapter)", () => {
     expect(h.status.phase).toBe("error");
   });
 
+  it("the 'error' phase is transient: the engine's next A11Y_PHASE moves off it", async () => {
+    // Fix C tuning: the busy watchdog's silent first stage emits an A11Y_ERR
+    // (busy-skip) that transiently sets the phase to 'error', but the engine
+    // keeps emitting A11Y_PHASE as the legitimate cutscene runs, and that must
+    // unstick the phase. A following 'control' settles to ready; a following
+    // 'busy' (the cutscene still running) goes to busy. Either way 'error' does
+    // not stick.
+    const control = harness("tavern.a11y.log");
+    await control.start();
+    control.status.onSend(false);
+    control.status.onEvent({ type: "error", message: "busy-skip" });
+    expect(control.status.phase).toBe("error");
+    control.status.onEvent({ type: "phase", phase: "control" });
+    expect(control.status.phase).toBe("ready");
+
+    const busy = harness("tavern.a11y.log");
+    await busy.start();
+    busy.status.onSend(false);
+    busy.status.onEvent({ type: "error", message: "busy-skip" });
+    expect(busy.status.phase).toBe("error");
+    busy.status.onEvent({ type: "phase", phase: "busy" });
+    expect(busy.status.phase).toBe("busy");
+  });
+
   it("records lines into the ring buffer with seq, and caps at 200", () => {
     const h = harness("tavern.a11y.log");
     h.status.recordLine("first");

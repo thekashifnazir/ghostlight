@@ -867,28 +867,38 @@ private:
 	// loop). Without a watchdog A11Y_PHASE would then read `busy` forever and no
 	// queued command would ever settle. onUpdateEvents() — which keeps running
 	// inside the blocking loop — watches for this: when commands are queued but
-	// poll() has not advanced its stamp for kWatchdogMs, it escalates in two
-	// stages. Stage 1 (after kWatchdogMs) emits one `A11Y_ERR busy: engine not
-	// accepting commands` and raises a skip to try to free the loop. Stage 2
-	// (after another kWatchdogMs still stuck) drops the surplus skips, clears
-	// the queue and emits `A11Y_ERR busy: commands dropped`, so the player is
-	// told and the queue cannot wedge the next room.
+	// the engine has shown no sign of life for kWatchdogMs — NEITHER a poll()
+	// (main loop live) NOR any emitted a11y line (a cutscene still drawing) — it
+	// escalates in two stages. Liveness is max(_lastPollMs, g_lastEngineOutputMs),
+	// so a legitimate slow cutscene (animation_16_2 draws a Von Braun-history
+	// picture about every 6 s with no poll()) keeps the watchdog quiet via its
+	// A11Y_TEXT/said output, and only a genuinely silent stall trips it.
 	//
-	// _watchdogStage is 0 when not stuck, 1 after the stage-1 warning, 2 after
-	// the stage-2 drop; it resets to 0 whenever poll() runs (the stamp advances)
-	// or the queue drains, so a later genuine stall is caught fresh.
-	// _watchdogBaseMs is the _lastPollMs value the current stall is measured
-	// from, captured when the watchdog first sees a queued command with a stale
-	// poll stamp, so the two 8 s windows are measured from a stable origin
-	// rather than drifting with each check.
+	// Stage 1 (after kWatchdogMs) is SILENT to the player: it emits only
+	// `A11Y_ERR busy-skip` (a log-only diagnostic the page maps to NO
+	// announcement) and raises one skip to try to free the loop. Stage 2 (after
+	// another kWatchdogMs still stuck) drops the surplus skips, clears the queue
+	// and emits `A11Y_ERR busy: commands dropped`, which the page announces as
+	// "The game didn't respond. Press L to hear where you are." So the player
+	// hears nothing on a stall the skip clears, and one clear line only if the
+	// queue had to be dropped.
+	//
+	// _watchdogStage is 0 when not stuck, 1 after the stage-1 skip, 2 after the
+	// stage-2 drop; it resets to 0 whenever the engine shows life (poll() runs
+	// or a line is emitted) or the queue drains, so a later genuine stall is
+	// caught fresh. _watchdogBaseMs is the liveness stamp the current stall is
+	// measured from, captured when the watchdog first sees a queued command with
+	// a stale liveness stamp, so the two windows are measured from a stable
+	// origin rather than drifting with each check.
 	int _watchdogStage;
 	uint32 _watchdogBaseMs;
 
-	// How long (ms) poll() may be stalled with commands queued before each
-	// watchdog stage fires. 8 s per the Fix C spec: long enough never to trip on
-	// a normal cutscene/speech that is still advancing, short enough that a true
-	// dead state is reported and cleared within a handful of seconds.
-	static const uint32 kWatchdogMs = 8000;
+	// How long (ms) the engine may show no sign of life (no poll(), no emitted
+	// line) with commands queued before each watchdog stage fires. 20 s per the
+	// Fix C tuning: long enough never to trip on the legitimate long Von Braun
+	// history cutscene (animation_16_2 pauses ~6 s per picture), short enough
+	// that a true dead state is reported and cleared within a handful of frames.
+	static const uint32 kWatchdogMs = 20000;
 
 	// Run the busy watchdog from onUpdateEvents(): detect a stalled poll() with
 	// commands still queued and escalate (warn + raiseSkip, then drop + clear).

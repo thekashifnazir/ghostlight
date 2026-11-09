@@ -67,37 +67,49 @@ describe("mapEngineError", () => {
     expect(r.line).not.toMatch(/\d/);
   });
 
-  // Fix C: the busy watchdog's two escalation lines (engine/a11y.cpp
-  // runBusyWatchdog) must map to the exact plain player lines the brief names,
-  // and never re-sync the room model.
-  it("maps 'busy: engine not accepting commands' to the trying-to-move-on line", () => {
-    const r = mapEngineError("busy: engine not accepting commands");
-    expect(r.line).toBe("The game is busy. Trying to move on.");
+  // Fix C: the busy watchdog's two stages (engine/a11y.cpp runBusyWatchdog).
+  // The first stage is SILENT — `busy-skip` is a log-only diagnostic that maps
+  // to no announcement (empty line, silent:true). Only the second stage
+  // (`busy: commands dropped`) is announced, with the exact player line the
+  // brief names. Neither re-syncs the room model.
+  it("maps 'busy-skip' to a silent, empty, non-re-syncing result", () => {
+    const r = mapEngineError("busy-skip");
+    expect(r.silent).toBe(true);
+    expect(r.line).toBe("");
     expect(r.resync).toBe(false);
   });
 
-  it("maps 'busy: commands dropped' to the didn't-respond line", () => {
+  it("maps 'busy: commands dropped' to the didn't-respond line, not silent", () => {
     const r = mapEngineError("busy: commands dropped");
     expect(r.line).toBe(
       "The game didn't respond. Press L to hear where you are.",
     );
     expect(r.resync).toBe(false);
+    expect(r.silent).toBeFalsy();
   });
 
-  it("maps the busy lines case-insensitively and with surrounding whitespace", () => {
-    expect(mapEngineError("  BUSY: ENGINE NOT ACCEPTING COMMANDS ").line).toBe(
-      "The game is busy. Trying to move on.",
-    );
+  it("maps the busy stages case-insensitively and with surrounding whitespace", () => {
+    const skip = mapEngineError("  BUSY-SKIP ");
+    expect(skip.silent).toBe(true);
+    expect(skip.line).toBe("");
     expect(mapEngineError("Busy:   commands dropped").line).toBe(
       "The game didn't respond. Press L to hear where you are.",
     );
   });
 
-  it("does not leak a number or an A11Y_ prefix in either busy line", () => {
-    for (const raw of ["busy: engine not accepting commands", "busy: commands dropped"]) {
-      const { line } = mapEngineError(raw);
-      expect(line).not.toMatch(/\b\d+\b/);
-      expect(line).not.toMatch(/A11Y_/);
-    }
+  it("the stage-1 busy diagnostic no longer announces the old 'trying to move on' line", () => {
+    // The previous stage-1 line ("busy: engine not accepting commands" ->
+    // "The game is busy. Trying to move on.") is gone: stage 1 is now silent,
+    // so that engine text is never emitted and any stray occurrence must fall
+    // through to the generic non-silent line rather than the old wording.
+    const r = mapEngineError("busy: engine not accepting commands");
+    expect(r.line).not.toBe("The game is busy. Trying to move on.");
+    expect(r.silent).toBeFalsy();
+  });
+
+  it("does not leak a number or an A11Y_ prefix in the announced busy line", () => {
+    const { line } = mapEngineError("busy: commands dropped");
+    expect(line).not.toMatch(/\b\d+\b/);
+    expect(line).not.toMatch(/A11Y_/);
   });
 });

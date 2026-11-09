@@ -17,7 +17,8 @@
 export interface MappedError {
   /**
    * The plain, number-free line to announce in the live region. Never contains
-   * an engine object/item number or an `A11Y_` prefix.
+   * an engine object/item number or an `A11Y_` prefix. Empty string when
+   * {@link silent} is true (there is nothing to announce).
    */
   line: string;
   /**
@@ -29,6 +30,15 @@ export interface MappedError {
    * implication (a bad save slot, an unknown verb).
    */
   resync: boolean;
+  /**
+   * True when the error is a log-only diagnostic the player must NOT hear. The
+   * caller logs the raw text for debugging but announces nothing. The only such
+   * line today is the busy watchdog's silent first stage (`busy-skip`): the
+   * engine quietly tries one skip to free a stalled loop, and the player is
+   * only told if that fails and the second stage drops the queue. `line` is ""
+   * when this is true. Absent (undefined) means a normal, announced line.
+   */
+  silent?: boolean;
 }
 
 /** The line shown when an object the player acted on is no longer in the room. */
@@ -53,12 +63,14 @@ const GENERIC_LINE = "That didn't work. Press L to hear the room.";
  *   - "<n> is a verb slot, not an inventory item …"  -> bad target, no re-sync
  *   - "item <n> is not in the inventory"             -> bad item, no re-sync
  *
- * Fix C adds the busy watchdog's two lines (engine/a11y.cpp runBusyWatchdog),
- * mapped to plain player lines with no re-sync:
- *   - "busy: engine not accepting commands" -> "The game is busy. Trying to
- *     move on."
- *   - "busy: commands dropped"              -> "The game didn't respond. Press
- *     L to hear where you are."
+ * Fix C adds the busy watchdog's two stages (engine/a11y.cpp runBusyWatchdog).
+ * The first stage is now SILENT: the engine quietly tries one skip to free a
+ * stalled loop and tells the player nothing, so its diagnostic maps to no
+ * announcement. Only the second stage (the queue was dropped) is announced:
+ *   - "busy-skip"              -> silent (no announcement; log only)
+ *   - "busy: commands dropped" -> "The game didn't respond. Press L to hear
+ *     where you are."
+ * Neither re-syncs the room model.
  *
  * Everything else (a malformed command, an unknown verb, a bad save slot) maps
  * to a generic number-free line and never re-syncs.
@@ -86,14 +98,19 @@ export function mapEngineError(message: string): MappedError {
     };
   }
 
-  // "busy: engine not accepting commands" / "busy: commands dropped": the Fix C
-  // busy watchdog (engine/a11y.cpp). The engine wedged so A11Y_PHASE busy would
-  // otherwise be permanent; the watchdog reports it in two stages. Map each to a
-  // plain, number-free player line. Neither re-syncs the room model (the room is
-  // unchanged; the watchdog is about the engine not responding, not a drifted
-  // object list) — the second line itself tells the player to press L.
-  if (/^busy:\s*engine not accepting commands$/i.test(text)) {
-    return { line: "The game is busy. Trying to move on.", resync: false };
+  // "busy-skip" / "busy: commands dropped": the Fix C busy watchdog
+  // (engine/a11y.cpp runBusyWatchdog). The engine wedged so A11Y_PHASE busy
+  // would otherwise be permanent; the watchdog escalates in two stages. The
+  // FIRST stage (`busy-skip`) is a log-only diagnostic — the engine quietly
+  // raises one skip to try to free the loop and the player hears NOTHING — so
+  // it maps to a silent result with an empty line. The SECOND stage
+  // (`busy: commands dropped`) ran only because the skip did not help and the
+  // queue was dropped, so it is announced with a plain, number-free line that
+  // itself tells the player to press L. Neither re-syncs the room model (the
+  // room is unchanged; the watchdog is about the engine not responding, not a
+  // drifted object list).
+  if (/^busy-skip$/i.test(text)) {
+    return { line: "", resync: false, silent: true };
   }
   if (/^busy:\s*commands dropped$/i.test(text)) {
     return {

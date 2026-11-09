@@ -721,7 +721,14 @@ export async function boot(): Promise<void> {
         if (!saveManager.handleError(e.message)) {
           console.warn(`[ghostlight] engine error: ${e.message}`);
           const mapped = mapEngineError(e.message);
-          say(mapped.line);
+          // A silent diagnostic (the busy watchdog's first stage, `busy-skip`)
+          // is log-only: the engine quietly tried one skip to free a stalled
+          // loop and the player must hear nothing. Announce only a non-silent
+          // mapped line. The `error` phase this event set in the status tracker
+          // is transient — the engine's next A11Y_PHASE (control once the skip
+          // frees the loop, or busy while the legitimate cutscene keeps
+          // running) moves the phase off `error` on the very next line.
+          if (!mapped.silent) say(mapped.line);
           if (mapped.resync) sendCommand({ verb: "state" });
         }
         break;
