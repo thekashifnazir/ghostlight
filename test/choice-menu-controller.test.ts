@@ -162,15 +162,17 @@ describe("Controller routing: conversation choice menu", () => {
     expect(choiceMenu.isOpen()).toBe(true);
   });
 
-  it("R re-reads the engine's current choices (sends `choices`) while phase is 'choice'", () => {
-    const { controller, choiceMenu, sent, setPhase } = harness();
+  it("R repeats the menu's own options locally (no engine round-trip) while phase is 'choice'", () => {
+    const { controller, choiceMenu, sent, lines, setPhase } = harness();
     setPhase("choice");
     choiceMenu.openWith(DRUNK);
+    lines.length = 0;
     expect(controller.handleKey("r")).toBe(true);
-    // Fix B: R asks the engine to re-emit its current choices rather than
-    // replaying this menu's cached snapshot, so the re-listed options are
-    // engine truth. A fresh A11Y_CHOICES then reopens/refreshes the menu.
-    expect(sent).toEqual([{ verb: "choices" }]);
+    // Fix B: with the player's own choice menu open, R repeats the options it
+    // already holds as one composed line — whatever the phase — and never asks
+    // the engine, so no `choices` command is sent.
+    expect(sent).toEqual([]);
+    expect(lines).toEqual(["1. HI BOSS, HOW ARE YOU? 2. GIVE ME A DRINK. 3. GOODBYE."]);
   });
 
   it("Escape is consumed, does not close the menu, and re-states how to choose", () => {
@@ -246,14 +248,50 @@ describe("Controller Fix B: `skip` is never sent while a choice is pending", () 
     expect(sent).not.toContainEqual({ verb: "skip" });
   });
 
-  it("R does NOT resurrect a stale menu once the phase has moved on (busy): it repeats, sends no `choices`", () => {
-    const { controller, choiceMenu, sent, repeat, setPhase } = harness();
+  it("R repeats the menu's own options locally even after the phase has moved on (busy): no `choices`, no stale live repeat", () => {
+    const { controller, choiceMenu, sent, lines, repeat, setPhase } = harness();
     // The menu is still open (the page closes it on the next phase line), but
-    // the engine has already left 'choice'. R must not re-list the stale menu.
+    // the engine has already left 'choice'. R repeats the options the menu
+    // holds as one line — no engine round-trip — rather than replaying the last
+    // spoken line, so a replay fallback phase can never surface a stale error.
     choiceMenu.openWith(DRUNK);
     setPhase("busy");
+    lines.length = 0;
     expect(controller.handleKey("r")).toBe(true);
-    expect(sent).toEqual([]); // no `choices` sent — the menu is stale
-    expect(repeat).toHaveBeenCalled(); // just repeat the last line, one update
+    expect(sent).toEqual([]); // no `choices` sent
+    expect(repeat).not.toHaveBeenCalled(); // not a last-line repeat
+    expect(lines).toEqual(["1. HI BOSS, HOW ARE YOU? 2. GIVE ME A DRINK. 3. GOODBYE."]);
+  });
+
+  it("with the menu closed and phase 'choice', R asks the engine for its choices (sends `choices`)", () => {
+    // The only window where R leaves to query the engine: the engine's phase is
+    // 'choice' but A11Y_CHOICES has not arrived, so our own menu is not open yet
+    // (mid animation). A plain R asks the engine to re-emit its choices so the
+    // menu opens with engine truth.
+    const { controller, choiceMenu, sent, repeat, setPhase } = harness();
+    setPhase("choice");
+    expect(choiceMenu.isOpen()).toBe(false);
+    expect(controller.handleKey("r")).toBe(true);
+    expect(sent).toEqual([{ verb: "choices" }]);
+    expect(repeat).not.toHaveBeenCalled();
+  });
+
+  it("with the menu closed and phase 'busy', R just repeats the last line (no `choices`)", () => {
+    const { controller, choiceMenu, sent, repeat, setPhase } = harness();
+    setPhase("busy");
+    expect(choiceMenu.isOpen()).toBe(false);
+    expect(controller.handleKey("r")).toBe(true);
+    expect(sent).toEqual([]); // not a choice pending, so no engine round-trip
+    expect(repeat).toHaveBeenCalled(); // list-mode R just repeats
+  });
+
+  it("with the menu closed and no phase known yet, R just repeats the last line (no `choices`)", () => {
+    const { controller, choiceMenu, sent, repeat } = harness();
+    // phase left undefined (replay fallback / no A11Y_PHASE seen): not 'choice',
+    // so R repeats rather than querying the engine.
+    expect(choiceMenu.isOpen()).toBe(false);
+    expect(controller.handleKey("r")).toBe(true);
+    expect(sent).toEqual([]);
+    expect(repeat).toHaveBeenCalled();
   });
 });

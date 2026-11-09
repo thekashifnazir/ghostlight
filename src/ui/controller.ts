@@ -189,6 +189,19 @@ export class Controller {
         // lines, each announced as "Earlier: <line>". Case alone cannot tell
         // the two apart (Caps Lock also yields "R"), so the shift modifier
         // decides. A LiveRegion stand-in without stepBack falls back to repeat.
+        //
+        // Fix B: one list-mode window asks the engine for its choices instead of
+        // repeating. When the engine's phase is 'choice' but our own choice menu
+        // is not open yet (mid animation, before A11Y_CHOICES has arrived), a
+        // plain R asks the engine to re-emit its current choices (`choices` ->
+        // A11Y_CHOICES) so the menu opens with engine truth. Everywhere else in
+        // list mode — including the busy/conversation phases — R just repeats the
+        // last line. (When the menu IS open the choice-menu handler owns R and
+        // repeats the options it already holds; this branch is unreachable then.)
+        if (!shift && this.inChoicePhase()) {
+          this.d.adapter.send({ verb: "choices" });
+          return true;
+        }
         if (shift) {
           const live = this.d.live as Partial<LiveRegion>;
           if (live.stepBack) live.stepBack();
@@ -348,8 +361,8 @@ export class Controller {
    * waiting for a pick, so this menu owns the keyboard: Up/Down (and Left/Right
    * for parity with the other menus) move roving focus, Enter picks the focused
    * option, a number key 1-9 picks that option directly (the engine numbers the
-   * choices 1..N), and R re-reads the engine's current choices while the engine
-   * is still in the 'choice' phase (Fix B). Escape does NOT
+   * choices 1..N), and R repeats the options the menu already holds locally —
+   * whatever the engine phase, with no engine round-trip (Fix B). Escape does NOT
    * close the menu — there is nothing to cancel back to while the engine waits —
    * so it instead re-states how to choose. Every key here is consumed so none
    * reaches the engine's own input (gotcha 7); a number key that is out of range
@@ -379,27 +392,20 @@ export class Controller {
         return true;
       case "r":
       case "R":
-        // Fix B: R re-reads the engine's CURRENT choices, but only while the
-        // engine is still in the 'choice' phase. If the phase has moved on
-        // (busy/control) the open menu is stale — the conversation advanced by
-        // another path — so re-listing its cached options would resurrect a
-        // menu the engine is no longer waiting on. In that case just repeat the
-        // last spoken line (one key, one update) and leave the stale menu be.
+        // When the player's own choice menu is open, R repeats the options it
+        // already holds locally — whatever the engine phase — with no engine
+        // round-trip. The menu's options are the authoritative list the player
+        // is picking from; re-listing them is a pure local redraw composed as
+        // one coherent line (screen-reader-output: one key, one update). This
+        // holds in replay too, where there is no A11Y_PHASE so the phase is the
+        // replay fallback (not 'choice'): asking the engine for `choices` there
+        // would hit a recording that has no answer for it and surface an error
+        // line, so R must never leave the menu to query the engine.
         //
-        // When the phase IS 'choice', ask the engine to re-emit its choices
-        // (`choices` -> A11Y_CHOICES) so the re-listed options are engine truth,
-        // not a snapshot this menu happens to hold. When no phase accessor is
-        // wired (older controller tests), fall back to the menu's own cached
-        // repeat, matching the previous behaviour.
-        if (this.d.enginePhase) {
-          if (this.inChoicePhase()) {
-            this.d.adapter.send({ verb: "choices" });
-          } else {
-            this.d.live.repeat();
-          }
-        } else {
-          menu.repeatAll();
-        }
+        // Asking the engine to re-emit its choices (`choices` -> A11Y_CHOICES)
+        // is only right when the menu is NOT open and the phase is 'choice'
+        // (handled in list mode), so that window never reaches here.
+        menu.repeatAll();
         return true;
       case "Escape":
         menu.explainNoEscape();
