@@ -322,6 +322,10 @@
            stay OUTSIDE this element so they remain an observed role=log, not
            part of the application surface. -->
       <div id="game">
+        <!-- VoiceOver reads an application with no accessible content as
+             "empty application". Every other child here is aria-hidden, so this
+             visually hidden text gives #game something to hold. Not aria-hidden. -->
+        <span class="visually-hidden">Ghostlight game</span>
         <div id="stage">
           <!-- The engine renders here. aria-hidden: nothing a player must know
                exists only as pixels. -->
