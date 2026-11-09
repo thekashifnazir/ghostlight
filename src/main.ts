@@ -52,6 +52,23 @@ declare const __BUILD_HASH__: string;
 declare const __BUILD_DATE__: string;
 const BUILD_LINE = `Ghostlight build ${__BUILD_HASH__}, ${__BUILD_DATE__}.`;
 
+// The controls help is two-tiered (screen-reader-output: a wall of ~25
+// sentences on one key press is too much to take in at once). The FIRST F1 / ?
+// press reads HELP_SHORT — the five or six keys of the core loop — and ends by
+// inviting a second press. A SECOND consecutive press reads HELP_TEXT, the full
+// list. Any other key in between resets back to the short page, so F1 after a
+// while always starts from the short page again (HelpReader + the controller's
+// per-key reset). The short page keeps the opening clause and the "F1 or
+// question mark" line so a tester can still identify the help from its first
+// press.
+const HELP_SHORT =
+  "Controls. Left and Right cycle the things, people and exits in the room. " +
+  "Up or Enter interacts with the focused thing. Down examines it. " +
+  "Slash opens a command box to type a plain command. " +
+  "L reads the whole room. H asks the ghost for a hint. " +
+  "F1 or question mark reads this help. " +
+  "Press F1 again for more.";
+
 const HELP_TEXT =
   "Controls. Left and Right cycle the things, people and exits in the room. " +
   "Up or Enter interacts with the focused thing. Down examines it. " +
@@ -74,6 +91,26 @@ const HELP_TEXT =
   "Your progress also saves by itself whenever you move to a new room. " +
   "If keys don't work, press NVDA+Space, or JAWS Insert+Z. " +
   BUILD_LINE;
+
+/**
+ * The two-tier help reader. `read()` announces the short page on the first call
+ * and the full page on the next consecutive call; `reset()` returns it to the
+ * short page. The controller calls reset() on every non-help key (the same
+ * per-key reset path that resets the line-history cursor), so pressing F1 after
+ * any other key always starts from the short page again. A single composed line
+ * per press (screen-reader-output: one key press, one update).
+ */
+class HelpReader {
+  private expanded = false;
+  constructor(private readonly announce: (text: string) => void) {}
+  read(): void {
+    this.announce(this.expanded ? HELP_TEXT : HELP_SHORT);
+    this.expanded = !this.expanded;
+  }
+  reset(): void {
+    this.expanded = false;
+  }
+}
 
 /** Spoken when the player asks for a hint but nothing is offered yet. */
 const NO_HINT_TEXT = "There is nothing to hint at right now.";
@@ -629,6 +666,11 @@ export async function boot(): Promise<void> {
     live.announce(prefix ? `${prefix} ${withSuffix}` : withSuffix);
   };
 
+  // The two-tier controls help: first F1 / ? press reads the short page, a
+  // consecutive press reads the full list. The controller resets it to the
+  // short page on any other key (see resetHelp below).
+  const helpReader = new HelpReader((t) => live.announce(t));
+
   // Save / load / autosave manager (save-progress R2, R4). It drives the engine
   // only through the adapter seam and announces through the one live region. The
   // load path records a "continue from slot" intent and reloads the page (the
@@ -680,7 +722,11 @@ export async function boot(): Promise<void> {
     beginExamine: () => narrator.beginExamine(),
     showHighlight,
     readRoom,
-    readHelp: () => live.announce(HELP_TEXT),
+    // F1 / ? read the controls in two tiers: the short page first, the full
+    // list on a consecutive press (HelpReader). resetHelp returns it to the
+    // short page and is called by the controller on every non-help key.
+    readHelp: () => helpReader.read(),
+    resetHelp: () => helpReader.reset(),
     stopAudio,
     askHint,
     toggleGhostVoice,
@@ -1217,8 +1263,8 @@ export async function boot(): Promise<void> {
   // pressed with Ctrl/Alt/Meta held (those are shortcuts, not "begin").
   //
   // F1 is a further exception among the ignored keys: on the gate it reads the
-  // controls (the same HELP_TEXT as in-game F1) rather than doing nothing — a
-  // tester pressing F1 to learn the keys should hear them. '?' (Shift+/) is an
+  // controls (the same two-tier help as in-game F1) rather than doing nothing —
+  // a tester pressing F1 to learn the keys should hear them. '?' (Shift+/) is an
   // alias for F1 here, for a tester who cannot press F1. Both are plain (not
   // once) listeners so they can be pressed repeatedly; a real "begin" key still
   // starts, after which the started / gateHandlesAnyKey guards make further
@@ -1242,8 +1288,10 @@ export async function boot(): Promise<void> {
       // Read the controls without starting; keep the gate up. '?' (a single
       // printable char) would otherwise be caught by startsTheGame and begin
       // the game, so it is handled here, before that check, exactly like F1.
+      // Two-tier like in-game: the short page first, the full list on a
+      // consecutive press (helpReader).
       ev.preventDefault();
-      live.announce(HELP_TEXT);
+      helpReader.read();
       return;
     }
     // Ignore the navigation and modifier keys a screen-reader user presses to

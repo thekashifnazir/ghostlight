@@ -148,6 +148,123 @@ describe("Persistence.commit", () => {
   });
 });
 
+describe("Persistence.commit serialises overlapping flushes (one in flight, one queued)", () => {
+  /**
+   * A fake FS whose flush syncfs does NOT call back immediately: each flush's
+   * callback is parked in `pending` so a test can start several commits and
+   * then release the flushes one at a time, observing how many actually ran.
+   * populate (init) still calls back synchronously so init resolves at once.
+   */
+  function deferredFlushFS() {
+    const pending: Array<(err: unknown) => void> = [];
+    let flushStarts = 0;
+    const fs: PersistenceFS = {
+      mkdir() {},
+      mount() {},
+      syncfs(populate, cb) {
+        if (populate) {
+          cb(null); // init populate settles immediately
+          return;
+        }
+        flushStarts++;
+        pending.push(cb); // park the flush callback for the test to release
+      },
+      readdir: () => [],
+      stat: () => ({ mtime: 0 }),
+      analyzePath: () => ({ exists: false }),
+      unlink() {},
+      writeFile() {},
+      filesystems: { IDBFS: {}, MEMFS: {} },
+    };
+    /** Resolve the oldest in-flight flush, letting its awaiters continue. */
+    const release = async () => {
+      const cb = pending.shift();
+      cb?.(null);
+      // Let the microtask chain settle (the runCommit resolution, the .finally
+      // promotion, and the queued flush's .then(startFlush) that starts the
+      // next sync) before the test inspects flushStarts again. A macrotask tick
+      // drains all the pending microtasks regardless of how many hops deep.
+      await new Promise((r) => setTimeout(r, 0));
+    };
+    return { fs, release, flushStarts: () => flushStarts, inFlight: () => pending.length };
+  }
+
+  it("never runs two flushes at once: a burst of commits collapses to the running flush plus one queued", async () => {
+    const { fs, release, flushStarts, inFlight } = deferredFlushFS();
+    const p = new Persistence(fs);
+    await p.init();
+
+    // Fire three commits while none can settle. Only the first starts a real
+    // flush; the other two coalesce onto a single queued follow-up.
+    const a = p.commit();
+    const b = p.commit();
+    const c = p.commit();
+    await Promise.resolve();
+    expect(flushStarts()).toBe(1); // only ONE sync in flight
+    expect(inFlight()).toBe(1);
+
+    // Release the running flush: the single queued follow-up now starts, and it
+    // is the SECOND sync — not a third and fourth for b and c separately.
+    await release();
+    expect(flushStarts()).toBe(2);
+    expect(inFlight()).toBe(1);
+    await expect(a).resolves.toBe(true);
+
+    // Release the follow-up: b and c (which coalesced onto it) resolve together.
+    await release();
+    expect(await b).toBe(true);
+    expect(await c).toBe(true);
+    // No extra sync beyond the two: running + one queued covered the burst.
+    expect(flushStarts()).toBe(2);
+  });
+
+  it("a commit after the queue has drained starts a fresh flush", async () => {
+    const { fs, release, flushStarts } = deferredFlushFS();
+    const p = new Persistence(fs);
+    await p.init();
+
+    const first = p.commit();
+    await Promise.resolve();
+    expect(flushStarts()).toBe(1);
+    await release(); // drains: no follow-up was queued
+    await first;
+
+    // A later, non-overlapping commit is a brand-new flush, not a no-op.
+    const second = p.commit();
+    await Promise.resolve();
+    expect(flushStarts()).toBe(2);
+    await release();
+    await expect(second).resolves.toBe(true);
+  });
+
+  it("a third commit during the queued follow-up queues one more, still one at a time", async () => {
+    const { fs, release, flushStarts, inFlight } = deferredFlushFS();
+    const p = new Persistence(fs);
+    await p.init();
+
+    const a = p.commit(); // starts flush 1
+    const b = p.commit(); // queues follow-up
+    await Promise.resolve();
+    expect(flushStarts()).toBe(1);
+
+    await release(); // flush 1 done; follow-up (flush 2) starts
+    expect(flushStarts()).toBe(2);
+    expect(inFlight()).toBe(1);
+
+    // A new commit WHILE flush 2 runs queues a single third flush.
+    const c = p.commit();
+    await Promise.resolve();
+    expect(flushStarts()).toBe(2); // still only flush 2 in flight
+
+    await release(); // flush 2 done; flush 3 starts
+    expect(flushStarts()).toBe(3);
+    await release(); // flush 3 done
+    expect(await a).toBe(true);
+    expect(await b).toBe(true);
+    expect(await c).toBe(true);
+  });
+});
+
 describe("Persistence.hasSave / latestSlot", () => {
   it("reports no save on an empty folder", async () => {
     const { fs } = fakeFS();

@@ -236,6 +236,10 @@ test.describe("line history", () => {
 
   test("F1 help mentions Shift+R", async ({ page }) => {
     await start(page, "tavern");
+    // The controls help is two-tiered: the first F1 reads the short page (the
+    // core keys) and a second consecutive F1 reads the full list, where the
+    // Shift+R line-history key is documented.
+    await page.keyboard.press("F1");
     await page.keyboard.press("F1");
     await expect(live(page)).toContainText("Shift plus R steps back");
   });

@@ -66,6 +66,7 @@ function harness() {
 
   const stopAudio = vi.fn();
   const readRoom = vi.fn();
+  const askHint = vi.fn();
   const repeat = vi.fn();
   // The live region the controller sees also exposes repeat() (used by R when
   // the phase has moved on) and resetHistoryCursor() (called on every key).
@@ -98,7 +99,7 @@ function harness() {
     readRoom,
     readHelp: () => {},
     stopAudio,
-    askHint: () => {},
+    askHint,
     toggleGhostVoice: () => {},
     sonar: { stop: () => {} } as unknown as Sonar,
   });
@@ -113,6 +114,7 @@ function harness() {
     returnToList,
     stopAudio,
     readRoom,
+    askHint,
     repeat,
     setPhase,
   };
@@ -190,6 +192,37 @@ describe("Controller routing: conversation choice menu", () => {
     choiceMenu.openWith(DRUNK);
     controller.handleKey("ArrowDown");
     expect(stopAudio).toHaveBeenCalled();
+  });
+
+  it("H asks the ghost for a hint and leaves the menu open (Fix 1)", () => {
+    const { controller, choiceMenu, askHint, sent } = harness();
+    choiceMenu.openWith(DRUNK);
+    // Lower and upper case both ask the ghost; neither picks a choice nor
+    // sends a command to the engine, and the menu stays open for the pick.
+    expect(controller.handleKey("h")).toBe(true);
+    expect(controller.handleKey("H")).toBe(true);
+    expect(askHint).toHaveBeenCalledTimes(2);
+    expect(sent).toEqual([]);
+    expect(choiceMenu.isOpen()).toBe(true);
+  });
+
+  it("L reads the whole room and leaves the menu open (Fix 1)", () => {
+    const { controller, choiceMenu, readRoom, sent } = harness();
+    choiceMenu.openWith(DRUNK);
+    expect(controller.handleKey("l")).toBe(true);
+    expect(controller.handleKey("L")).toBe(true);
+    expect(readRoom).toHaveBeenCalledTimes(2);
+    expect(sent).toEqual([]);
+    expect(choiceMenu.isOpen()).toBe(true);
+  });
+
+  it("H and L are consumed so they never reach the engine's input (Fix 1)", () => {
+    // Before the fix, h/l fell through the choice-menu handler and returned
+    // false, so the key reached the game. Both must now be consumed.
+    const { controller, choiceMenu } = harness();
+    choiceMenu.openWith(DRUNK);
+    expect(controller.handleKey("h")).toBe(true);
+    expect(controller.handleKey("l")).toBe(true);
   });
 
   it("with the menu closed, the same keys fall through to list mode", () => {

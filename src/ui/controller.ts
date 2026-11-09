@@ -91,8 +91,20 @@ export interface ControllerDeps {
   showHighlight: (hotspot: Hotspot | undefined) => void;
   /** Read the whole room (name, description, things, exits). */
   readRoom: () => void;
-  /** Read the controls (F1). */
+  /**
+   * Read the controls (F1 / ?). Two-tier: the first call reads the short page,
+   * a consecutive call reads the full list. The page state lives behind this
+   * callback (main.ts HelpReader); the controller advances it by calling
+   * readHelp and rewinds it by calling resetHelp.
+   */
   readHelp: () => void;
+  /**
+   * Reset the two-tier help back to its short page (optional). The controller
+   * calls this on every key that is NOT a help key, so F1 pressed after any
+   * other key always starts from the short page again. When absent, help has no
+   * resettable state and the key routing is unchanged.
+   */
+  resetHelp?: () => void;
   /** Stop any playing speech/audio (R9.5). */
   stopAudio: () => void;
   /** Ask the ghost for a hint (hints-and-ghost R7.2). */
@@ -146,6 +158,13 @@ export class Controller {
     if (!isStepBack) {
       (this.d.live as Partial<LiveRegion>).resetHistoryCursor?.();
     }
+
+    // The two-tier help resets on every key that is NOT a help key, so a second
+    // F1 / ? expands to the full list only when pressed consecutively; F1 after
+    // any other key starts from the short page again. The help keys themselves
+    // are left to toggle the page (readHelp advances it).
+    const isHelpKey = key === "F1" || key === "?";
+    if (!isHelpKey) this.d.resetHelp?.();
 
     // Mode-specific routing first. The choice menu is modal — the engine is
     // blocked waiting for a pick — so it owns the keyboard ahead of the verb
@@ -368,9 +387,11 @@ export class Controller {
    * for parity with the other menus) move roving focus, Enter picks the focused
    * option, a number key 1-9 picks that option directly (the engine numbers the
    * choices 1..N), and R repeats the options the menu already holds locally —
-   * whatever the engine phase, with no engine round-trip (Fix B). Escape does NOT
-   * close the menu — there is nothing to cancel back to while the engine waits —
-   * so it instead re-states how to choose. Every key here is consumed so none
+   * whatever the engine phase, with no engine round-trip (Fix B). H asks the
+   * ghost for a hint and L reads the room, each as one live-region line with the
+   * menu left open so the next key still picks (Fix 1). Escape does NOT close
+   * the menu — there is nothing to cancel back to while the engine waits — so it
+   * instead re-states how to choose. Every key here is consumed so none
    * reaches the engine's own input (gotcha 7); a number key that is out of range
    * for the current options is still consumed (chooseNumber ignores it) so a
    * stray digit never falls through to a game action.
@@ -412,6 +433,23 @@ export class Controller {
         // is only right when the menu is NOT open and the phase is 'choice'
         // (handled in list mode), so that window never reaches here.
         menu.repeatAll();
+        return true;
+      case "h":
+      case "H":
+        // H asks the ghost for a hint without leaving the choice menu. The
+        // engine is blocked waiting for a pick, but a stuck player may still
+        // want a nudge about the conversation; the hint is a live-region line
+        // and the menu's roving focus is untouched, so it stays open and the
+        // next arrow/Enter/number still picks (Fix 1). stopAudio() already ran
+        // at the top of handleKey, so any playing whisper is stopped first.
+        this.d.askHint();
+        return true;
+      case "l":
+      case "L":
+        // L reads the whole room, again without closing the menu: a reminder of
+        // where the conversation is happening. One live-region line; the menu
+        // keeps the keyboard (Fix 1).
+        this.d.readRoom();
         return true;
       case "Escape":
         menu.explainNoEscape();

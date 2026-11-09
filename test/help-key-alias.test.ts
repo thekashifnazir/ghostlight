@@ -32,6 +32,7 @@ function harness() {
   } as unknown as EngineAdapter;
 
   const readHelp = vi.fn();
+  const resetHelp = vi.fn();
 
   // A command box stub: records openBox() calls, and reports closed so list-mode
   // routing applies (open/closed gates where keys go).
@@ -71,13 +72,14 @@ function harness() {
     showHighlight: () => {},
     readRoom: vi.fn(),
     readHelp,
+    resetHelp,
     stopAudio: vi.fn(),
     askHint: vi.fn(),
     toggleGhostVoice: vi.fn(),
     sonar: { stop: () => {} } as unknown as Sonar,
   });
 
-  return { controller, readHelp, openBox, isBoxOpen: () => boxOpen };
+  return { controller, readHelp, resetHelp, openBox, isBoxOpen: () => boxOpen };
 }
 
 describe("'?' reads controls help (F1 alias) in list mode", () => {
@@ -104,5 +106,27 @@ describe("'?' reads controls help (F1 alias) in list mode", () => {
     expect(controller.handleKey("/")).toBe(true);
     expect(openBox).toHaveBeenCalledTimes(1);
     expect(readHelp).not.toHaveBeenCalled();
+  });
+});
+
+describe("two-tier help: the help page resets on any other key (Fix 2)", () => {
+  it("the help keys F1 and ? do NOT reset the help page", () => {
+    // A consecutive F1 / ? must expand to the full list, so the controller must
+    // not rewind the page between the two presses — it leaves the help key to
+    // toggle the page (readHelp) and calls resetHelp only for other keys.
+    const { controller, resetHelp } = harness();
+    controller.handleKey("F1");
+    controller.handleKey("?");
+    expect(resetHelp).not.toHaveBeenCalled();
+  });
+
+  it("every non-help key resets the help page back to the short page", () => {
+    // Pressing F1 after any other key should start from the short page again,
+    // so the controller rewinds the two-tier reader on each non-help key.
+    const { controller, resetHelp } = harness();
+    controller.handleKey("ArrowRight");
+    controller.handleKey("l");
+    controller.handleKey("Escape");
+    expect(resetHelp).toHaveBeenCalledTimes(3);
   });
 });

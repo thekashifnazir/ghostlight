@@ -230,6 +230,17 @@ export class Persistence {
   private available = false;
 
   /**
+   * The syncfs serialiser (see commit). `running` is the flush in flight, if
+   * any; `queued` is the single coalesced flush promised to every caller that
+   * arrives while one is running. Emscripten's IDBFS warns "N FS.syncfs
+   * operations in flight" and can drop a reconciliation when two run at once,
+   * so we never start a sync while one is running — we queue AT MOST one more
+   * and hand its promise to every waiting caller.
+   */
+  private running: Promise<boolean> | undefined;
+  private queued: Promise<boolean> | undefined;
+
+  /**
    * @param fs an injected Emscripten FS (tests). Omitted in the browser, where
    *   the real FS global is resolved at call time (after the wasm has booted,
    *   or — for init — after the mount is created on the pre-boot FS global).
@@ -295,9 +306,63 @@ export class Persistence {
    * store carries no command (R1.4). Returns false on failure so the caller can
    * announce it (R4.3); returns true as a no-op when persistence is unavailable
    * so callers need no special-casing.
+   *
+   * Serialised: the autosave fires on every room change and a manual save on
+   * the C key, so two commits can overlap. Emscripten's IDBFS logs
+   * "N FS.syncfs operations in flight" and can lose a reconciliation when two
+   * syncs run at once, so this never starts a flush while one is running. If a
+   * flush is in flight, the caller joins the SINGLE queued follow-up flush (one
+   * more, never a growing stack): the follow-up runs once the current flush
+   * settles and captures the latest MEMFS state (the saves written since), so a
+   * burst of commits collapses to two flushes at most — the running one and one
+   * that covers everything after it. Every caller still gets a truthful
+   * success/failure for the flush that actually persisted its write.
    */
   async commit(): Promise<boolean> {
     if (!this.available) return true;
+
+    // A flush is in flight: coalesce onto a SINGLE queued follow-up. Create it
+    // the first time and reuse it for every later caller in this window, so a
+    // burst of commits collapses to one extra sync that captures the latest
+    // MEMFS state when it finally runs. The follow-up chains off the running
+    // flush, so only one sync is ever in flight; it wears the same promotion
+    // cleanup (startFlush), so when the current flush settles the follow-up
+    // becomes `running` and no third sync can start.
+    if (this.running) {
+      if (!this.queued) {
+        this.queued = this.running
+          .catch(() => undefined)
+          .then(() => this.startFlush());
+      }
+      return this.queued;
+    }
+
+    // Nothing running: start a flush now and hold it in `running` so any caller
+    // that arrives before it settles queues behind it.
+    return this.startFlush();
+  }
+
+  /**
+   * Run one flush, occupying the `running` slot for its whole life, and on
+   * settle promote a queued follow-up into `running` (or free the slot). Every
+   * flush that holds `running` — the first one and any promoted follow-up — goes
+   * through here, so the "at most one in flight, at most one queued" invariant
+   * holds across a whole burst, not just the first pair.
+   */
+  private startFlush(): Promise<boolean> {
+    const p = this.runCommit().finally(() => {
+      // If a follow-up was queued while this flush ran, it already chained its
+      // own startFlush() onto this promise, so it is now the running flush;
+      // otherwise the slot is free for the next commit.
+      this.running = this.queued;
+      this.queued = undefined;
+    });
+    this.running = p;
+    return p;
+  }
+
+  /** The actual MEMFS -> IndexedDB flush, with the command file emptied first. */
+  private async runCommit(): Promise<boolean> {
     const fs = resolveFS(this.injectedFS);
     if (!fs) return false;
     try {
