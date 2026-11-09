@@ -214,24 +214,24 @@ test.describe("line history", () => {
 
     // Build up a few distinct lines by cycling focus, so there is history.
     await page.keyboard.press("ArrowRight"); // line A (2 of N)
-    const lineA = (await live(page).textContent()) ?? "";
+    const lineA = ((await live(page).textContent()) ?? "").replace(/\u2060/g, "");
     await page.keyboard.press("ArrowRight"); // line B (3 of N)
-    const lineB = (await live(page).textContent()) ?? "";
+    const lineB = ((await live(page).textContent()) ?? "").replace(/\u2060/g, "");
     expect(lineA).not.toBe(lineB);
 
     // R repeats the current (last) line, line B.
     await page.keyboard.press("r");
-    await expect(live(page)).toHaveText(lineB);
+    await expect.poll(async () => ((await live(page).textContent()) ?? "").replace(/\u2060/g, "")).toBe(lineB);
 
     // Shift+R steps back to the previous line, announced "Earlier: <line>".
     await page.keyboard.press("Shift+R");
-    await expect(live(page)).toHaveText(`Earlier: ${lineA}`);
+    await expect.poll(async () => ((await live(page).textContent()) ?? "").replace(/\u2060/g, "")).toBe(`Earlier: ${lineA}`);
 
     // Any other key resets the back cursor: a fresh focus line, then Shift+R
     // starts again from the most recent earlier line (now line B).
     await page.keyboard.press("ArrowRight");
     await page.keyboard.press("Shift+R");
-    await expect(live(page)).toHaveText(`Earlier: ${lineB}`);
+    await expect.poll(async () => ((await live(page).textContent()) ?? "").replace(/\u2060/g, "")).toBe(`Earlier: ${lineB}`);
   });
 
   test("F1 help mentions Shift+R", async ({ page }) => {

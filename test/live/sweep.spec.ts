@@ -486,8 +486,21 @@ test.describe("live sweep (Chrome + WebKit)", () => {
       undefined,
       { timeout: 120_000 },
     );
-    // The menu closed once the engine left the choice phase.
-    await expect(page.locator(CHOICE_MENU)).toBeHidden();
+    // The menu now stays focused between rounds of one conversation (it waits,
+    // aria-busy, so VoiceOver isn't bounced to the game and back). It must end
+    // in one of two good states: the next round's options are offered (menu
+    // visible and no longer busy), or the conversation ended (menu hidden).
+    await page.waitForFunction(
+      (sel) => {
+        const m = document.querySelector(sel) as HTMLElement | null;
+        if (!m) return false;
+        const hidden = m.hidden || getComputedStyle(m).display === "none";
+        const busy = m.getAttribute("aria-busy") === "true";
+        return hidden || !busy;
+      },
+      CHOICE_MENU,
+      { timeout: 120_000 },
+    );
     // A new functional line arrived after the pick (the conversation continued,
     // it did not wedge): the recorded line sequence advanced.
     await page.waitForFunction(
