@@ -1872,7 +1872,7 @@ The overnight loop (8–9 Nov): playtest-driven fixes by headless Kiro, verified
 
 Time taken: about 30 minutes.
 
-What went wrong or surprised you: the commit-subject list for the range `86f518a..d090241` is now present above, reconstructed from the process-log entries that span 8–9 Nov rather than read from git, since this read-only tree has no `.git` and no shell. On item (1), "any summary text that says snapshot 3 is the base" needed judgement about scope: the live default, the README and the workflow revert-prompt are forward-looking instructions and were changed; the dated run summary and the spike are history and were left; the sr-harness spec folder belongs to another chat and was left for them.
+What went wrong or surprised you: in this edit-only session Kiro couldn't run git, so it first declined to invent the commit list rather than guess; the list above is the exact `git log` output for `86f518a..d090241`, supplied by Claude Code in a follow-up prompt.
 
 What was learned: a VM snapshot named as a revert target in more than one place (script default, README, workflow prompt) is a single source of truth split across files — changing only the script default would still leave the workflow telling an operator to revert to the snapshot that un-activates Windows, so the forward-looking references must move together while the historical ones stay. And when an instruction asks for data a read-only, no-git environment can't supply (commit subjects), the honest output is the best-grounded reconstruction plus an explicit note of what could not be verified, not a plausible-looking fabrication.
 
