@@ -67,6 +67,7 @@ REPORT_DIR="$REPO/tests/sr/reports/$DATE"
 CAPTURE_DIR="$(mktemp -d)"
 VM_PROFILE="$SR_GL\\chrome-$RUNID"      # fresh, per-run Chrome profile (R2.5)
 STOP_REASON=""
+STEP_CALL_FAILS=""   # steps whose VM call failed even after sr_vmps's retries
 
 # origin for the insecure-origin flag (scheme://host[:port]) (R2.6)
 URL_SCHEME="${URL%%://*}"
@@ -131,14 +132,28 @@ fi
 
 # ---- stage helpers + scenario into the VM (R1.6, R8.2, no shared folders) --
 echo "sr-check: staging helpers into the VM..."
-sr_push "$REPO/scripts/sr-keys.ps1"  "sr-keys.ps1"  >/dev/null
-sr_push "$REPO/scripts/sr-await.ps1" "sr-await.ps1" >/dev/null
-sr_push "$REPO/scripts/sr-cdp.mjs"   "sr-cdp.mjs"   >/dev/null
+# Each copy is hash-checked; a helper missing in the VM made every key step
+# "speak nothing" on 9 Nov, so a failed copy now stops the run instead.
+for helper in sr-keys.ps1 sr-await.ps1 sr-cdp.mjs; do
+  if ! sr_push "$REPO/scripts/$helper" "$helper" >/dev/null; then
+    echo "sr-check: could not copy $helper into the VM." >&2
+    STOP_REASON="stage-failed"; exit 3
+  fi
+done
 
 # ---- start NVDA, then Chrome with a FRESH profile (R2.4, R2.5, R2.6) -------
 echo "sr-check: starting NVDA..."
-sr_vmps "Start-Process 'C:\\Program Files\\NVDA\\nvda.exe'" >/dev/null
-sleep 6   # let NVDA come up and begin logging
+# The snapshot already has NVDA running, so this start REPLACES it, and the new
+# instance rotates nvda.log. Wait inside the VM until nvda.log is a NEW file
+# (its first line, which carries NVDA's start time, has changed) that says
+# "NVDA initialized", instead of sleeping 6 s and assuming. (File creation time
+# can't be used: NTFS tunnels it from the rotated file.)
+nvda_state="$(sr_vmps "\$log = Join-Path \$env:TEMP 'nvda.log'; \$old = if (Test-Path \$log) { Get-Content \$log -TotalCount 1 } else { '' }; Start-Process 'C:\\Program Files\\NVDA\\nvda.exe'; for (\$i = 0; \$i -lt 60; \$i++) { Start-Sleep -Milliseconds 500; if (-not (Test-Path \$log)) { continue }; \$c = @(Get-Content \$log -ErrorAction SilentlyContinue); if (\$c.Count -gt 0 -and \$c[0] -ne \$old -and (\$c -match 'NVDA initialized')) { 'nvda-up'; break } }")"
+if ! grep -q "nvda-up" <<<"$nvda_state"; then
+  echo "sr-check: NVDA did not (re)start in the VM: $nvda_state" >&2
+  STOP_REASON="nvda-not-started"; exit 3
+fi
+sleep 3   # let the new NVDA finish loading its add-ons and settle
 
 CHROME_ARGS="--remote-debugging-port=$SR_PORT --user-data-dir=$VM_PROFILE --no-first-run --no-default-browser-check"
 if [[ "$URL_SCHEME" == "http" ]]; then
@@ -148,11 +163,15 @@ fi
 echo "sr-check: starting Chrome on $URL..."
 sr_vmps "Start-Process 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe' -ArgumentList '$CHROME_ARGS','$URL'" >/dev/null
 
-# Wait for the Ghostlight tab to be present and loaded on the debugging port.
+# Wait for the Ghostlight tab to be loaded AND showing its start gate. The old
+# check grepped for "complete", which also matched Node's own error text when
+# Chrome wasn't up yet ("ECONNREFUSED ... [as oncomplete]"), so a run could
+# press Start before Chrome existed. Now it must read exactly true.
 echo "sr-check: waiting for the Ghostlight tab..."
 tab_ready=""
 for _ in $(seq 1 40); do
-  if sr_peek "document.readyState" 2>/dev/null | grep -q "complete"; then tab_ready="1"; break; fi
+  if sr_peek "document.readyState === 'complete' && !!window.__ghostlight && window.__ghostlight.phase === 'gate'" 2>/dev/null \
+      | tr -d '\r' | grep -qx "true"; then tab_ready="1"; break; fi
   sleep 2
 done
 if [[ -z "$tab_ready" ]]; then
@@ -186,9 +205,11 @@ while IFS=$'\t' read -r -u 3 idx waitMs keys waitForSpoken; do
       if [[ -n "$waitForSpoken" ]]; then
         # Deterministic: press, then poll the live region for the awaited line
         # (waitMs is the cap), then capture. Used by Start for the onboarding line.
-        capture_await "$chord" "$waitForSpoken" "$wait_s" "$raw"
+        capture_await "$chord" "$waitForSpoken" "$wait_s" "$raw" \
+          || { echo "sr-check:   WARNING step $idx: the VM call failed; its capture can't be trusted" >&2; STEP_CALL_FAILS="$STEP_CALL_FAILS $idx"; }
       else
-        capture_chord "$chord" "$wait_s" "$raw"
+        capture_chord "$chord" "$wait_s" "$raw" \
+          || { echo "sr-check:   WARNING step $idx: the VM call failed; its capture can't be trusted" >&2; STEP_CALL_FAILS="$STEP_CALL_FAILS $idx"; }
       fi
       ;;
   esac
@@ -199,4 +220,11 @@ echo "sr-check: building report..."
 report_args=("$SCENARIO_FILE" "$CAPTURE_DIR" "$REPORT_DIR" "$URL")
 [[ -n "$STOP_REASON" ]] && report_args+=("--stopped" "$STOP_REASON")
 run_ts "$REPO/tests/sr/sr-report-cli.ts" "${report_args[@]}"
-exit $?
+rc=$?
+# A step whose key press never reached the VM can still "pass" when it expects
+# no speech, so a failed VM call makes the whole run fail, loudly.
+if [[ -n "$STEP_CALL_FAILS" ]]; then
+  echo "sr-check: VM call failed on step(s)$STEP_CALL_FAILS; treating the run as FAILED." >&2
+  [[ $rc -eq 0 ]] && rc=1
+fi
+exit $rc

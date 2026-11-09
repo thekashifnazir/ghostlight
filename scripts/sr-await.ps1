@@ -22,7 +22,11 @@ param(
   [double]$cap = 8
 )
 
-$gl = Split-Path -Parent $MyInvocation.MyCommand.Path
+# sr-vm-lib runs this as a scriptblock, where MyCommand.Path is empty, so fall
+# back to the staging dir. (Seen 9 Nov: an empty $gl made every live-region
+# poll throw "Join-Path ... null", so the await silently became a fixed sleep
+# of the whole cap.)
+$gl = if ($MyInvocation.MyCommand.Path) { Split-Path -Parent $MyInvocation.MyCommand.Path } else { 'C:\gl' }
 $log = Join-Path $env:TEMP "nvda.log"
 $node = "C:\Program Files\nodejs\node.exe"
 $cdp = Join-Path $gl "sr-cdp.mjs"

@@ -17,15 +17,79 @@
 
 # sr_vmps 'powershell' - run a PowerShell snippet in the VM as the logged-in
 # user: UTF-16LE + base64 encoded (so quoting survives), hidden window, CLIXML
-# progress noise filtered out. There is a ~8 KB command-length limit on the
-# encoded command, which is why sr_push chunks file copies.
-sr_vmps() {
-  local script="$1" encoded
-  encoded=$(printf '$ProgressPreference="SilentlyContinue"; %s' "$script" \
-    | iconv -t UTF-16LE | base64)
+# progress noise filtered out. Returns prlctl's exit code.
+#
+# Flaky transport (found 9 Nov): about 1 `prlctl exec` in 20 fails at the
+# Parallels SDK level with exit 255 and "PrlJob_GetResult: Invalid argument"
+# (or PrlJob_GetRetCode), and the PowerShell NEVER runs. The old wrapper piped
+# straight into grep, so the failure was silent: a dropped push chunk or final
+# decode left sr-keys.ps1 / sr-await.ps1 missing in the VM (every key step then
+# "spoke nothing"), a dropped Chrome start left no tab, a dropped key press lost
+# one step. So every call now carries a marker: the script's first statement
+# creates %TEMP%\<tag>. On an SDK-level failure we look for the marker; absent
+# means the script never started and it is safe to run it again, present means
+# it ran and only the result was lost (never re-run: a key press must not be
+# doubled). stdin is closed so prlctl can't swallow the caller's input.
+#
+# There is also a hard command-length limit: an EncodedCommand of ~3,900 chars
+# or more fails every time (measured 9 Nov: 3,856 ran, 3,908 did not). That
+# is refused up front with an error instead of being sent.
+SR_EXEC_TRIES="${SR_EXEC_TRIES:-6}"
+SR_EXEC_MAX_ENC=3700
+
+_sr_encode() {
+  printf '$ProgressPreference="SilentlyContinue"; %s' "$1" | iconv -t UTF-16LE | base64 | tr -d '\n'
+}
+
+_sr_exec_raw() {
   prlctl exec "$SR_VM" --current-user powershell -NoProfile -NonInteractive \
-    -WindowStyle Hidden -EncodedCommand "$encoded" 2>&1 \
-    | grep -v -e '^#< CLIXML' -e '^<Objs'
+    -WindowStyle Hidden -EncodedCommand "$1" 2>&1 </dev/null
+}
+
+# _sr_sdk_failed <rc> <output> - true if prlctl failed before running anything.
+_sr_sdk_failed() {
+  [[ "$1" == 255 ]] && printf '%s' "$2" | grep -qE '^Prl[A-Za-z]+_[A-Za-z]+: '
+}
+
+# _sr_marker_state <tag> - prints "ran", "absent" or "unknown".
+_sr_marker_state() {
+  local tag="$1" enc out rc try
+  enc=$(_sr_encode "Test-Path (Join-Path \$env:TEMP '$tag')")
+  for ((try = 1; try <= SR_EXEC_TRIES; try++)); do
+    out=$(_sr_exec_raw "$enc"); rc=$?
+    if ! _sr_sdk_failed "$rc" "$out"; then
+      case "$out" in *True*) echo ran ;; *False*) echo absent ;; *) echo unknown ;; esac
+      return 0
+    fi
+    sleep 1
+  done
+  echo unknown
+}
+
+sr_vmps() {
+  local script="$1" tag encoded out rc try state
+  tag="sr-ran-$$-$RANDOM$RANDOM"
+  encoded=$(_sr_encode "New-Item -ItemType File -Force -Path (Join-Path \$env:TEMP '$tag') | Out-Null; $script")
+  if ((${#encoded} > SR_EXEC_MAX_ENC)); then
+    echo "sr-vm-lib: command too long for prlctl exec (${#encoded} encoded chars, max $SR_EXEC_MAX_ENC); not sent" >&2
+    return 2
+  fi
+  for ((try = 1; try <= SR_EXEC_TRIES; try++)); do
+    out=$(_sr_exec_raw "$encoded"); rc=$?
+    if ! _sr_sdk_failed "$rc" "$out"; then
+      [[ -n "$out" ]] && printf '%s\n' "$out" | grep -v -e '^#< CLIXML' -e '^<Objs'
+      return "$rc"
+    fi
+    state=$(_sr_marker_state "$tag")
+    if [[ "$state" != "absent" ]]; then
+      echo "sr-vm-lib: WARNING prlctl exec reported '${out%%$'\n'*}' but the command may have run (marker: $state); not re-running" >&2
+      return 1
+    fi
+    echo "sr-vm-lib: prlctl exec failed before the command ran ('${out%%$'\n'*}'), retry $try/$SR_EXEC_TRIES" >&2
+    sleep 1
+  done
+  echo "sr-vm-lib: ERROR prlctl exec failed $SR_EXEC_TRIES times; command not run" >&2
+  return 1
 }
 
 # sr_probe 'powershell' <timeoutSeconds> - run a short PowerShell probe but give
@@ -51,18 +115,32 @@ sr_probe() {
 
 # sr_push <local-file> <vm-name> - copy a local file into the VM at
 # $SR_GL\<vm-name>, in base64 chunks (the command-length limit forbids one big
-# write). Echoes the final byte count on success.
+# write), then check the copy's SHA-256 against the local file and start over
+# if it differs (a lost or doubled chunk). Echoes the byte count on success;
+# returns non-zero if the file could not be copied intact.
 sr_push() {
-  local src="$1" name="$2" b64 dest i
+  local src="$1" name="$2" b64 dest i want got attempt ok
   dest="$SR_GL\\$name"
   b64=$(base64 < "$src" | tr -d '\n')
-  sr_vmps "Set-Content -NoNewline -Path '$dest.b64' -Value ''" >/dev/null
-  # 1200-char chunks keep (2500 stopped fitting on 9 Nov: the first chunk was silently dropped) the UTF-16LE+base64 EncodedCommand under the ~8 KB
-  # prlctl-exec limit while making far fewer round-trips than tiny chunks.
-  for ((i = 0; i < ${#b64}; i += 1200)); do
-    sr_vmps "Add-Content -NoNewline -Path '$dest.b64' -Value '${b64:i:1200}'" >/dev/null
+  want=$(shasum -a 256 "$src" | awk '{print toupper($1)}')
+  for attempt in 1 2 3; do
+    sr_vmps "Remove-Item -Force -ErrorAction SilentlyContinue '$dest'; Set-Content -NoNewline -Path '$dest.b64' -Value ''" >/dev/null || continue
+    ok=1
+    # 1000-char chunks keep the encoded command well under the ~3,900-char
+    # prlctl exec limit (see sr_vmps) with room for the run marker.
+    for ((i = 0; i < ${#b64}; i += 1000)); do
+      sr_vmps "Add-Content -NoNewline -Path '$dest.b64' -Value '${b64:i:1000}'" >/dev/null || { ok=0; break; }
+    done
+    ((ok)) || continue
+    got=$(sr_vmps "[IO.File]::WriteAllBytes('$dest',[Convert]::FromBase64String((Get-Content -Raw -Path '$dest.b64'))); Remove-Item '$dest.b64'; (Get-FileHash -Algorithm SHA256 '$dest').Hash" | tr -d '\r' | tail -n 1)
+    if [[ "$got" == "$want" ]]; then
+      wc -c < "$src" | tr -d ' '
+      return 0
+    fi
+    echo "sr-vm-lib: copy of $name did not verify (attempt $attempt/3), copying again" >&2
   done
-  sr_vmps "[IO.File]::WriteAllBytes('$dest',[Convert]::FromBase64String((Get-Content -Raw -Path '$dest.b64'))); Remove-Item '$dest.b64'; (Get-Item '$dest').Length"
+  echo "sr-vm-lib: ERROR could not copy $name into the VM intact" >&2
+  return 1
 }
 
 # sr_peek 'js' - evaluate a JS expression in the Ghostlight tab over Chrome's
@@ -89,9 +167,10 @@ sr_keys() {
 # delimiters. An empty file means the chord produced no new speech.
 capture_chord() {
   local chord="$1" wait_s="$2" out="$3"
-  sr_keys "$chord" "$wait_s" \
-    | grep -v -e '^<<<CHORD' -e '^>>>CHORD' \
-    | tr -d '\r' > "$out" || true
+  local raw rc
+  raw=$(sr_keys "$chord" "$wait_s"); rc=$?
+  printf '%s\n' "$raw" | grep -v -e '^<<<CHORD' -e '^>>>CHORD' | tr -d '\r' > "$out"
+  return "$rc"
 }
 
 # capture_await <chord> <awaitSubstring> <capSeconds> <rawOutFile> - press the
@@ -101,6 +180,8 @@ capture_chord() {
 # line lands after a variable delay (e.g. Start/onboarding). One round-trip.
 capture_await() {
   local chord="$1" await="$2" cap="$3" out="$4"
-  sr_vmps "& ([scriptblock]::Create((Get-Content -Raw $SR_GL\\sr-await.ps1))) '$chord' '$await' $cap" \
-    | tr -d '\r' > "$out" || true
+  local raw rc
+  raw=$(sr_vmps "& ([scriptblock]::Create((Get-Content -Raw $SR_GL\\sr-await.ps1))) '$chord' '$await' $cap"); rc=$?
+  printf '%s\n' "$raw" | tr -d '\r' > "$out"
+  return "$rc"
 }
