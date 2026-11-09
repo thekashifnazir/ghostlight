@@ -61,6 +61,20 @@ interface PackChapter {
   summary?: string;
 }
 
+/**
+ * One cutscene entry, keyed by the engine's `animation_*` function name
+ * (FORMAT.md "Cutscenes"). `chapter` is the chapter the scene plays in;
+ * `description` is the audio description spoken before the scene's own
+ * dialogue.
+ */
+interface PackCutscene {
+  chapter?: number;
+  trigger?: string;
+  hasDialogue?: boolean;
+  description?: string;
+  seen?: boolean;
+}
+
 /** The raw pack JSON shape, only the fields this reader uses. */
 export interface PackData {
   formatVersion: string;
@@ -68,6 +82,7 @@ export interface PackData {
   rooms: Record<string, PackRoom>;
   items: PackItem[];
   textFixes?: TextFix[];
+  cutscenes?: Record<string, PackCutscene>;
 }
 
 /** Context a text fix applies in, passed to applyTextFixes. */
@@ -99,6 +114,27 @@ export class Pack {
   /** The chapter's display name (e.g. "The village"), or undefined. */
   chapterName(chapter: number): string | undefined {
     return this.data.chapters?.[String(chapter)]?.name;
+  }
+
+  /**
+   * The audio description for the cutscene that crosses from chapter `from`
+   * into chapter `to`, or undefined if the pack has no narration for it.
+   *
+   * The scripted chapter-crossing scene follows the engine's `animation_*`
+   * naming convention (structure.md: cutscenes are keyed by the engine's
+   * `animation_*` function name): entering chapter `to` is `animation_<to>_1`,
+   * and its `chapter` field is the chapter it plays in — `from`. We require
+   * both the key convention and `chapter === from` so this only returns the
+   * genuine transition scene's description (e.g. the bedtime cutscene
+   * `animation_2_1`, chapter 1, for the 1 -> 2 crossing), never an unrelated
+   * chapter-`to` scene. Spoken just before the "Chapter N" line on a crossing
+   * (FORMAT.md: `description` is spoken before the scene's own dialogue).
+   */
+  chapterTransitionNarration(from: number, to: number): string | undefined {
+    const scene = this.data.cutscenes?.[`animation_${to}_1`];
+    if (!scene || scene.chapter !== from) return undefined;
+    const text = scene.description?.trim();
+    return text ? text : undefined;
   }
 
   /**

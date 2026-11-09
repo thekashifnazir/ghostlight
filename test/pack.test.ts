@@ -65,6 +65,25 @@ describe("Pack reader", () => {
     expect(pack.itemName(9999)).toBeUndefined();
   });
 
+  it("reads the chapter 1 -> 2 transition cutscene narration", () => {
+    // The bedtime cutscene animation_2_1 (chapter 1) is the scripted crossing
+    // into chapter 2; its description is spoken just before the "Chapter 2"
+    // line so a player who skipped the scene still hears what happened.
+    const narration = pack.chapterTransitionNarration(1, 2);
+    expect(narration).toBeDefined();
+    expect(narration).toContain("curtained doorway");
+    expect(narration).toContain("B.J.");
+  });
+
+  it("returns no transition narration for a non-crossing chapter pair", () => {
+    // animation_2_2 (chapter 2) stays within chapter 2, so it is not the
+    // 2 -> 3 crossing and must not be returned for from=2,to=2 or 2->3.
+    expect(pack.chapterTransitionNarration(2, 2)).toBeUndefined();
+    // No cutscene is keyed animation_6_1, and the from chapter must match, so
+    // an unknown crossing yields undefined (callers then skip the narration).
+    expect(pack.chapterTransitionNarration(5, 6)).toBeUndefined();
+  });
+
   it("rejects an unknown major formatVersion", () => {
     const bad = {
       formatVersion: "2.0",
