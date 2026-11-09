@@ -452,12 +452,12 @@ test.describe("live sweep (Chrome + WebKit)", () => {
     const enterPhase = await phase(page);
 
     // The choice UI is shown (phase 'choice') and announced. The menu announces
-    // the menu name and count ("Choices, N options."), NOT a numbered list —
+    // the menu prompt and count ("Pick a reply, N options."), NOT a numbered list —
     // the focused option's text is read by the screen reader from the listbox
     // option button, so the live region is not double-spoken (screen-reader-
     // focus R6).
     expect(enterPhase).toBe("choice");
-    expect(enterChoiceLine).toMatch(/Choices, \d+ options?\./);
+    expect(enterChoiceLine).toMatch(/Pick a reply, \d+ options?\./);
 
     // The drunk `talk 53` bug: the engine opened the menu, then its settling
     // changed:false diff announced "Nothing happened." ~1 ms later, replacing
@@ -533,7 +533,7 @@ test.describe("live sweep (Chrome + WebKit)", () => {
     expect(typedPhase).toBe("choice");
     expect(typedPhase).toBe(enterPhase);
     // ...show the choice UI, and never surface the old bug's lines.
-    expect(typedChoiceLine).toMatch(/Choices, \d+ options?\./);
+    expect(typedChoiceLine).toMatch(/Pick a reply, \d+ options?\./);
     expect(typedChoiceLine.toLowerCase()).not.toContain("nothing happened");
     expect(typedChoiceLine.toLowerCase()).not.toContain("can't be saved");
     // ...and announce the SAME choice line as Enter did.
