@@ -1,0 +1,23 @@
+{
+  "label": "converse-leftover-skip",
+  "note": "Regression for the chapter-2 dead state. Transcript shape taken from a native converse run (engine/a11y.cpp onConverseFrame) with the fix applied. The player opens a conversation, picks option 2, and presses Enter twice DURING the option's story reply. The reply's own speech loop drains the first Enter (skip); the second Enter is a SURPLUS skip that survives into the re-listed choices. The fix drains that leftover `skip` at the head of the converse queue (echoed as `A11Y_CMD skip`, no error, no state change) instead of letting it wedge the head, so the player's following `choose 3` is applied: it is echoed as `A11Y_CMD choose 3` and settles with its own `A11Y_DIFF`. Before the fix the head stuck on the leftover skip, `choose 3` was never echoed or applied, no further command settled, and the busy watchdog fired (A11Y_ERR busy...). None of those busy/dropped lines appear here.",
+  "lines": [
+    "A11Y {\"chapter\":2,\"room\":15,\"hero\":{\"x\":89,\"y\":142},\"objects\":[{\"num\":172,\"name\":\"ESCALERAS\",\"rect\":[35,75,31,59],\"walkTo\":[62,138],\"visible\":true,\"door\":true,\"toRoom\":14},{\"num\":188,\"name\":\"MACHINE\",\"rect\":[245,91,33,50],\"walkTo\":[251,152],\"visible\":true,\"door\":false},{\"num\":205,\"name\":\"PAPERS\",\"rect\":[198,53,26,27],\"walkTo\":[210,130],\"visible\":true,\"door\":false},{\"num\":206,\"name\":\"CURTAIN\",\"rect\":[97,51,45,36],\"walkTo\":[124,128],\"visible\":true,\"door\":false},{\"num\":52,\"name\":\"VONBRAUN\",\"rect\":[111,48,38,32],\"walkTo\":[123,127],\"visible\":true,\"door\":false}],\"inventory\":[28,22,7,18],\"flags\":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,0,1,1,0,0,1,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]}",
+    "A11Y_CMD talk 52",
+    "A11Y_CHOICES {\"choices\":[{\"n\":1,\"text\":\"WHO ARE YOU?\",\"used\":false},{\"n\":2,\"text\":\"TELL ME ABOUT DRASCULA\",\"used\":false},{\"n\":3,\"text\":\"HOW DO I GET PAST THE WOLF?\",\"used\":false},{\"n\":4,\"text\":\"GOODBYE\",\"used\":false,\"ends\":true}]}",
+    "A11Y_DIFF {\"cmd\":\"talk 52\",\"changed\":false}",
+    "A11Y_CMD choose 2",
+    "A11Y_TEXT DRASCULA? THAT MADMAN TURNED ME OUT OF MY OWN CASTLE",
+    "A11Y_CMD skip",
+    "A11Y_TEXT I USED TO BE A GREAT VAMPIRE HUNTER, YOU KNOW",
+    "A11Y_CHOICES {\"choices\":[{\"n\":1,\"text\":\"WHO ARE YOU?\",\"used\":false},{\"n\":2,\"text\":\"TELL ME ABOUT DRASCULA\",\"used\":true},{\"n\":3,\"text\":\"HOW DO I GET PAST THE WOLF?\",\"used\":false},{\"n\":4,\"text\":\"GOODBYE\",\"used\":false,\"ends\":true}]}",
+    "A11Y_DIFF {\"cmd\":\"choose 2\",\"said\":[{\"color\":\"yellow\",\"text\":\"DRASCULA? THAT MADMAN TURNED ME OUT OF MY OWN CASTLE\"},{\"color\":\"yellow\",\"text\":\"I USED TO BE A GREAT VAMPIRE HUNTER, YOU KNOW\"}],\"changed\":true}",
+    "A11Y_CMD skip",
+    "A11Y_CMD choose 3",
+    "A11Y_TEXT TO GET PAST THE WOLF YOU WILL NEED SOMETHING TO CALM IT DOWN",
+    "A11Y_CHOICES {\"choices\":[{\"n\":1,\"text\":\"WHO ARE YOU?\",\"used\":false},{\"n\":2,\"text\":\"TELL ME ABOUT DRASCULA\",\"used\":true},{\"n\":3,\"text\":\"HOW DO I GET PAST THE WOLF?\",\"used\":true},{\"n\":4,\"text\":\"GOODBYE\",\"used\":false,\"ends\":true}]}",
+    "A11Y_DIFF {\"cmd\":\"choose 3\",\"said\":[{\"color\":\"yellow\",\"text\":\"TO GET PAST THE WOLF YOU WILL NEED SOMETHING TO CALM IT DOWN\"}],\"changed\":true}",
+    "A11Y_CMD choose 4",
+    "A11Y_DIFF {\"cmd\":\"choose 4\",\"changed\":false}"
+  ]
+}

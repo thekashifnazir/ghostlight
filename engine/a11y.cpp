@@ -2089,10 +2089,13 @@ void A11yLayer::applyChoose(int n) {
 //      a fresh A11Y_CHOICES for this frame (R6.3 "after each choice").
 //   2. Cache this frame's band bottoms (the layout shifts as options are used).
 //   3. Emit A11Y_CHOICES if armed (opening frame or just after a choice).
-//   4. Read the command file and act on the first queued conversation command:
+//   4. Read the command file and act on each queued command in turn:
 //      `choices` re-emits; `choose <n>` applies and returns (the engine acts on
-//      the press this same frame). Non-conversation commands are left in the
-//      queue for the main loop to run once the conversation ends.
+//      the press this same frame); a leftover `skip` is a no-op here and is
+//      consumed; any other verb is rejected with an A11Y_ERR ("finish the
+//      conversation first") and consumed. Every command is consumed — the loop
+//      never leaves one at the head, because a stuck head is what wedged the
+//      queue in the chapter-2 dead state.
 void A11yLayer::onConverseFrame(const char *phrase1, const char *phrase2,
                                 const char *phrase3, const char *phrase4,
                                 int game1, int game2, int game3,
@@ -2233,15 +2236,47 @@ void A11yLayer::onConverseFrame(const char *phrase1, const char *phrase2,
 			return;
 		}
 
-		// Any other command is not a conversation command. Leave it in the queue
-		// for the main-loop reader to run once the conversation ends — do not
-		// consume it here. Stop scanning this frame.
-		break;
+		// Fix (chapter-2 dead state): a leftover `skip` at the head of the queue.
+		// A `skip` the player pressed DURING the Von Braun story (or any reply)
+		// is normally drained by that reply's own speech loop; but when the
+		// player queued more skips than the reply had lines, a surplus `skip`
+		// stays in our queue and arrives here, at the head, once the reply has
+		// settled and the choices are re-listed. It is NOT a conversation
+		// command, so the old code hit `break` below and left it stuck at the
+		// head — and because the head never advanced, every later command (the
+		// player's next `choose`, and everything after it) waited behind it
+		// forever while onUpdateEvents() kept running and the busy watchdog
+		// fired. Consume the surplus `skip` here instead: it has nothing left to
+		// skip inside an open choice menu, so it is a harmless no-op. Echo it as
+		// A11Y_CMD (the same convention takeQueuedSkip() uses when it drains a
+		// queued skip, a11y.cpp), advance the head, and keep scanning so a
+		// `choose` queued right behind it still runs this frame.
+		if (verb == "skip") {
+			emitLine(Common::String("A11Y_CMD ") + cmd);
+			_queueHead++;
+			continue;
+		}
+
+		// Any other verb while a conversation is open is a command the player
+		// cannot run until the conversation ends (walk, take, use, look, …).
+		// The old code left it at the head with `break`, which — exactly like
+		// the stuck `skip` above — wedged the queue so no later command ever
+		// ran. Instead, tell the player plainly that they must finish the
+		// conversation first, then CONSUME the command (advance the head) and
+		// keep scanning. Never `break` with an unconsumed command at the head:
+		// an unconsumed head is what caused the dead state. The player's error
+		// line is mapped in src/engine/error-lines.ts.
+		emitLine(Common::String("A11Y_ERR finish the conversation first: ") + cmd);
+		_queueHead++;
+		continue;
 	}
 
-	// Reclaim a fully-drained queue so a long session does not grow it. Only
-	// when nothing is pending — a non-conversation command left at the head must
-	// survive for the main loop to run after the conversation ends.
+	// Reclaim the queue so a long session does not grow it. The loop above now
+	// consumes every command at the head — a `choose` returns after applying,
+	// and `choices`/`skip`/any other verb each advance the head and continue —
+	// so control reaches here only once the queue has fully drained (or when
+	// `choose` returned, which reclaims inline). The guard stays defensive: it
+	// clears only when nothing is pending.
 	if (_queueHead >= _commandQueue.size()) {
 		_commandQueue.clear();
 		_queueHead = 0;

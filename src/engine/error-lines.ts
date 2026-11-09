@@ -98,6 +98,22 @@ export function mapEngineError(message: string): MappedError {
     };
   }
 
+  // "finish the conversation first: <cmd>": emitted by onConverseFrame
+  // (engine/a11y.cpp) when a command that is not a conversation command (walk,
+  // take, use, look, …) reaches the head of the queue while a choice menu is
+  // open. The engine consumes it rather than leaving it stuck at the head (a
+  // stuck head was the chapter-2 dead state), and tells the player plainly to
+  // finish the conversation first. The raw text carries the attempted command
+  // after the colon, which is internal context, so we drop it and announce a
+  // fixed, number-free line that says how to proceed. No re-sync: the room
+  // model has not drifted, the player is simply mid-conversation.
+  if (/^finish the conversation first:/i.test(text)) {
+    return {
+      line: "Finish the conversation first. Pick an option with Up and Down, then Enter.",
+      resync: false,
+    };
+  }
+
   // "busy-skip" / "busy: commands dropped": the Fix C busy watchdog
   // (engine/a11y.cpp runBusyWatchdog). The engine wedged so A11Y_PHASE busy
   // would otherwise be permanent; the watchdog escalates in two stages. The

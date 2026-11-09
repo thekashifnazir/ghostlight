@@ -20,6 +20,8 @@ const RAW_ERRORS = [
   "save slot must be 1 or greater, got: 0",
   "use needs a target: `use <item> on <object>`",
   "walk needs a target: `walk <object>` or `walk <x> <y>`",
+  "finish the conversation first: walk door",
+  "finish the conversation first: use coins on machine",
 ];
 
 describe("mapEngineError", () => {
@@ -53,8 +55,44 @@ describe("mapEngineError", () => {
     expect(r.resync).toBe(false);
   });
 
-  it("falls back to a generic number-free line for any other error, no re-sync", () => {
-    const r = mapEngineError("no handler for command: fly");
+  // The chapter-2 dead-state fix: onConverseFrame (engine/a11y.cpp) now rejects
+  // a non-conversation command while a choice menu is open with
+  // "finish the conversation first: <cmd>", instead of leaving it stuck at the
+  // head of the queue. The attempted command after the colon is internal
+  // context and must not be spoken; the player hears a fixed, number-free line
+  // telling them how to proceed, and the room model is not re-synced.
+  it("maps 'finish the conversation first: <cmd>' to the fixed how-to line, no re-sync", () => {
+    const r = mapEngineError("finish the conversation first: walk door");
+    expect(r.line).toBe(
+      "Finish the conversation first. Pick an option with Up and Down, then Enter.",
+    );
+    expect(r.resync).toBe(false);
+    expect(r.silent).toBeFalsy();
+    // The attempted command ('walk door') is never echoed to the player.
+    expect(r.line).not.toContain("walk");
+    expect(r.line).not.toContain("door");
+  });
+
+  it("maps the conversation-first error regardless of the attempted command", () => {
+    const r = mapEngineError("finish the conversation first: use coins on machine");
+    expect(r.line).toBe(
+      "Finish the conversation first. Pick an option with Up and Down, then Enter.",
+    );
+    expect(r.line).not.toContain("coins");
+    expect(r.line).not.toContain("machine");
+  });
+
+  it("maps the conversation-first error case-insensitively and with surrounding whitespace", () => {
+    const r = mapEngineError("  FINISH THE CONVERSATION FIRST: TAKE 52  ");
+    expect(r.line).toBe(
+      "Finish the conversation first. Pick an option with Up and Down, then Enter.",
+    );
+    expect(r.resync).toBe(false);
+    // Even when the attempted command carried a number, none reaches the player.
+    expect(r.line).not.toMatch(/\b\d+\b/);
+  });
+
+  it("falls back to a generic number-free line for any other error, no re-sync", () => {    const r = mapEngineError("no handler for command: fly");
     expect(r.line).toBe("That didn't work. Press L to hear the room.");
     expect(r.resync).toBe(false);
     // The raw text (and its 'fly' verb) is not echoed to the player.
