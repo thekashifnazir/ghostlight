@@ -1,5 +1,5 @@
 import fc from "fast-check";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { RoomObject, RoomState } from "../src/engine/adapter.js";
 import { buildHotspotList, type Hotspot } from "../src/model/hotspot-list.js";
 import { uniquifyNames } from "../src/model/naming.js";
@@ -79,6 +79,51 @@ describe("buildHotspotList properties", () => {
         }
       }),
     );
+  });
+});
+
+describe("buildHotspotList with a duplicate engine hotspot number", () => {
+  // Drascula's chapter-2 street (room 12) reports the BALCONY object twice,
+  // both numbered 154, for its two balcony rects. To the engine these are the
+  // same object (an action keys on the number). Building the list must keep one
+  // entry and never throw — the old throw escaped the printErr reader, stranded
+  // the room change and wedged the player "busy" forever.
+  const balcony = (rect: [number, number, number, number]): RoomObject => ({
+    num: 154,
+    name: "BALCONY",
+    rect,
+    walkTo: [rect[0], rect[1] + rect[3]],
+    visible: true,
+    door: false,
+  });
+
+  const room12: RoomState = {
+    chapter: 2,
+    room: 12,
+    hero: { x: 160, y: 150 },
+    objects: [balcony([92, 83, 29, 37]), balcony([177, 83, 27, 35])],
+    inventory: [],
+    flags: new Array(50).fill(0),
+  };
+
+  it("keeps one entry for the duplicated number and does not throw", () => {
+    const list = buildHotspotList(room12, emptyPack);
+    const balconies = list.filter((h) => h.num === 154);
+    expect(balconies.length).toBe(1);
+    // The first entry seen wins (the earlier-left-edge rect here).
+    expect(balconies[0].rect).toEqual([92, 83, 29, 37]);
+  });
+
+  it("warns once per room about the reuse", () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      buildHotspotList(room12, emptyPack);
+      expect(warn).toHaveBeenCalledTimes(1);
+      expect(warn.mock.calls[0][0]).toContain("154");
+      expect(warn.mock.calls[0][0]).toContain("room 12");
+    } finally {
+      warn.mockRestore();
+    }
   });
 });
 

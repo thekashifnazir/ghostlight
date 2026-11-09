@@ -68,18 +68,28 @@ function resolveName(
 export function buildHotspotList(state: RoomState, pack: Pack): Hotspot[] {
   const room = state.room;
 
-  // One entry per engine hotspot number: the engine already reports one object
-  // per number, but assert it so a malformed state is caught, not silently
-  // mis-ordered.
+  // One entry per engine hotspot number. Drascula reuses a single object number
+  // for two screen areas — e.g. room 12 (the chapter-2 street) has two BALCONY
+  // rects both numbered 154. To the engine these are the same object: an action
+  // keys on the number, so one entry is correct and a second would only produce
+  // a spurious duplicate in list mode, sonar and the highlight. Keep the first
+  // entry seen per number, warn once per room so the reuse is visible, and
+  // continue. Never throw: this runs inside the printErr reader, where an
+  // escaping exception strands the room change and wedges the player.
   const seen = new Set<number>();
+  let warnedDuplicate = false;
 
   const hotspots: Hotspot[] = [];
   for (const obj of state.objects) {
     if (!obj.visible) continue;
     if (seen.has(obj.num)) {
-      throw new Error(
-        `duplicate hotspot number ${obj.num} in room ${room}; the engine must report one entry per number`,
-      );
+      if (!warnedDuplicate) {
+        console.warn(
+          `duplicate hotspot number ${obj.num} in room ${room}; keeping the first entry (the engine acts by number, so the extra screen area is the same object)`,
+        );
+        warnedDuplicate = true;
+      }
+      continue;
     }
     seen.add(obj.num);
 

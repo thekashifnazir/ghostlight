@@ -124,8 +124,20 @@ export class LiveAdapter implements EngineAdapter {
       previous?.(line);
       for (const one of splitA11yLines(line)) {
         const event = parseA11yLine(one);
-        if (event) {
-          for (const l of this.listeners) l(event);
+        if (!event) continue;
+        for (const l of this.listeners) {
+          // A listener exception must never escape printErr. Emscripten's
+          // stderr TTY only clears its buffer AFTER printErr returns, so an
+          // error thrown out of here strands the current line in the buffer;
+          // the next engine line (e.g. an A11Y_PHASE control line after an
+          // A11Y_DIFF) is then glued onto the unflushed text and the player
+          // wedges "busy" forever. Catch, log the error with the raw line for
+          // context, and carry on with the next listener and the next line.
+          try {
+            l(event);
+          } catch (err) {
+            console.error("A11Y listener threw; continuing", err, one);
+          }
         }
       }
     };
