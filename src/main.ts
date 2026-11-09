@@ -1108,8 +1108,11 @@ export async function boot(): Promise<void> {
     started = true;
     // Drop the document-level "press a key to begin" listener now that play has
     // started: the in-game keydown handler owns the keys from here, and the
-    // gate shortcut must never fire again.
-    doc.removeEventListener("keydown", gateKeydown);
+    // gate shortcut must never fire again. Guarded, because on the load-intent
+    // and Continue / New game paths the listener is never registered (and on
+    // the load-intent path startPlaying even runs before gateKeydown is
+    // assigned), so there is nothing to remove.
+    if (gateKeydown) doc.removeEventListener("keydown", gateKeydown);
     startGate.hidden = true;
     // Tell the readiness signal the engine is booting: 'loading' for a Continue
     // / load boot (bootedIntoSlot), 'booting' for a fresh start. The first room
@@ -1221,6 +1224,47 @@ export async function boot(): Promise<void> {
     continueButton.focus();
   };
 
+  // The gate's "press a key to begin" shortcut, kept for a fresh start.
+  // Suppressed when the Continue / New game choice is showing (the buttons own
+  // the keys) or when a load intent already auto-started boot.
+  //
+  // It must start ONLY on an intentional "begin" key and never on the keys a
+  // screen-reader user presses to EXPLORE the page before they have decided to
+  // play (an uninformed playtest found Tab started the game: a blind player
+  // pressing Tab, Shift+Tab, the arrows and screen-reader modifier keys to feel
+  // out the gate was dropped straight into play). So the shortcut starts only
+  // on Enter, Space, or a single printable character (a letter, number or
+  // symbol), and ignores everything else: Tab, Shift, Control, Alt, Meta,
+  // CapsLock, Insert, the arrow keys, Escape, the function keys, and any key
+  // pressed with Ctrl/Alt/Meta held (those are shortcuts, not "begin").
+  //
+  // F1 is a further exception among the ignored keys: on the gate it reads the
+  // controls (the same two-tier help as in-game F1) rather than doing nothing —
+  // a tester pressing F1 to learn the keys should hear them. '?' (Shift+/) is an
+  // alias for F1 here, for a tester who cannot press F1.
+  const startsTheGame = (ev: KeyboardEvent): boolean => {
+    // A modifier chord (Ctrl/Alt/Meta + something) is a shortcut, never begin.
+    // Shift is allowed through so Shift + a letter (a capital) still begins.
+    if (ev.ctrlKey || ev.altKey || ev.metaKey) return false;
+    // Enter and Space are the explicit "begin" keys. Chrome reports Space as
+    // " " and some older engines as "Spacebar"; accept both.
+    if (ev.key === "Enter" || ev.key === " " || ev.key === "Spacebar")
+      return true;
+    // A single printable character (letter, number, symbol) begins; named keys
+    // like "Tab", "Shift", "ArrowLeft", "Escape", "F1" are longer than one code
+    // point and are ignored. Spreading the string handles astral characters.
+    return [...ev.key].length === 1;
+  };
+
+  // The document-level gate listener. Declared here (before the gate decision)
+  // and left undefined until the fresh-start path actually registers it below,
+  // so startPlaying can reference it in its closure on EVERY path. On the
+  // load-intent path startPlaying runs during the decision — before any
+  // registration — and its guarded removal simply sees undefined. (Regression
+  // fix: a `const` declared after the decision put this in the temporal dead
+  // zone on the load-intent path, so loading a save threw and never finished.)
+  let gateKeydown: ((ev: KeyboardEvent) => void) | undefined;
+
   // Decide the gate BEFORE rendering any interactive content, so the Start
   // button is never put in the DOM when a save exists. Three paths:
   //
@@ -1252,66 +1296,43 @@ export async function boot(): Promise<void> {
     renderStartAction();
   }
 
-  // The gate's "press a key to begin" shortcut, kept for a fresh start.
-  // Suppressed when the Continue / New game choice is showing (the buttons own
-  // the keys) or when a load intent already auto-started boot.
-  //
-  // It must start ONLY on an intentional "begin" key and never on the keys a
-  // screen-reader user presses to EXPLORE the page before they have decided to
-  // play (an uninformed playtest found Tab started the game: a blind player
-  // pressing Tab, Shift+Tab, the arrows and screen-reader modifier keys to feel
-  // out the gate was dropped straight into play). So the shortcut starts only
-  // on Enter, Space, or a single printable character (a letter, number or
-  // symbol), and ignores everything else: Tab, Shift, Control, Alt, Meta,
-  // CapsLock, Insert, the arrow keys, Escape, the function keys, and any key
-  // pressed with Ctrl/Alt/Meta held (those are shortcuts, not "begin").
-  //
-  // F1 is a further exception among the ignored keys: on the gate it reads the
-  // controls (the same two-tier help as in-game F1) rather than doing nothing —
-  // a tester pressing F1 to learn the keys should hear them. '?' (Shift+/) is an
-  // alias for F1 here, for a tester who cannot press F1. Both are plain (not
-  // once) listeners so they can be pressed repeatedly; a real "begin" key still
-  // starts, after which the started / gateHandlesAnyKey guards make further
-  // presses no-ops.
-  const startsTheGame = (ev: KeyboardEvent): boolean => {
-    // A modifier chord (Ctrl/Alt/Meta + something) is a shortcut, never begin.
-    // Shift is allowed through so Shift + a letter (a capital) still begins.
-    if (ev.ctrlKey || ev.altKey || ev.metaKey) return false;
-    // Enter and Space are the explicit "begin" keys. Chrome reports Space as
-    // " " and some older engines as "Spacebar"; accept both.
-    if (ev.key === "Enter" || ev.key === " " || ev.key === "Spacebar")
-      return true;
-    // A single printable character (letter, number, symbol) begins; named keys
-    // like "Tab", "Shift", "ArrowLeft", "Escape", "F1" are longer than one code
-    // point and are ignored. Spreading the string handles astral characters.
-    return [...ev.key].length === 1;
-  };
-  // Listen at the document level, not on #start-gate, so the shortcut works no
-  // matter where focus sits. The gate's Start/Continue buttons are focused when
-  // shown, but a click on the page background moves focus to <body>; a listener
-  // bound to the gate element would then miss the keypress entirely (Edge: click
-  // background, press Enter, nothing happened). startPlaying removes this
-  // listener once play begins, so it only lives while the gate is up.
-  const gateKeydown = (ev: KeyboardEvent): void => {
-    if (!gateHandlesAnyKey) return; // handled by buttons or load-intent start
-    if (ev.key === "F1" || ev.key === "?") {
-      // Read the controls without starting; keep the gate up. '?' (a single
-      // printable char) would otherwise be caught by startsTheGame and begin
-      // the game, so it is handled here, before that check, exactly like F1.
-      // Two-tier like in-game: the short page first, the full list on a
-      // consecutive press (helpReader).
+  // Register the gate's "press a key to begin" shortcut ONLY on the fresh-start
+  // path. gateHandlesAnyKey is true only when a single Start is showing; the
+  // Continue / New game choice and the load-intent auto-start both set it false
+  // (and the load-intent path has already called startPlaying above). On those
+  // paths the buttons own the keys, or boot is already under way, so the
+  // document listener is never added — and gateKeydown stays undefined, which
+  // is exactly what startPlaying's guarded removal expects.
+  if (gateHandlesAnyKey) {
+    // Listen at the document level, not on #start-gate, so the shortcut works
+    // no matter where focus sits. The gate's Start button is focused when
+    // shown, but a click on the page background moves focus to <body>; a
+    // listener bound to the gate element would then miss the keypress entirely
+    // (Edge: click background, press Enter, nothing happened). startPlaying
+    // removes this listener once play begins, so it only lives while the gate
+    // is up.
+    gateKeydown = (ev: KeyboardEvent): void => {
+      if (!gateHandlesAnyKey) return; // handled by buttons or load-intent start
+      if (ev.key === "F1" || ev.key === "?") {
+        // Read the controls without starting; keep the gate up. '?' (a single
+        // printable char) would otherwise be caught by startsTheGame and begin
+        // the game, so it is handled here, before that check, exactly like F1.
+        // Two-tier like in-game: the short page first, the full list on a
+        // consecutive press (helpReader).
+        ev.preventDefault();
+        helpReader.read();
+        return;
+      }
+      // Ignore the navigation and modifier keys a screen-reader user presses to
+      // explore the page (Tab, Shift+Tab, arrows, Escape, modifiers, F-keys,
+      // and any Ctrl/Alt/Meta chord): let them do their normal thing, do not
+      // start.
+      if (!startsTheGame(ev)) return;
       ev.preventDefault();
-      helpReader.read();
-      return;
-    }
-    // Ignore the navigation and modifier keys a screen-reader user presses to
-    // explore the page (Tab, Shift+Tab, arrows, Escape, modifiers, F-keys, and
-    // any Ctrl/Alt/Meta chord): let them do their normal thing, do not start.
-    if (!startsTheGame(ev)) return;
-    ev.preventDefault();
-    void startPlaying();
-  };
-  doc.addEventListener("keydown", gateKeydown);
+      void startPlaying();
+    };
+    doc.addEventListener("keydown", gateKeydown);
+  }
 
   // Announce the start gate's instruction in the live region, so a screen
   // reader conveys it as text like every other functional line, not only as
