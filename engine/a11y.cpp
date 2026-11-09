@@ -2471,6 +2471,14 @@ bool A11yLayer::poll() {
 		return false;
 
 	bool ranCommand = false;
+	// The chapter/room this frame started in, captured before runCommand() so
+	// the tail of poll() can tell whether THIS command changed the room (a walk
+	// through a door). A command-driven room change needs the room-state line
+	// re-emitted and a fresh control-phase evaluation (see the tail), because
+	// the whole walk+transition runs inside this one frame and the top-of-frame
+	// _lastPollMs stamp is stale by the time we reach updateControlPhase().
+	int cmdBeforeChapter = _engine->currentChapter;
+	int cmdBeforeRoom = _engine->_roomNumber;
 	if (_queueHead < _commandQueue.size()) {
 		Common::String cmd = _commandQueue[_queueHead];
 		_queueHead++;
@@ -2577,14 +2585,48 @@ bool A11yLayer::poll() {
 		}
 	}
 
+	// Did THIS command change the room (a walk through a within-chapter door,
+	// e.g. chapter 2's inn-bar exit 159 -> street room 12)? The chapter-ending
+	// crossing (door 105) already returned true above, so reaching here with a
+	// changed room means a normal within-chapter exit settled this frame.
+	const bool cmdChangedRoom =
+		ranCommand && (_engine->currentChapter != cmdBeforeChapter ||
+		               _engine->_roomNumber != cmdBeforeRoom);
+
 	if (ranCommand) {
-		// A command-driven room/chapter change is carried by the A11Y_DIFF above
-		// (its `chapter`/`room`/`objects` fields), so we do NOT emit a separate
-		// A11Y room-state line for it — the leave-tavern/tavern transcripts show
-		// the crossing as one diff with no accompanying A11Y line. Just sync the
-		// last-room markers to the settled state.
-		_lastChapter = _engine->currentChapter;
-		_lastRoom = _engine->_roomNumber;
+		if (cmdChangedRoom) {
+			// A command-driven within-chapter room change (a walk through a
+			// door). The A11Y_DIFF above already carried the room/chapter change
+			// and the new room's objects, but TWO things still need to happen on
+			// THIS settling frame, and both were missing before — leaving the
+			// web player wedged on `busy` after an exit (the inn-bar -> street
+			// bug):
+			//
+			//   * Re-emit the new room's A11Y room-state line so the player's
+			//     hotspot list refreshes to the room just entered and the room
+			//     name is spoken on arrival, exactly as a fresh room entry does
+			//     (the player maps the A11Y room line to a room read). The
+			//     chapter-crossing path keeps its single-diff shape via the
+			//     carrier and does NOT reach here (it returned true above), so
+			//     the leave-tavern crossing fixture is untouched.
+			//   * Re-stamp _lastPollMs to NOW. The whole walk + door transition
+			//     ran inside this one poll() frame, taking hundreds of ms, so the
+			//     top-of-frame stamp is now stale (> kPollFreshMs). Without a
+			//     fresh stamp updateControlPhase()'s probe would read the player
+			//     as NOT in control and emit `busy`, so the engine-truth web
+			//     player (src/engine/status.ts drives its phase ONLY from
+			//     A11Y_PHASE and never settles on the diff) would never return to
+			//     `ready`. Re-stamping means the settling frame reports `control`.
+			emitRoomState();
+			if (g_system)
+				_lastPollMs = g_system->getMillis();
+		} else {
+			// No room change: the A11Y_DIFF carried the result, so no separate
+			// A11Y room-state line (the look/take/talk transcripts show the diff
+			// alone). Just sync the last-room markers to the settled state.
+			_lastChapter = _engine->currentChapter;
+			_lastRoom = _engine->_roomNumber;
+		}
 	} else if (_engine->currentChapter != _lastChapter ||
 	           _engine->_roomNumber != _lastRoom) {
 		// A room/chapter change that NO command drove (a spontaneous engine
@@ -2599,9 +2641,12 @@ bool A11yLayer::poll() {
 	// the engine can take a command, `busy` otherwise — but only on a change,
 	// so the steady-state idle frame emits nothing. This is the edge that moves
 	// the player's readiness signal back to 'ready' straight from the engine,
-	// with no pause-based guessing. Not reached while a conversation is open
-	// (converse() runs its own loop and poll() does not run); that path emits
-	// `choice` instead.
+	// with no pause-based guessing. On a command-driven room change the
+	// _lastPollMs re-stamp above guarantees the probe reads the player as back
+	// in control on this frame, so `control` is emitted on the settling frame
+	// rather than a later frame that may never come. Not reached while a
+	// conversation is open (converse() runs its own loop and poll() does not
+	// run); that path emits `choice` instead.
 	updateControlPhase();
 
 	// No chapter-ending command this frame, so the main loop keeps running.

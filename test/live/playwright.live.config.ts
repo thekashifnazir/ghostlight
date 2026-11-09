@@ -16,11 +16,12 @@ import { defineConfig, devices } from "@playwright/test";
 export default defineConfig({
   testDir: ".",
   // The live boot check (live.spec.ts), the save-progress continue-after-reload
-  // and save-key checks, and the broad live sweep (sweep.spec.ts: every tester
-  // key, the chapter 1 -> 2 crossing, and C/O save-load). All need the real
-  // wasm build and skip with a clear message when it is absent. Per-project
-  // testMatch below narrows WebKit to the sweep (the other specs are Chrome).
-  testMatch: /(live|save-continue|save-key|sweep)\.spec\.ts$/,
+  // and save-key checks, the broad live sweep (sweep.spec.ts: every tester key,
+  // the chapter 1 -> 2 crossing, and C/O save-load), and the chapter-2 inn-bar
+  // -> street exit regression (ch2-exit.spec.ts). All need the real wasm build
+  // and skip with a clear message when it is absent. Per-project testMatch below
+  // narrows WebKit to the sweep (the other specs are Chrome).
+  testMatch: /(live|save-continue|save-key|sweep|ch2-exit)\.spec\.ts$/,
   fullyParallel: false,
   reporter: "list",
   // A cold wasm instantiation plus the game-data fetch can take well over the
