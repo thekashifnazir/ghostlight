@@ -111,7 +111,7 @@ test.describe("#game is inert before Start", () => {
     });
     expect(after.isActive).toBe(true);
     expect(after.role).toBe("application");
-    expect(after.label).toBe("Ghostlight game");
+    expect(after.label).toMatch(/^Ghostlight game(, .+)?$/); // room name added on room entry
     expect(after.tabindex).toBe("-1");
   });
 });
