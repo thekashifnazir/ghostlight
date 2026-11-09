@@ -853,7 +853,7 @@ export async function boot(): Promise<void> {
         // still never says "Nothing happened." over the open menu.
         narrator.markChoices();
         choiceMenu.openWith(
-          e.choices.map((c) => ({ n: c.n, text: c.text })),
+          e.choices.map((c) => ({ n: c.n, text: c.text, used: c.used })),
         );
         break;
       case "inv":

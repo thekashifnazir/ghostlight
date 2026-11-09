@@ -38,12 +38,31 @@
 // to the control phase, i.e. no further choices) does main.ts call close(),
 // which returns focus to #game exactly once. The menu is never closed by the
 // player directly.
+//
+// Same-set rule. After a pick the engine often re-offers the SAME question with
+// the SAME options (only the "used" markers change) while it processes the hero
+// and NPC lines. When openWith() is called with options whose count and whose
+// n+text match the current ones in the same order, the menu updates IN PLACE:
+// the buttons are NOT rebuilt, the current index and the focused DOM element are
+// kept (focus() is not called again), the waiting state and aria-busy are
+// cleared, the used markers are refreshed, and NOTHING is announced. This stops
+// the menu sounding like it "restarts to the top option every time" and stops
+// the "Pick a reply, N options." line talking over the actors. Any OTHER case
+// (a different count, or different n+text, i.e. a genuinely new question) still
+// rebuilds the buttons, moves focus to option 1, and announces the prompt.
 
 export interface ChoiceOption {
   /** The engine's choice number (1-based; what `choose n` sends). */
   n: number;
   /** The spoken text of the option. */
   text: string;
+  /**
+   * Already picked earlier in this conversation (the engine's A11Y_CHOICES
+   * "used": true). A used option keeps its engine text verbatim and gains a
+   * visually hidden ", already asked" marker, so a screen reader knows the
+   * question was asked before without the engine text being changed.
+   */
+  used?: boolean;
 }
 
 export interface ChoiceMenuCallbacks {
@@ -95,21 +114,38 @@ export class ChoiceMenu {
   }
 
   /**
-   * Open (or replace) the choice menu with a fresh set of options, building the
-   * roving-focus buttons and focusing option 1. A new set of choices while the
-   * menu is already open (or WAITING after a pick) replaces it in place (the
-   * engine moved the conversation on to a new question): the options are
-   * swapped, the waiting state and aria-busy are cleared, and focus moves to
-   * option 1 — all without the menu ever losing focus to #game, so the screen
-   * reader does not bounce out and back between rounds (Fix 1).
+   * Open (or replace) the choice menu with a fresh set of options.
    *
-   * The live line gives a short prompt and the count only; the focused option 1
+   * Same-set rule (see the header): when the menu is already open (waiting or
+   * not) and the new options have the SAME count and the SAME n+text in the
+   * SAME order as the current ones, this is the engine re-offering the same
+   * question (only "used" markers may have changed). The menu updates IN PLACE:
+   * the buttons are not rebuilt, the current index and the focused DOM element
+   * are kept (focus() is not called again), the waiting state and aria-busy are
+   * cleared, the used markers are refreshed, and nothing is announced. This is
+   * what stops the menu sounding like it restarts to the top option on every
+   * round, and stops the prompt talking over the actors.
+   *
+   * Any other case (first open, a different count, or different n+text, i.e. a
+   * genuinely new question) builds the roving-focus buttons fresh, focuses
+   * option 1, and announces the prompt and count only; the focused option 1
    * button carries its text (plus aria-posinset/aria-setsize), which the screen
    * reader reads once on focus. Announcing the option text here too would
    * double-speak it (screen-reader-focus R6.1), exactly as the inventory does.
    */
   openWith(options: ChoiceOption[]): void {
     if (options.length === 0) return;
+
+    // Same-set: the engine re-offered the same question (same count, same
+    // n+text, same order). Update in place without rebuilding or re-focusing.
+    if (this.open && this.isSameSet(options)) {
+      this.options = options;
+      this.waiting = false;
+      this.el.removeAttribute("aria-busy");
+      options.forEach((opt, i) => this.setUsedMarker(this.buttons[i], opt.used));
+      return;
+    }
+
     this.options = options;
     this.el.innerHTML = "";
     const total = options.length;
@@ -118,6 +154,9 @@ export class ChoiceMenu {
       b.type = "button";
       b.setAttribute("role", "option");
       b.textContent = opt.text;
+      // A used option gains a visually hidden ", already asked" marker so the
+      // reader knows it was asked before; the engine text stays verbatim.
+      this.setUsedMarker(b, opt.used);
       // NVDA and JAWS announce "N of M" from these, so the position is read on
       // focus without a second live-region line (screen-reader-focus R6.3).
       b.setAttribute("aria-setsize", String(total));
@@ -142,6 +181,39 @@ export class ChoiceMenu {
     this.cb.announce(
       `Pick a reply, ${total} option${total === 1 ? "" : "s"}.`,
     );
+  }
+
+  /**
+   * True when `options` is the SAME set as the current one: same count, and the
+   * same n+text in the same order. "used" is deliberately NOT compared, because
+   * a same-set re-offer is exactly the case where only the used markers change.
+   */
+  private isSameSet(options: ChoiceOption[]): boolean {
+    if (options.length !== this.options.length) return false;
+    return options.every(
+      (opt, i) =>
+        opt.n === this.options[i].n && opt.text === this.options[i].text,
+    );
+  }
+
+  /**
+   * Set or clear a button's visually hidden ", already asked" marker. The
+   * marker is a .visually-hidden span appended after the engine's own option
+   * text, so the engine text is read verbatim and the marker is read only by
+   * assistive tech. Idempotent: called on build and on every same-set refresh.
+   */
+  private setUsedMarker(button: HTMLButtonElement | undefined, used?: boolean): void {
+    if (!button) return;
+    const existing = button.querySelector(".visually-hidden");
+    if (used) {
+      if (existing) return;
+      const span = button.ownerDocument.createElement("span");
+      span.className = "visually-hidden";
+      span.textContent = ", already asked";
+      button.appendChild(span);
+    } else if (existing) {
+      existing.remove();
+    }
   }
 
   /** Move roving focus to the next option, wrapping. Silent in the live region:
@@ -286,17 +358,23 @@ function endWithStop(text: string): string {
  * prompt and the count, then each option labelled "Option <n>:" (its engine
  * number) and ended with a full stop, e.g.
  *   "Pick a reply, 4 options. Option 1: Hi boss, how are you? Option 2: And how is the family? …"
- * Labelling each option "Option N:" rather than a bare "N." keeps the number at
- * the START of its own option, so VoiceOver can no longer read a trailing "2."
- * as a sentence end and glue the next number onto the previous option. The
- * count line and the per-option full stops give clear sentence breaks so the
- * options do not run together. Exported for the tests.
+ * An option already asked earlier in this conversation ("used") reads as
+ * "Option <n>, already asked: <text>", so the R key tells the player which
+ * questions they have already put. Labelling each option "Option N:" rather
+ * than a bare "N." keeps the number at the START of its own option, so
+ * VoiceOver can no longer read a trailing "2." as a sentence end and glue the
+ * next number onto the previous option. The count line and the per-option full
+ * stops give clear sentence breaks so the options do not run together. Exported
+ * for the tests.
  */
 export function composeChoicesLine(options: ChoiceOption[]): string {
   const total = options.length;
   const header = `Pick a reply, ${total} option${total === 1 ? "" : "s"}.`;
   const items = options
-    .map((o) => `Option ${o.n}: ${endWithStop(o.text)}`)
+    .map((o) => {
+      const label = o.used ? `Option ${o.n}, already asked:` : `Option ${o.n}:`;
+      return `${label} ${endWithStop(o.text)}`;
+    })
     .join(" ");
   return items.length > 0 ? `${header} ${items}` : header;
 }

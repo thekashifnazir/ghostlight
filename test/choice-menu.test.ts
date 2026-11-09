@@ -283,6 +283,113 @@ describe("ChoiceMenu", () => {
     expect(returnToList).toHaveBeenCalledTimes(1);
   });
 
+  it("re-offering the SAME set after a pick updates in place: keeps the index and the focused element, clears aria-busy, and announces nothing", () => {
+    const { el, menu, announce } = setup();
+    menu.openWith(DRUNK);
+    // Move to option 2, then pick it -> waiting + aria-busy.
+    menu.next();
+    const items = el.querySelectorAll('[role="option"]');
+    const focusedBeforePick = document.activeElement;
+    expect(focusedBeforePick).toBe(items[1]);
+    menu.chooseCurrent();
+    expect(menu.isWaiting()).toBe(true);
+    expect(el.getAttribute("aria-busy")).toBe("true");
+
+    announce.mockClear();
+    // The engine re-offers the SAME options (same n+text, same order), only
+    // now option 2 carries used: true.
+    const sameSet: ChoiceOption[] = [
+      { n: 1, text: "HI BOSS, HOW ARE YOU?" },
+      { n: 2, text: "GIVE ME A DRINK.", used: true },
+      { n: 3, text: "GOODBYE." },
+    ];
+    menu.openWith(sameSet);
+
+    // In place: NOT rebuilt. The exact same button elements remain, the index
+    // is unchanged (still option 2), and the focused DOM element is untouched.
+    const itemsAfter = el.querySelectorAll('[role="option"]');
+    expect(itemsAfter).toHaveLength(3);
+    expect(itemsAfter[0]).toBe(items[0]);
+    expect(itemsAfter[1]).toBe(items[1]);
+    expect(itemsAfter[2]).toBe(items[2]);
+    expect(document.activeElement).toBe(focusedBeforePick);
+    // Waiting and aria-busy cleared so the menu is pickable again.
+    expect(menu.isWaiting()).toBe(false);
+    expect(el.hasAttribute("aria-busy")).toBe(false);
+    // No announcement at all (it must not talk over the actors).
+    expect(announce).not.toHaveBeenCalled();
+    // The used marker now renders on option 2.
+    expect(items[1].querySelector(".visually-hidden")?.textContent).toBe(
+      ", already asked",
+    );
+    expect(items[0].querySelector(".visually-hidden")).toBeNull();
+  });
+
+  it("a DIFFERENT set still rebuilds, resets to option 1, and announces the prompt", () => {
+    const { el, menu, announce } = setup();
+    menu.openWith(DRUNK);
+    menu.next(); // move off option 1 so a reset is observable
+    expect(document.activeElement).toBe(
+      el.querySelectorAll('[role="option"]')[1],
+    );
+    announce.mockClear();
+
+    // A genuinely new question: different count and text.
+    const newSet: ChoiceOption[] = [
+      { n: 1, text: "YES." },
+      { n: 2, text: "NO." },
+    ];
+    menu.openWith(newSet);
+    const items = el.querySelectorAll('[role="option"]');
+    expect(items).toHaveLength(2);
+    expect(items[0].textContent).toBe("YES.");
+    // Reset to option 1 and announced.
+    expect(document.activeElement).toBe(items[0]);
+    expect(announce).toHaveBeenCalledWith("Pick a reply, 2 options.");
+  });
+
+  it("a same-count set with different text rebuilds and announces (not treated as the same set)", () => {
+    const { el, menu, announce } = setup();
+    menu.openWith(DRUNK);
+    announce.mockClear();
+    // Same count (3), but the text differs: this is a new question.
+    const differentText: ChoiceOption[] = [
+      { n: 1, text: "TELL ME ABOUT THE CASTLE." },
+      { n: 2, text: "WHO ARE YOU?" },
+      { n: 3, text: "GOODBYE." },
+    ];
+    menu.openWith(differentText);
+    const items = el.querySelectorAll('[role="option"]');
+    expect(items[0].textContent).toBe("TELL ME ABOUT THE CASTLE.");
+    expect(document.activeElement).toBe(items[0]);
+    expect(announce).toHaveBeenCalledWith("Pick a reply, 3 options.");
+  });
+
+  it("renders a visually hidden 'already asked' marker on used options, and R reads it", () => {
+    const { el, menu, announce } = setup();
+    menu.openWith([
+      { n: 1, text: "HI BOSS, HOW ARE YOU?", used: true },
+      { n: 2, text: "GIVE ME A DRINK." },
+      { n: 3, text: "GOODBYE." },
+    ]);
+    const items = el.querySelectorAll('[role="option"]');
+    // Option 1 is used: a .visually-hidden marker, engine text kept verbatim.
+    const marker = items[0].querySelector(".visually-hidden");
+    expect(marker?.textContent).toBe(", already asked");
+    expect(items[0].firstChild?.textContent).toBe("HI BOSS, HOW ARE YOU?");
+    // The unused options have no marker.
+    expect(items[1].querySelector(".visually-hidden")).toBeNull();
+    expect(items[2].querySelector(".visually-hidden")).toBeNull();
+
+    // R reads a used option as "Option n, already asked: <text>".
+    announce.mockClear();
+    menu.repeatAll();
+    expect(announce).toHaveBeenCalledWith(
+      "Pick a reply, 3 options. Option 1, already asked: HI BOSS, HOW ARE YOU? " +
+        "Option 2: GIVE ME A DRINK. Option 3: GOODBYE.",
+    );
+  });
+
   it("ignores key methods while closed", () => {
     const { menu, announce, choose } = setup();
     // Never opened.
