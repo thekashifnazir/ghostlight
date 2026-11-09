@@ -57,10 +57,10 @@ sr_push() {
   dest="$SR_GL\\$name"
   b64=$(base64 < "$src" | tr -d '\n')
   sr_vmps "Set-Content -NoNewline -Path '$dest.b64' -Value ''" >/dev/null
-  # 2500-char chunks keep the UTF-16LE+base64 EncodedCommand under the ~8 KB
+  # 1200-char chunks keep (2500 stopped fitting on 9 Nov: the first chunk was silently dropped) the UTF-16LE+base64 EncodedCommand under the ~8 KB
   # prlctl-exec limit while making far fewer round-trips than tiny chunks.
-  for ((i = 0; i < ${#b64}; i += 2500)); do
-    sr_vmps "Add-Content -NoNewline -Path '$dest.b64' -Value '${b64:i:2500}'" >/dev/null
+  for ((i = 0; i < ${#b64}; i += 1200)); do
+    sr_vmps "Add-Content -NoNewline -Path '$dest.b64' -Value '${b64:i:1200}'" >/dev/null
   done
   sr_vmps "[IO.File]::WriteAllBytes('$dest',[Convert]::FromBase64String((Get-Content -Raw -Path '$dest.b64'))); Remove-Item '$dest.b64'; (Get-Item '$dest').Length"
 }

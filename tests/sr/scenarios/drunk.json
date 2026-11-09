@@ -1,0 +1,19 @@
+{
+  "name": "drunk",
+  "fixture": "tavern",
+  "steps": [
+    { "keys": "start", "note": "Start: room then the controls", "expectSpoken": ["how to play"], "waitForSpoken": "how to play", "waitMs": 15000 },
+    { "keys": "right", "note": "bin", "expectSpoken": ["2 of"], "waitMs": 1500 },
+    { "keys": "right", "note": "menu board", "expectSpoken": ["3 of"], "waitMs": 1500 },
+    { "keys": "right", "note": "burger poster", "expectSpoken": ["4 of"], "waitMs": 1500 },
+    { "keys": "right", "note": "bartender", "expectSpoken": ["5 of"], "waitMs": 1500 },
+    { "keys": "right", "note": "drunk", "expectSpoken": ["drunk"], "waitMs": 1500 },
+    { "keys": "enter", "note": "Talk to the drunk: the reply menu opens and reads option 1", "expectSpoken": ["Pick a reply", "Option 1"], "waitForSpoken": "Pick a reply", "waitMs": 15000 },
+    { "keys": "down", "note": "Down reads option 2 through the live region (no list item, no focus move)", "expectSpoken": ["Option 2 of"], "expectNotSpoken": ["list item", "selected"], "waitMs": 2000 },
+    { "keys": "down", "note": "Down reads option 3", "expectSpoken": ["Option 3 of"], "expectNotSpoken": ["list item", "selected"], "waitMs": 2000 },
+    { "keys": "enter", "note": "Pick option 3: the conversation carries on, nothing says the game didn't respond", "expectNotSpoken": ["didn't respond", "Drascula: The Vampire Strikes Back"], "waitMs": 12000 },
+    { "keys": "down", "note": "The same replies come back and Down still moves on from option 3", "expectSpoken": ["Option 4 of"], "waitMs": 2000 },
+    { "keys": "enter", "note": "Option 4 ends the conversation", "expectNotSpoken": ["didn't respond"], "waitMs": 10000 },
+    { "keys": "right", "note": "Back in the room list after the talk", "expectSpoken": ["of"], "waitMs": 2000 }
+  ]
+}

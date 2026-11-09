@@ -162,7 +162,9 @@ fi
 
 # ---- run the steps in file order (R3.5, R5.1, R5.7) ------------------------
 echo "sr-check: running scenario '$SCENARIO_NAME'..."
-while IFS=$'\t' read -r idx waitMs keys waitForSpoken; do
+# Steps are read on fd 3, not stdin: prlctl exec inside the loop can read stdin
+# and swallow the remaining steps (seen 9 Nov: the run stopped after step 0).
+while IFS=$'\t' read -r -u 3 idx waitMs keys waitForSpoken; do
   [[ -z "$idx" ]] && continue
   wait_s=$(awk "BEGIN { printf \"%.2f\", $waitMs/1000 }")
   raw="$CAPTURE_DIR/step-$idx.raw"
@@ -190,7 +192,7 @@ while IFS=$'\t' read -r idx waitMs keys waitForSpoken; do
       fi
       ;;
   esac
-done < <(run_ts "$REPO/tests/sr/sr-steps-cli.ts" "$SCENARIO_FILE" "$DEFAULT_WAIT_MS")
+done 3< <(run_ts "$REPO/tests/sr/sr-steps-cli.ts" "$SCENARIO_FILE" "$DEFAULT_WAIT_MS")
 
 # ---- report (R6) -----------------------------------------------------------
 echo "sr-check: building report..."
