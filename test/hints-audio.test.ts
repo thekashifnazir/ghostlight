@@ -65,4 +65,47 @@ describe("GhostAudio", () => {
     expect(() => audio.setEnabled(false)).not.toThrow();
     expect(audio.isEnabled()).toBe(false);
   });
+
+  describe("willPlay", () => {
+    it("is true when enabled and a file is cached for the key", () => {
+      const { ctx } = fakeCtx();
+      const audio = new GhostAudio(ctx, { "./ghost/abc.mp3": "/assets/abc.mp3" });
+      expect(audio.willPlay("abc")).toBe(true);
+    });
+
+    it("is false when no file is cached for the key", () => {
+      const { ctx } = fakeCtx();
+      const audio = new GhostAudio(ctx, {});
+      expect(audio.willPlay("abc")).toBe(false);
+    });
+
+    it("is false when the voice is disabled, even with a cached file", () => {
+      const { ctx } = fakeCtx();
+      const audio = new GhostAudio(ctx, { "./ghost/abc.mp3": "/assets/abc.mp3" });
+      audio.setEnabled(false);
+      expect(audio.willPlay("abc")).toBe(false);
+    });
+
+    it("is side-effect free: no fetch, same answer twice", () => {
+      const { ctx } = fakeCtx();
+      const fetchSpy = vi.spyOn(globalThis, "fetch");
+      const audio = new GhostAudio(ctx, { "./ghost/abc.mp3": "/assets/abc.mp3" });
+      expect(audio.willPlay("abc")).toBe(true);
+      expect(audio.willPlay("abc")).toBe(true);
+      expect(fetchSpy).not.toHaveBeenCalled();
+      fetchSpy.mockRestore();
+    });
+  });
+
+  describe("play rejection", () => {
+    it("rejects when the fetch/decode fails so the caller can fall back", async () => {
+      const { ctx } = fakeCtx();
+      const fetchSpy = vi
+        .spyOn(globalThis, "fetch")
+        .mockRejectedValue(new Error("network down"));
+      const audio = new GhostAudio(ctx, { "./ghost/abc.mp3": "/assets/abc.mp3" });
+      await expect(audio.play("abc")).rejects.toThrow("network down");
+      fetchSpy.mockRestore();
+    });
+  });
 });

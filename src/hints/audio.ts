@@ -64,30 +64,48 @@ export class GhostAudio {
   }
 
   /**
+   * Whether a `play(key)` call will actually produce the ghost's voice:
+   * synchronous and side-effect free. True only when the whisper is enabled AND
+   * a cached file exists for the key. The player uses this to decide, before
+   * announcing a hint, whether the voice will carry the line (so the text is
+   * recorded, not spoken) or whether it must fall back to announcing the text.
+   * It mirrors the two early returns in `play` (disabled, or no cached URL), so
+   * a false here means `play` would be a silent no-op. A rejected fetch/decode
+   * at play time is still handled by `askHint`'s own catch.
+   */
+  willPlay(key: string): boolean {
+    if (!this.enabled) return false;
+    return this.urls[`./ghost/${cacheFileName(key)}`] !== undefined;
+  }
+
+  /**
    * Play the whisper for a cache key. No-op when disabled (R6.2) or when no
-   * file exists for the key (silent text-only fallback, R6.5). Any fetch,
-   * decode or playback error is swallowed so the player never sees it (R6.5).
+   * file exists for the key (silent text-only fallback, R6.5).
+   *
+   * A fetch, decode or playback FAILURE now rejects the returned promise rather
+   * than being swallowed. The caller (`askHint`) decides a hint's voicing up
+   * front with `willPlay`: when it expects the voice to carry the line it does
+   * NOT announce the text, so if playback then fails the promise rejection is
+   * the signal `askHint` needs to announce the text instead — a hint is never
+   * silent (R6.5). The disabled / no-file cases resolve quietly because
+   * `willPlay` already returned false for them, so `askHint` announced the text.
    */
   async play(key: string): Promise<void> {
     if (!this.enabled) return;
     const url = this.urls[`./ghost/${cacheFileName(key)}`];
-    if (!url) return; // no cached file: silent fallback.
-    try {
-      const res = await fetch(url);
-      const bytes = await res.arrayBuffer();
-      const buffer = await this.ctx.decodeAudioData(bytes);
-      this.stop(); // never overlap two whispers.
-      const source = this.ctx.createBufferSource();
-      source.buffer = buffer;
-      source.connect(this.master);
-      source.onended = () => {
-        if (this.current === source) this.current = undefined;
-      };
-      source.start();
-      this.current = source;
-    } catch {
-      // Any failure falls back to the text that is already spoken (R6.5).
-    }
+    if (!url) return; // no cached file: willPlay already said so; silent here.
+    const res = await fetch(url);
+    const bytes = await res.arrayBuffer();
+    const buffer = await this.ctx.decodeAudioData(bytes);
+    this.stop(); // never overlap two whispers.
+    const source = this.ctx.createBufferSource();
+    source.buffer = buffer;
+    source.connect(this.master);
+    source.onended = () => {
+      if (this.current === source) this.current = undefined;
+    };
+    source.start();
+    this.current = source;
   }
 
   /** Stop any playing whisper immediately; safe when nothing is playing (R6.3). */

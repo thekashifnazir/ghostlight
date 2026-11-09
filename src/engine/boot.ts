@@ -110,6 +110,10 @@ function launchArguments(saveSlot?: number): string[] {
     "--savepath=/saves",
     "--subtitles",
     "--music-volume=102",
+    // --speech-volume=255 keeps the actors' voices at full level so they sit
+    // clearly over the music (which launches at 102); the ghost whisper and
+    // sonar play through the page's own Web Audio graph, not this mixer.
+    "--speech-volume=255",
   ];
   // --save-slot=<n> is the engine's launch-time load (save-progress R5.1). It
   // is appended only when a slot is requested, so a fresh start keeps the exact

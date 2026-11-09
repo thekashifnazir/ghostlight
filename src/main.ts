@@ -82,11 +82,14 @@ const HELP_TEXT =
   "Slash opens a command box: type a plain command such as talk to " +
   "drunk, press Enter to send it, or Escape to close. " +
   "R repeats the last line; Shift plus R steps back through earlier lines. " +
-  "L reads the whole room. H asks the ghost for a hint. " +
-  "G turns the ghost voice on or off; text hints keep working either way. " +
+  "L reads the whole room. H asks the ghost for a hint; the ghost speaks the " +
+  "hint aloud. " +
+  "G turns the ghost voice on or off; if you turn it off the hint is read as " +
+  "text instead, so hints keep working either way. " +
   "D turns reading of voiced lines on or off. The game speaks characters' " +
-  "lines aloud, so by default your screen reader does not read them too; " +
-  "press D if you would rather hear them read. " +
+  "lines, and the ghost speaks its hints, aloud, so by default your screen " +
+  "reader does not read them too; press D if you would rather have them, and " +
+  "the ghost's hints, read as text as well. " +
   "F1 or question mark reads this help. Escape skips. " +
   "S scans the room as sound, left to right, then counts what is here. " +
   "N and P step to the next and previous thing, playing its place. " +
@@ -419,23 +422,50 @@ export async function boot(): Promise<void> {
     sonar.stop();
   };
 
-  // Ask the ghost for a hint (hints-and-ghost R5, R6.1). Text to the live
-  // region first (always, complete on its own), then the optional whisper.
+  // Ask the ghost for a hint (hints-and-ghost R5, R6.1). The hint is voiced by
+  // the ghost the same way characters' lines are voiced by the game: by default
+  // the screen reader does NOT read a line the ghost will speak aloud (speech
+  // fix 1, toggled with D), so the player hears it once, not twice. The hint is
+  // still recorded so R repeats it, logged to the status/transcript, and
+  // mirrored to ?speechlog as a voiced line. If the ghost will not speak it
+  // (voice off with G, no cached file, or playback fails) the text is announced
+  // so a hint is never silent. The "nothing to hint at" line is always spoken.
   const askHint = (): void => {
     void hintEngine.ask(state.room).then((r) => {
-      // Announce the text FIRST, always: a tier hint (the answer repeats on
-      // every further ask) or the "nothing to hint at" line. The hint is the
-      // text and must reach the player even when the optional whisper cannot
-      // (R5.1, R5.2). Only then attempt the whisper, guarded so a key or
-      // playback failure can never swallow the spoken hint — GhostAudio is a
-      // silent no-op for an empty/missing key anyway (R6.5).
-      live.announce(r.kind === "none" ? NO_HINT_TEXT : r.text);
-      if (r.kind !== "none") {
-        try {
-          void ghostAudio?.play(r.audioKey);
-        } catch {
+      if (r.kind === "none") {
+        live.announce(NO_HINT_TEXT);
+        return;
+      }
+      // Will the ghost actually voice this hint? willPlay is synchronous: true
+      // only when the voice is enabled AND a file is cached for the key. A local
+      // binding so the branch below can call play without re-null-checking.
+      const audio = ghostAudio;
+      const voiced = audio?.willPlay(r.audioKey) === true;
+      if (audio && voiced && !readVoicedLines) {
+        // The ghost will speak it and the player has NOT asked for voiced lines
+        // to be read: keep the hint text out of the live region (it is spoken
+        // aloud), but record it so R repeats it, log it, and mirror it to the
+        // transcript / ?speechlog as a voiced line — exactly as a suppressed
+        // voiced character line (narrator.suppressVoiced + onVoicedSuppressed).
+        live.record(r.text);
+        status.recordLine(r.text);
+        speechlog?.voiced(r.text);
+        // If playback rejects after all, fall back to announcing the text so the
+        // hint is never silent (R5.1, R6.5).
+        audio.play(r.audioKey).catch(() => {
+          live.announce(r.text);
+        });
+        return;
+      }
+      // The ghost will not voice it (voice off, no file, or not yet started),
+      // OR reading voiced lines is on: announce the text as before, then play
+      // the whisper if there is one. A play rejection is harmless here — the
+      // text is already spoken.
+      live.announce(r.text);
+      if (audio) {
+        audio.play(r.audioKey).catch(() => {
           /* text is already spoken; the whisper is flavour only (R6.5). */
-        }
+        });
       }
     });
   };
