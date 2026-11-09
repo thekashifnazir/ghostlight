@@ -97,4 +97,57 @@ test.describe("live: lingering in a reply menu", () => {
     const after = spoken.slice(spokenBefore).join(" | ");
     expect(after.toLowerCase()).not.toContain("didn't respond");
   });
+
+  // VoiceOver tester, 9 Nov 17:21: after picking option 3 the engine re-offered
+  // the SAME four options and the menu rebuilt itself, jumping focus to option 1
+  // and re-announcing "Pick a reply", which sounded like the menu restarting.
+  // Same options back: focus stays on the picked option, nothing re-announced,
+  // and the picked option is marked "already asked".
+  test("the same replies coming back keep focus where the player was", async ({ page }) => {
+    test.setTimeout(180_000);
+    const spoken: string[] = [];
+    page.on("console", (m) => {
+      const t = m.text();
+      if (t.startsWith("[say] ")) spoken.push(t.slice(6));
+    });
+    await page.goto("/index.html?live&speechlog");
+    await expect(page.locator("#start-gate")).toBeVisible();
+    await page.keyboard.press("Enter");
+    await expect(page.locator(LIVE)).toContainText(ROOM_62_SHORT, { timeout: 90_000 });
+    await waitPhase(page, ["ready"], 90_000);
+    let onDrunk = false;
+    for (let i = 0; i < 12 && !onDrunk; i++) {
+      if (/^drunk, \d+ of/i.test(await lastLine(page))) onDrunk = true;
+      else await page.keyboard.press("ArrowRight");
+    }
+    expect(onDrunk, "never reached the drunk in the room list").toBe(true);
+    await page.keyboard.press("Enter");
+    await waitPhase(page, ["choice"], 60_000);
+    await expect(page.locator(MENU)).toBeVisible();
+    const before = await page.locator(`${MENU} [role=option]`).allTextContents();
+
+    await page.keyboard.press("ArrowDown");
+    await page.keyboard.press("ArrowDown");
+    const promptsBefore = spoken.filter((l) => l.startsWith("Pick a reply")).length;
+    await page.keyboard.press("Enter");
+    await expect(page.locator(MENU)).toHaveAttribute("aria-busy", "true");
+    await page.waitForFunction(
+      (sel) => {
+        const m = document.querySelector(sel) as HTMLElement | null;
+        return !!m && !m.hidden && m.getAttribute("aria-busy") !== "true" && window.__ghostlight?.phase === "choice";
+      },
+      MENU,
+      { timeout: 60_000 },
+    );
+    const after = await page.locator(`${MENU} [role=option]`).allTextContents();
+    test.skip(
+      after.map((t) => t.replace(", already asked", "")).join("|") !== before.join("|"),
+      "the engine offered a different set this time; the same-set path was not exercised",
+    );
+    const focused = await page.evaluate(() => document.activeElement?.getAttribute("aria-posinset"));
+    expect(focused).toBe("3");
+    expect(spoken.filter((l) => l.startsWith("Pick a reply")).length).toBe(promptsBefore);
+    await expect(page.locator(`${MENU} [role=option]`).nth(2)).toContainText("already asked");
+  });
 });
+
