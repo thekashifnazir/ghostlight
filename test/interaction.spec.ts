@@ -43,10 +43,19 @@ test.describe("spoken onboarding", () => {
 
     // The first room's reading carries the one-time key orientation on the same
     // line, so the room is still announced AND the controls are heard with it.
+    // The controls are kept clearly apart from the room (they open with
+    // "That's the room.") and each key is its own short sentence. The closing
+    // tip is platform-aware (VoiceOver on a Mac, NVDA/JAWS elsewhere), so this
+    // asserts the platform-independent core rather than the final sentence.
     await expect(live(page)).toContainText("Inn bar");
     await expect(live(page)).toContainText(
-      "Left and Right move through the room. Enter acts, Down examines. " +
-        "Slash to type a command. H for a hint. F1 or ? for all keys.",
+      "That's the room. Now, how to play. " +
+        "Left and Right arrows move through the room. " +
+        "Enter talks to, uses or goes through what you're on. " +
+        "Down arrow examines it. " +
+        "H asks the ghost for a hint. " +
+        "Slash lets you type a command. " +
+        "F1 or question mark reads every key, at any time.",
     );
 
     // Cross to the next room: the recording's one command is `walk 105`, the
@@ -64,7 +73,7 @@ test.describe("spoken onboarding", () => {
     // The new room is read (the replay's walk 105 diff changes the room), and
     // the onboarding must NOT appear again on this later room.
     await expect(live(page)).toContainText("Here:");
-    await expect(live(page)).not.toContainText("F1 or ? for all keys");
+    await expect(live(page)).not.toContainText("Now, how to play.");
   });
 });
 

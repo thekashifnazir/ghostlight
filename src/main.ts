@@ -43,6 +43,7 @@ import { Highlight } from "./ui/highlight.js";
 import { Inventory } from "./ui/inventory.js";
 import { ListMode } from "./ui/list-mode.js";
 import { LiveRegion } from "./ui/live-region.js";
+import { isMacPlatform } from "./ui/platform.js";
 import { VerbMenu } from "./ui/verb-menu.js";
 import { loadReadVoiced, saveReadVoiced } from "./ui/voiced-lines.js";
 
@@ -52,6 +53,30 @@ import { loadReadVoiced, saveReadVoiced } from "./ui/voiced-lines.js";
 declare const __BUILD_HASH__: string;
 declare const __BUILD_DATE__: string;
 const BUILD_LINE = `Ghostlight build ${__BUILD_HASH__}, ${__BUILD_DATE__}.`;
+
+/** Read the current platform once, preferring the modern userAgentData. */
+function currentPlatform(): string {
+  if (typeof navigator === "undefined") return "";
+  const data = (navigator as Navigator & {
+    userAgentData?: { platform?: string };
+  }).userAgentData;
+  return data?.platform ?? navigator.platform ?? "";
+}
+
+// One platform-aware tip sentence, chosen once from the detected platform. On a
+// Mac the NVDA/JAWS advice is no use, so instead point VoiceOver users at the
+// Verbosity setting that stops "You are currently on" after every move. This is
+// the single sentence shared by the onboarding line and the F1 help.
+const SR_TIP_MAC =
+  "VoiceOver tip: to stop hearing 'You are currently on' after every move, " +
+  "turn off hints in VoiceOver Utility, under Verbosity.";
+const SR_TIP_OTHER =
+  "If keys don't work, press NVDA plus Space, or JAWS Insert plus Z.";
+
+/** The screen-reader tip for this platform (Mac vs everything else). */
+function screenReaderTip(): string {
+  return isMacPlatform(currentPlatform()) ? SR_TIP_MAC : SR_TIP_OTHER;
+}
 
 // The controls help is two-tiered (screen-reader-output: a wall of ~25
 // sentences on one key press is too much to take in at once). The FIRST F1 / ?
@@ -96,7 +121,7 @@ const HELP_TEXT =
   "M mutes the sonar sound; the text keeps working. " +
   "C saves your progress. O loads your most recent save. " +
   "Your progress also saves by itself whenever you move to a new room. " +
-  "If keys don't work, press NVDA+Space, or JAWS Insert+Z. " +
+  screenReaderTip() + " " +
   BUILD_LINE;
 
 /**
@@ -127,11 +152,22 @@ const NO_HINT_TEXT = "There is nothing to hint at right now.";
  * orientation to the core keys (accessibility: keyboard only, functional text
  * in the live region). Never repeated on later rooms — F1 gives the full help
  * at any time.
+ *
+ * The controls are kept clearly apart from the room: this line opens with
+ * "That's the room." so the room reading it is appended to never runs into the
+ * controls, and each key is its own short sentence so a screen reader paces
+ * them out (screen-reader-output: one composed update, read as short
+ * sentences). The closing sentence is the platform-aware tip.
  */
 const ONBOARDING_TEXT =
-  "Left and Right move through the room. Enter acts, Down examines. " +
-  "Slash to type a command. H for a hint. F1 or ? for all keys. " +
-  "If keys don't work, press NVDA+Space, or JAWS Insert+Z.";
+  "That's the room. Now, how to play. " +
+  "Left and Right arrows move through the room. " +
+  "Enter talks to, uses or goes through what you're on. " +
+  "Down arrow examines it. " +
+  "H asks the ghost for a hint. " +
+  "Slash lets you type a command. " +
+  "F1 or question mark reads every key, at any time. " +
+  screenReaderTip();
 
 /** Minimal window.Module shape ScummVM expects; set up before boot. */
 declare global {
@@ -742,7 +778,14 @@ export async function boot(): Promise<void> {
       short: pack.roomShortFor(state.room, hintState, hintEngine.reached()),
       hotspots: currentList,
     });
-    const withSuffix = suffix ? `${room} ${suffix}` : room;
+    // Keep the room part and the appended suffix as separate sentences so they
+    // never run together in one breath: the onboarding suffix begins with
+    // "That's the room." and the exits part must end on a full stop before it
+    // (screen-reader-output: controls clearly apart from the room). The room
+    // reading already ends on a full stop today; this guards it so a future
+    // change to roomAnnouncement cannot merge the two into one run-on line.
+    const roomEnded = /[.!?]$/.test(room) ? room : `${room}.`;
+    const withSuffix = suffix ? `${roomEnded} ${suffix}` : room;
     live.announce(prefix ? `${prefix} ${withSuffix}` : withSuffix);
   };
 
