@@ -28,12 +28,41 @@ export class LiveRegion {
   private backCursor = 0;
 
   /**
+   * Dialogue lines whose live-region WRITE is pending but not yet shown (speech
+   * fix 2). announceDialogue does the history/last bookkeeping synchronously
+   * (so R, Shift+R and lastLine are correct at once, and the text-vs-said de-dup
+   * is unaffected), but DEFERS the actual region write so a focus move can drop
+   * it. This holds only the lines not yet written to the region; a focus move
+   * clears it via {@link dropPendingDialogue} so the focus line is next. Oldest
+   * first. Non-dialogue lines (room reads, focus lines, hints, UI) use
+   * {@link announce} and write to the region immediately.
+   */
+  private pendingDialogue: string[] = [];
+  /** True while a dialogue flush is scheduled, so only one is in flight. */
+  private flushScheduled = false;
+  /** Schedules the next dialogue flush; injectable so tests can drive it. */
+  private readonly schedule: (fn: () => void) => void;
+
+  /**
    * @param region the role=log element.
    * @param transcript optional visible mirror for sighted co-players.
+   * @param schedule how to defer the next paced dialogue line; defaults to
+   *   queueMicrotask so dialogue is paced out across microtasks (and a focus
+   *   move landing between them can drop the rest). Injected in tests.
    */
-  constructor(region: HTMLElement, transcript?: HTMLElement) {
+  constructor(
+    region: HTMLElement,
+    transcript?: HTMLElement,
+    schedule?: (fn: () => void) => void,
+  ) {
     this.region = region;
     this.transcript = transcript;
+    this.schedule =
+      schedule ??
+      ((fn) =>
+        typeof queueMicrotask === "function"
+          ? queueMicrotask(fn)
+          : void Promise.resolve().then(fn));
   }
 
   /**
@@ -62,7 +91,98 @@ export class LiveRegion {
     }
   }
 
-  /** Re-announce the most recent line (the repeat key, R). Resets the back
+  /**
+   * Record a line in the history and as the last line WITHOUT announcing it to
+   * the live region (speech fix 1). Used for a voiced line the player chose not
+   * to have the screen reader read: the game is speaking it aloud, so it must
+   * NOT reach the live region, but R (repeat) must still be able to read the
+   * last one and Shift+R must still walk back through it, and the transcript
+   * mirror still shows it for a sighted co-player. Keeps the same history
+   * bookkeeping as {@link announce} but never touches the region's textContent.
+   */
+  record(text: string): void {
+    const line = text.trim();
+    if (!line) return;
+    if (this.last) {
+      this.history.unshift(this.last);
+      if (this.history.length > HISTORY_LIMIT) this.history.length = HISTORY_LIMIT;
+    }
+    this.backCursor = 0;
+    this.last = line;
+    if (this.transcript) {
+      const p = this.transcript.ownerDocument.createElement("p");
+      p.textContent = line;
+      this.transcript.appendChild(p);
+      this.transcript.scrollTop = this.transcript.scrollHeight;
+    }
+  }
+
+  /**
+   * Announce a dialogue / character line through the paced queue (speech fix 2).
+   * Each dialogue line is flushed one per scheduler tick. A focus move
+   * (Left/Right) calls {@link dropPendingDialogue} to discard whatever is still
+   * queued, so the focus announcement — a normal {@link announce} — is the next
+   * thing heard rather than being buried behind a backlog of unread dialogue.
+   */
+  /**
+   * Announce a dialogue / character line (speech fix 2). The history / last-line
+   * bookkeeping (for R, Shift+R, lastLine and the transcript) happens
+   * synchronously — exactly as {@link announce} does — so repeat, step-back and
+   * the narrator's text-vs-said de-dup all see the line at once. Only the actual
+   * live-region WRITE is deferred to a scheduler tick, so a focus move
+   * (Left/Right) can {@link dropPendingDialogue} the writes not yet shown and
+   * make the focus line the next thing the screen reader reads.
+   */
+  announceDialogue(text: string): void {
+    const line = text.trim();
+    if (!line) return;
+    // Synchronous bookkeeping: push the previous line into history, make this
+    // the last line, reset the back cursor, and mirror to the transcript. This
+    // is the same bookkeeping announce() does, minus the region write.
+    if (this.last) {
+      this.history.unshift(this.last);
+      if (this.history.length > HISTORY_LIMIT) this.history.length = HISTORY_LIMIT;
+    }
+    this.backCursor = 0;
+    this.last = line;
+    if (this.transcript) {
+      const p = this.transcript.ownerDocument.createElement("p");
+      p.textContent = line;
+      this.transcript.appendChild(p);
+      this.transcript.scrollTop = this.transcript.scrollHeight;
+    }
+    // Defer only the region write, so a focus move can drop it.
+    this.pendingDialogue.push(line);
+    this.scheduleFlush();
+  }
+
+  /**
+   * Drop every dialogue line whose region write is still pending (speech fix 2).
+   * Called on a focus move so stale character/dialogue lines are not read after
+   * the new focus line. History / last-line are untouched (those were recorded
+   * synchronously), so R can still repeat the most recent dialogue line; only
+   * the not-yet-shown region writes are discarded.
+   */
+  dropPendingDialogue(): void {
+    this.pendingDialogue = [];
+  }
+
+  /** Schedule one dialogue flush if none is already pending. */
+  private scheduleFlush(): void {
+    if (this.flushScheduled) return;
+    this.flushScheduled = true;
+    this.schedule(() => this.flushDialogue());
+  }
+
+  /** Write the oldest pending dialogue line to the region, then reschedule. */
+  private flushDialogue(): void {
+    this.flushScheduled = false;
+    const next = this.pendingDialogue.shift();
+    if (next === undefined) return;
+    // Write only the region (bookkeeping already happened in announceDialogue).
+    this.region.textContent = next;
+    if (this.pendingDialogue.length > 0) this.scheduleFlush();
+  }
    *  cursor so a following Shift+R starts from the most recent earlier line. */
   repeat(): void {
     this.backCursor = 0;

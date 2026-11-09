@@ -44,6 +44,7 @@ import { Inventory } from "./ui/inventory.js";
 import { ListMode } from "./ui/list-mode.js";
 import { LiveRegion } from "./ui/live-region.js";
 import { VerbMenu } from "./ui/verb-menu.js";
+import { loadReadVoiced, saveReadVoiced } from "./ui/voiced-lines.js";
 
 // Build stamp, replaced by Vite's define at build and dev-server start. A
 // tester reading F1 help can tell us the exact build they played, so a bug
@@ -83,6 +84,9 @@ const HELP_TEXT =
   "R repeats the last line; Shift plus R steps back through earlier lines. " +
   "L reads the whole room. H asks the ghost for a hint. " +
   "G turns the ghost voice on or off; text hints keep working either way. " +
+  "D turns reading of voiced lines on or off. The game speaks characters' " +
+  "lines aloud, so by default your screen reader does not read them too; " +
+  "press D if you would rather hear them read. " +
   "F1 or question mark reads this help. Escape skips. " +
   "S scans the room as sound, left to right, then counts what is here. " +
   "N and P step to the next and previous thing, playing its place. " +
@@ -333,12 +337,28 @@ export async function boot(): Promise<void> {
   // player reaches after Start, and never again (later rooms arrive as diffs).
   let onboardingDone = false;
 
+  // The "read voiced lines" setting (speech fix 1), seeded from localStorage
+  // (default off). Flipped by D through toggleVoicedLines below; the narrator
+  // reads it via the readVoiced callback.
+  let readVoicedLines = loadReadVoiced();
+
   // The narrator owns the cross-cutting narration rules the live-engine survey
   // turned up: dropping the generic look reply and hover-name echoes from the
   // A11Y_TEXT path during an examine, not saying "Nothing happened." after a
   // look, and de-duplicating a line the engine reports both as an A11Y_TEXT
   // event and in the following diff's `said`. See ui/narrator.ts.
-  const narrator = new Narrator(live);
+  const narrator = new Narrator(live, {
+    // Voiced lines are not read by the screen reader by default (speech fix 1);
+    // the game speaks them aloud. The player flips this with D; it persists.
+    readVoiced: () => readVoicedLines,
+    // A suppressed voiced line is still recorded in the status log and mirrored
+    // to ?speechlog as "[voiced] <text>" (its history is handled by
+    // live.record()), so R can read it and a console tester can see it.
+    onVoicedSuppressed: (text) => {
+      status.recordLine(text);
+      speechlog?.voiced(text);
+    },
+  });
 
   // Announce a composed line through the narrator, so its text-vs-said de-dup
   // memory stays in step.
@@ -429,6 +449,18 @@ export async function boot(): Promise<void> {
     ghostVoiceOn = !ghostVoiceOn;
     ghostAudio?.setEnabled(ghostVoiceOn);
     live.announce(ghostVoiceOn ? "Ghost voice on." : "Ghost voice off.");
+  };
+
+  // Toggle the "read voiced lines" setting (speech fix 1). Flips the flag the
+  // narrator reads, persists it (try/catch inside saveReadVoiced), and
+  // announces the new state as functional text so a screen-reader user hears
+  // the result. The default is off, so the first press turns reading ON.
+  const toggleVoicedLines = (): void => {
+    readVoicedLines = !readVoicedLines;
+    saveReadVoiced(readVoicedLines);
+    live.announce(
+      readVoicedLines ? "Voiced lines will be read" : "Voiced lines won't be read",
+    );
   };
 
   // Decide the adapter: ?replay=<fixture> loads that fixture; else LiveAdapter.
@@ -745,6 +777,10 @@ export async function boot(): Promise<void> {
     stopAudio,
     askHint,
     toggleGhostVoice,
+    // D toggles reading voiced lines (speech fix 1).
+    toggleVoicedLines,
+    // Left/Right drop stale dialogue lines not yet read (speech fix 2).
+    dropPendingDialogue: () => live.dropPendingDialogue(),
     sonar,
     // Save (C) and load (O) keys (save-progress R2.2, R2.4).
     save: () => saveManager.save(),
@@ -768,7 +804,7 @@ export async function boot(): Promise<void> {
         applyDiff(e.diff);
         break;
       case "text":
-        announceText(e.line);
+        announceText(e.line, e.voiced === true);
         break;
       case "choices":
         // A conversation offered choices and the engine is now WAITING for the
@@ -855,8 +891,8 @@ export async function boot(): Promise<void> {
   }
 
   /** Route one A11Y_TEXT line through the narrator's examine filter. */
-  function announceText(line: string): void {
-    narrator.text(line);
+  function announceText(line: string, voiced = false): void {
+    narrator.text(line, voiced);
   }
 
   function applyRoom(s: RoomState): void {

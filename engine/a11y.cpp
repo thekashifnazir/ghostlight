@@ -101,6 +101,9 @@ struct CrossChapterDiff {
 	// said lines captured during the crossing cutscene (colour, text pairs)
 	Common::Array<Common::String> saidColor;
 	Common::Array<Common::String> saidText;
+	// voiced flag per captured said line, parallel to saidColor/saidText, so a
+	// crossing cutscene's voiced lines keep their marking through the carrier.
+	Common::Array<bool> saidVoiced;
 
 	CrossChapterDiff() : pending(false), errCountBefore(0), chapter(0), room(0),
 	                     heroX(0), heroY(0) {
@@ -234,7 +237,18 @@ void A11yLayer::onText(const char *message) {
 		return;
 
 	_lastText = message;
-	emitLine(Common::String("A11Y_TEXT ") + message);
+
+	// Voiced-line marking (speech fix 1). A character line drawn by a talk loop
+	// is preceded by talkInit()->playFile(), which starts the actor's recorded
+	// voice sample; soundIsActive() is true for the whole time that sample
+	// plays (talk.cpp). When a voice is playing, the drawn line is being spoken
+	// aloud by the game, so the player's screen reader reading the same subtitle
+	// over it is overwhelming (the real VoiceOver playtest). Mark such a line
+	// with the distinct prefix `A11Y_VTEXT` so the player can suppress the
+	// screen-reader echo by default; an UNVOICED line keeps the exact
+	// `A11Y_TEXT` prefix as before, so nothing a voice does not cover changes.
+	const bool voiced = _engine->soundIsActive();
+	emitLine(Common::String(voiced ? "A11Y_VTEXT " : "A11Y_TEXT ") + message);
 
 	// Task 17 (R4.7): while a command's dispatch window is open, attribute each
 	// distinct drawn line to that command's diff `said`, with the engine's own
@@ -242,11 +256,16 @@ void A11yLayer::onText(const char *message) {
 	// centerText() draws). The de-dup above means each distinct line is appended
 	// exactly once, in draw order, so the diff's `said` mirrors what the player
 	// heard during the command. Text drawn outside a command (an idle hover
-	// name) is still emitted as A11Y_TEXT above but is not attributed here.
+	// name) is still emitted as A11Y_TEXT above but is not attributed here. The
+	// same voiced flag is carried on the said entry, so the settling diff's
+	// `said` tells the player which lines were voiced (and the player's said
+	// de-dup can suppress a voiced line consistently whether it matches a
+	// streamed line or arrives only via the diff).
 	if (_capturingSaid) {
 		SaidLine s;
 		s.color = colorName(_engine->_color);
 		s.text = message;
+		s.voiced = voiced;
 		_said.push_back(s);
 	}
 }
@@ -721,9 +740,17 @@ void A11yLayer::emitDiff(const Common::String &cmd, const Snapshot &before,
 		for (uint i = 0; i < _said.size(); i++) {
 			if (i > 0)
 				json += ",";
-			json += Common::String::format("{\"color\":\"%s\",\"text\":\"%s\"}",
+			json += Common::String::format("{\"color\":\"%s\",\"text\":\"%s\"",
 			                               jsonEscape(_said[i].color.c_str()).c_str(),
 			                               jsonEscape(_said[i].text.c_str()).c_str());
+			// Carry the voiced flag only when true, so unvoiced `said` entries
+			// stay byte-identical to before (the diff fixtures are unchanged for
+			// non-voiced lines); a voiced line adds `,"voiced":true` so the
+			// player suppresses its screen-reader echo consistently whether it
+			// matched a streamed A11Y_VTEXT line or arrived only here.
+			if (_said[i].voiced)
+				json += ",\"voiced\":true";
+			json += "}";
 		}
 		json += "]";
 	}
@@ -2685,9 +2712,11 @@ void A11yLayer::stashCrossChapterDiff(const Common::String &cmd,
 	// while _capturingSaid was armed) so the crossing diff reports them.
 	cd.saidColor.clear();
 	cd.saidText.clear();
+	cd.saidVoiced.clear();
 	for (uint i = 0; i < _said.size(); i++) {
 		cd.saidColor.push_back(_said[i].color);
 		cd.saidText.push_back(_said[i].text);
+		cd.saidVoiced.push_back(_said[i].voiced);
 	}
 
 	// Close this layer's capture window; the layer is about to be destroyed.
@@ -2729,6 +2758,7 @@ bool A11yLayer::emitPendingCrossChapterDiff() {
 		SaidLine s;
 		s.color = cd.saidColor[i];
 		s.text = cd.saidText[i];
+		s.voiced = (i < cd.saidVoiced.size()) ? cd.saidVoiced[i] : false;
 		_said.push_back(s);
 	}
 	_capturingSaid = true;
@@ -2745,6 +2775,7 @@ bool A11yLayer::emitPendingCrossChapterDiff() {
 	cd.inventory.clear();
 	cd.saidColor.clear();
 	cd.saidText.clear();
+	cd.saidVoiced.clear();
 
 	// emitDiff() takes the after-snapshot from the live engine (now the new
 	// chapter's room) and builds the one coherent crossing diff. Task 30: the

@@ -111,6 +111,21 @@ export interface ControllerDeps {
   askHint: () => void;
   /** Toggle the ghost voice on/off; text hints keep working (R6.2). */
   toggleGhostVoice: () => void;
+  /**
+   * Toggle the "read voiced lines" setting (speech fix 1). Bound to D (for
+   * dialogue). When off (the default) the screen reader does not read lines the
+   * game is speaking aloud; when on it reads them too. Optional so controller
+   * unit harnesses that predate it need not wire it; when absent, D does
+   * nothing.
+   */
+  toggleVoicedLines?: () => void;
+  /**
+   * Drop any dialogue/character lines queued but not yet read (speech fix 2).
+   * The controller calls this on a focus move (Left/Right) so stale dialogue is
+   * not read after the new focus line. Optional; when absent the focus move
+   * behaves as before (no backlog is dropped).
+   */
+  dropPendingDialogue?: () => void;
   /** Room sonar: scan, step, mute (sonar spec R2, R3, R5, R6). */
   sonar: Sonar;
   /**
@@ -179,9 +194,14 @@ export class Controller {
   private handleListKey(key: string, shift = false): boolean {
     switch (key) {
       case "ArrowRight":
+        // A focus move drops any dialogue lines still queued and not yet read,
+        // so the focus announcement is the next thing heard rather than being
+        // buried behind stale character lines (speech fix 2).
+        this.d.dropPendingDialogue?.();
         this.d.list.next();
         return true;
       case "ArrowLeft":
+        this.d.dropPendingDialogue?.();
         this.d.list.prev();
         return true;
       case "ArrowUp":
@@ -245,6 +265,14 @@ export class Controller {
         // only turns the optional whisper on or off and announces the new
         // state (R6.2).
         this.d.toggleGhostVoice();
+        return true;
+      case "d":
+      case "D":
+        // Toggle whether the screen reader reads voiced lines (speech fix 1).
+        // Off by default; the game speaks those lines aloud. Announces the new
+        // state through the one live-region update path.
+        if (!this.d.toggleVoicedLines) return false;
+        this.d.toggleVoicedLines();
         return true;
       case "/":
         // Open the typed command box. The list stays the primary way to play;
@@ -633,7 +661,9 @@ export function labelKey(name: string): string {
  * diffs are returned unchanged, so this never swallows text for talk, take, and
  * the rest. Returns the diff's `said` entries to announce (possibly empty).
  */
-export function suppressGenericLook(diff: Diff): { color: string; text: string }[] {
+export function suppressGenericLook(
+  diff: Diff,
+): { color: string; text: string; voiced?: boolean }[] {
   const said = diff.said ?? [];
   if (!diff.cmd?.startsWith("look ")) return said;
   return said.filter((line) => !isGenericLookLine(line.text));

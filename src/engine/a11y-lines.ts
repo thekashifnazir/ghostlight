@@ -150,6 +150,13 @@ export function parseA11yLine(line: string): EngineEvent | null {
       return rest.length > 0 ? { type: "text", line: rest } : null;
     }
 
+    case "A11Y_VTEXT": {
+      // A voiced line: the same plain drawn text as A11Y_TEXT, but the game was
+      // speaking it aloud (a voice sample was playing). Tagged `voiced: true` so
+      // the player suppresses the screen-reader echo of it by default.
+      return rest.length > 0 ? { type: "text", line: rest, voiced: true } : null;
+    }
+
     case "A11Y_CHOICES": {
       const parsed = parseJson<{ choices: Choice[] }>(rest);
       return parsed && Array.isArray(parsed.choices)

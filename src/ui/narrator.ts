@@ -34,6 +34,31 @@ import {
 /** The minimal live-region surface the Narrator writes to. */
 export interface NarratorLive {
   announce(text: string): void;
+  /**
+   * Announce a dialogue/character line through the paced queue, so a focus move
+   * can drop it if it has not been read yet (speech fix 2). Optional so the
+   * many controller unit harnesses that stub a bare { announce } still satisfy
+   * the type; when absent the Narrator falls back to announce().
+   */
+  announceDialogue?(text: string): void;
+  /**
+   * Record a line in the history/last WITHOUT announcing it to the region, for
+   * a suppressed voiced line (speech fix 1). Optional for the same reason;
+   * when absent a suppressed voiced line is simply dropped from history too.
+   */
+  record?(text: string): void;
+}
+
+/** Options wiring the Narrator to the voiced-lines setting (speech fix 1). */
+export interface NarratorOptions {
+  /** Whether the screen reader should read voiced lines (default: off). */
+  readVoiced?: () => boolean;
+  /**
+   * Called with a voiced line the Narrator suppressed from the live region, so
+   * the caller can mirror it to ?speechlog as "[voiced] <text>" and record it
+   * in the status log. The history is handled by NarratorLive.record().
+   */
+  onVoicedSuppressed?: (text: string) => void;
 }
 
 export class Narrator {
@@ -78,8 +103,15 @@ export class Narrator {
    */
   private streamedThisCommand: string[] = [];
 
-  constructor(live: NarratorLive) {
+  /** Whether the screen reader should read voiced lines (speech fix 1). */
+  private readonly readVoiced: () => boolean;
+  /** Mirror/record hook for a suppressed voiced line (speech fix 1). */
+  private readonly onVoicedSuppressed: (text: string) => void;
+
+  constructor(live: NarratorLive, options: NarratorOptions = {}) {
     this.live = live;
+    this.readVoiced = options.readVoiced ?? (() => false);
+    this.onVoicedSuppressed = options.onVoicedSuppressed ?? (() => {});
   }
 
   /**
@@ -177,7 +209,7 @@ export class Narrator {
    * then never says "Nothing happened." over it (a talk whose only output is a
    * dialogue line and a changed:false diff still "did something").
    */
-  text(line: string): void {
+  text(line: string, voiced = false): void {
     if (this.examining) {
       if (isExamineNoiseLine(line, this.roomLabels)) return;
     } else if (isHoverNameLine(line, this.roomLabels)) {
@@ -189,8 +221,44 @@ export class Narrator {
     // re-announce only lines that were NOT streamed. Recorded on the SAME
     // filtered path that announces it, so a dropped hover/examine-noise line is
     // never recorded and never wrongly suppresses a matching real `said` line.
+    // A voiced line is recorded here too (speech fix 1): the de-dup must still
+    // match it against the diff's voiced `said` entry so the diff never
+    // re-announces it, whether or not the screen reader read it.
     this.streamedThisCommand.push(line.trim());
-    this.announce(line);
+    this.emitDialogue(line, voiced);
+  }
+
+  /**
+   * Route one streamed A11Y_TEXT dialogue line to the live region (speech fix 1
+   * + 2). A voiced line the player chose NOT to have read is suppressed; every
+   * other streamed line goes through the paced dialogue queue so a focus move
+   * can drop it if it has not been read yet (the stale-after-moving case).
+   */
+  private emitDialogue(line: string, voiced: boolean): void {
+    if (voiced && !this.readVoiced()) {
+      this.suppressVoiced(line);
+      return;
+    }
+    if (this.live.announceDialogue) {
+      this.live.announceDialogue(line);
+      this.lastAnnounced = line.trim();
+    } else {
+      this.announce(line);
+    }
+  }
+
+  /**
+   * A voiced line the player chose not to have the screen reader read (speech
+   * fix 1): keep it out of the live region, but still record it in the history
+   * (so R reads the last one and Shift+R walks back to it) and mirror it to
+   * ?speechlog / the status log via onVoicedSuppressed. Its de-dup memory is
+   * kept in step so a matching diff `said` line is still dropped.
+   */
+  private suppressVoiced(line: string): void {
+    const trimmed = line.trim();
+    this.lastAnnounced = trimmed;
+    this.live.record?.(line);
+    this.onVoicedSuppressed(trimmed);
   }
 
   /**
@@ -243,7 +311,16 @@ export class Narrator {
         continue;
       }
       if (text === this.lastAnnounced) continue;
-      this.announce(line.text);
+      // A voiced `said` line is suppressed from the region by default (recorded
+      // for R / ?speechlog); a non-voiced one speaks. The settle diff is a
+      // single settled batch (not the live A11Y_TEXT stream), so it announces
+      // synchronously — it is not the stale-after-moving case, which is the
+      // paced text() stream below.
+      if (line.voiced === true && !this.readVoiced()) {
+        this.suppressVoiced(line.text);
+      } else {
+        this.announce(line.text);
+      }
     }
     return isLook;
   }

@@ -110,7 +110,10 @@ public:
 	// point for character replies). Emits `A11Y_TEXT <text>` so the player's
 	// screen reader reads exactly what the game draws (gotcha 10: the string is
 	// the engine's own — Spanish object names or the English subtitle data,
-	// whatever is loaded — never altered here).
+	// whatever is loaded — never altered here). A line drawn while a voice
+	// sample is playing (soundIsActive(), i.e. a talk loop after talkInit()->
+	// playFile()) is emitted as `A11Y_VTEXT <text>` instead, so the player can
+	// suppress the screen-reader echo of a line the game is speaking aloud.
 	//
 	// centerText() is called every frame for the whole time a line is on screen
 	// (the talk loops in talk.cpp call it inside `do { ... } while
@@ -650,6 +653,11 @@ private:
 	struct SaidLine {
 		Common::String color;
 		Common::String text;
+		// True when a voice sample was playing (soundIsActive()) as this line
+		// was drawn, i.e. the game is speaking the line aloud. onText() sets it
+		// and emits the line as A11Y_VTEXT; the diff's `said` carries it so the
+		// player can suppress the screen-reader echo of a voiced line.
+		bool voiced = false;
 	};
 	Common::Array<SaidLine> _said;
 

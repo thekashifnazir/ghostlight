@@ -127,6 +127,14 @@ export interface Speechlog {
    * announced either).
    */
   say(text: string): void;
+  /**
+   * Mirror one voiced line the screen reader did NOT read as `[voiced] <text>`
+   * (speech fix 1). The game is speaking the line aloud, so it never reaches
+   * the live region; this records to the console that it happened, so an
+   * automated tester can still see the voiced line went by. Empty/whitespace
+   * lines are skipped.
+   */
+  voiced(text: string): void;
   /** Remove the focusin listener (for tests and tidiness). */
   dispose(): void;
 }
@@ -158,6 +166,11 @@ export function installSpeechlog(deps: SpeechlogDeps): Speechlog {
       const line = text.trim();
       if (!line) return;
       log(`[say] ${line}`);
+    },
+    voiced(text: string): void {
+      const line = text.trim();
+      if (!line) return;
+      log(`[voiced] ${line}`);
     },
     dispose(): void {
       doc.removeEventListener("focusin", onFocusIn, true);

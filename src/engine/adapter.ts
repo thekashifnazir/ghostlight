@@ -77,8 +77,9 @@ export interface Diff {
   invRemoved?: { id: number; name: string }[];
   /** Flags that changed, keyed by flag index: "19": [0, 1]. */
   flags?: Record<string, [number, number]>;
-  /** Text spoken/drawn as a result, each with its engine colour. */
-  said?: { color: string; text: string }[];
+  /** Text spoken/drawn as a result, each with its engine colour. A line the
+   *  game was speaking aloud (a voice sample playing) carries `voiced: true`. */
+  said?: { color: string; text: string; voiced?: boolean }[];
   /** False when nothing moved. */
   changed: boolean;
 }
@@ -115,7 +116,10 @@ export type EnginePhase = "control" | "busy" | "choice";
 export type EngineEvent =
   | { type: "room"; state: RoomState }
   | { type: "diff"; diff: Diff }
-  | { type: "text"; line: string }
+  // `voiced` is true for an A11Y_VTEXT line — a line the game was speaking aloud
+  // (a voice sample playing). The player suppresses the screen-reader echo of a
+  // voiced line by default. An A11Y_TEXT line leaves `voiced` undefined/false.
+  | { type: "text"; line: string; voiced?: boolean }
   | { type: "choices"; choices: Choice[] }
   | { type: "inv"; items: InvItem[] }
   | { type: "cmd"; cmd: string }

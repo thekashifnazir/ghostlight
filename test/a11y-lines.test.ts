@@ -42,6 +42,36 @@ describe("parseA11yLine", () => {
     expect(ev).toEqual({ type: "text", line: "I CAN'T DO THAT" });
   });
 
+  it("parses an A11Y_VTEXT line as a voiced text event", () => {
+    const ev = parseA11yLine("A11Y_VTEXT WHAT DO YOU WANT?");
+    expect(ev).toEqual({ type: "text", line: "WHAT DO YOU WANT?", voiced: true });
+  });
+
+  it("still parses A11Y_VTEXT after a WARNING: wrap", () => {
+    expect(parseA11yLine("WARNING: A11Y_VTEXT HELLO!")).toEqual({
+      type: "text",
+      line: "HELLO",
+      voiced: true,
+    });
+  });
+
+  it("returns null for an empty A11Y_VTEXT payload", () => {
+    expect(parseA11yLine("A11Y_VTEXT ")).toBeNull();
+  });
+
+  it("parses the voiced flag on a diff said entry", () => {
+    const line =
+      'A11Y_DIFF {"cmd":"talk 52","said":[' +
+      '{"color":"white","text":"PLAIN"},' +
+      '{"color":"white","text":"SPOKEN","voiced":true}],"changed":false}';
+    const ev = parseA11yLine(line);
+    if (ev?.type !== "diff") throw new Error("expected diff");
+    expect(ev.diff.said).toEqual([
+      { color: "white", text: "PLAIN" },
+      { color: "white", text: "SPOKEN", voiced: true },
+    ]);
+  });
+
   it("parses an A11Y_CHOICES line into choices", () => {
     const line =
       'A11Y_CHOICES {"choices":[{"n":1,"text":"Ask about the key","used":false},' +
