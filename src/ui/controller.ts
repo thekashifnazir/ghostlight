@@ -234,6 +234,12 @@ export class Controller {
         this.d.commandBox.openBox();
         return true;
       case "F1":
+      case "?":
+        // F1 and '?' both read the controls help. '?' is Shift+/ on US
+        // layouts, so the browser reports the key as "?" — a distinct key
+        // string from "/" (which opens the command box), so the two never
+        // collide. A tester (or a player) who cannot reach F1 can press '?'
+        // instead to hear the same HELP_TEXT.
         this.d.readHelp();
         return true;
       case "s":

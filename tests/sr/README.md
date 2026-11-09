@@ -91,6 +91,51 @@ prematurely called ready; a definitive `room`/`diff`/`choices`/`error` event
 settles it at once. Prefer waiting on this signal over `page.waitForTimeout(...)`
 in the live Playwright specs.
 
+## The console mirror (`?speechlog`)
+
+Some automated testers can read the browser **console** but cannot read inside
+the `role="application"` element (`#game`, where list mode lives) and cannot
+press **F1** to learn the keys. Kiro Crew's browser tool is one. For that tool,
+the two surfaces that carry everything a blind player hears — the ARIA live
+region, and the accessible name/role/position of whatever control takes focus —
+are otherwise invisible.
+
+Append **`?speechlog`** to the URL (for example
+`https://ghostlight.pages.dev/?speechlog`, or alongside a replay fixture,
+`/?replay=tavern&speechlog`) and the player mirrors both to `console.log`:
+
+| Console line | Emitted when |
+|---|---|
+| `[say] <text>` | every functional line the live region announces, verbatim |
+| `[focus] <accessible name> (<role>[, n of m])` | every focus change to a **named** control |
+
+Examples a run produces:
+
+```
+[say] Inn bar. Here: bartender, drunk and bottle. Exits: door.
+[focus] Ghostlight game (application)
+[focus] Open (menuitem, 1 of 4)
+[focus] Continue (button)
+```
+
+The `, n of m` suffix appears only for a control that carries both
+`aria-posinset` and `aria-setsize` (the roving verb-menu, inventory and choice
+menu items do); a plain named control like the game surface or a gate button is
+logged as `<name> (<role>)` with no position.
+
+Like `window.__ghostlight`, this is **off by default** and **observer-only**: it
+turns on only with the `?speechlog` param, never writes to the live region,
+binds no keys, renders no UI, and changes nothing a real player hears or does —
+it only reflects to the console lines and focus moves that already happened. The
+`[say]` text is exactly what the live region received; the `[focus]` line is
+computed from the focused element's own accessibility attributes (the same ones
+NVDA and JAWS read). The source is
+[`src/engine/speechlog.ts`](../../src/engine/speechlog.ts).
+
+A related tester aid is the **`?`** key (Shift+`/`): in-game and on the start
+gate it reads the controls help exactly like **F1**, for a tester (or a player)
+who cannot send F1. It never collides with `/`, which opens the command box.
+
 ### Requirements
 
 - A Mac with `prlctl` and the "Ghostlight Win11" VM on snapshot 3. This cannot

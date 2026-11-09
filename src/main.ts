@@ -17,6 +17,7 @@ import { LiveAdapter } from "./engine/live-adapter.js";
 import { ReplayAdapter } from "./engine/replay-adapter.js";
 import { mapEngineError } from "./engine/error-lines.js";
 import { StatusTracker } from "./engine/status.js";
+import { installSpeechlog, isSpeechlogEnabled, type Speechlog } from "./engine/speechlog.js";
 import { Persistence, probeSaves } from "./engine/persistence.js";
 import { SaveManager } from "./engine/save-manager.js";
 import { setLoadIntent, takeLoadIntent } from "./engine/load-intent.js";
@@ -64,7 +65,7 @@ const HELP_TEXT =
   "R repeats the last line; Shift plus R steps back through earlier lines. " +
   "L reads the whole room. H asks the ghost for a hint. " +
   "G turns the ghost voice on or off; text hints keep working either way. " +
-  "F1 reads this help. Escape skips. " +
+  "F1 or question mark reads this help. Escape skips. " +
   "S scans the room as sound, left to right, then counts what is here. " +
   "N and P step to the next and previous thing, playing its place. " +
   "M mutes the sonar sound; the text keeps working. " +
@@ -84,7 +85,7 @@ const NO_HINT_TEXT = "There is nothing to hint at right now.";
  */
 const ONBOARDING_TEXT =
   "Left and Right move through the room. Enter acts, Down examines. " +
-  "Slash to type a command. H for a hint. F1 for all keys. " +
+  "Slash to type a command. H for a hint. F1 or ? for all keys. " +
   "If keys don't work, press NVDA+Space, or JAWS Insert+Z.";
 
 /** Minimal window.Module shape ScummVM expects; set up before boot. */
@@ -238,15 +239,30 @@ export async function boot(): Promise<void> {
   const status = new StatusTracker();
   status.publish();
 
+  // The console mirror (?speechlog), the other observer-only test aid beside
+  // window.__ghostlight. Off unless the ?speechlog query param is present. When
+  // on, it mirrors every live-region line to console.log as `[say] <text>` (via
+  // the live.announce tap below) and every focus change to a named control as
+  // `[focus] <name> (<role>[, n of m])` (via a focusin listener installed here).
+  // It never writes to the live region, binds no keys and renders nothing — it
+  // only reflects to the console what a screen reader already got. This exists
+  // because an automated tester can read the browser console but not the inside
+  // of the role="application" element, nor press F1. See engine/speechlog.ts.
+  const speechlog: Speechlog | undefined = isSpeechlogEnabled(location.search)
+    ? installSpeechlog({ doc, log: (line) => console.log(line) })
+    : undefined;
+
   // Tap the live region so every functional line that reaches it is recorded in
   // the status log (lineSeq, lastLine, lines) and bumps the settle quiet period.
   // Wrapping the instance's announce captures every path — the narrator, the
   // menus, the inventory, hints — because they all call live.announce. The tap
-  // only observes; it forwards the exact text unchanged.
+  // only observes; it forwards the exact text unchanged. When ?speechlog is on,
+  // the same tap mirrors the line to the console as `[say] <text>`.
   const liveAnnounce = live.announce.bind(live);
   live.announce = (text: string): void => {
     liveAnnounce(text);
     status.recordLine(text);
+    speechlog?.say(text);
   };
 
   const state: PlayerState = {
@@ -1155,8 +1171,9 @@ export async function boot(): Promise<void> {
   //
   // F1 is a further exception among the ignored keys: on the gate it reads the
   // controls (the same HELP_TEXT as in-game F1) rather than doing nothing — a
-  // tester pressing F1 to learn the keys should hear them. It is a plain (not
-  // once) listener so F1 can be pressed repeatedly; a real "begin" key still
+  // tester pressing F1 to learn the keys should hear them. '?' (Shift+/) is an
+  // alias for F1 here, for a tester who cannot press F1. Both are plain (not
+  // once) listeners so they can be pressed repeatedly; a real "begin" key still
   // starts, after which the started / gateHandlesAnyKey guards make further
   // presses no-ops.
   const startsTheGame = (ev: KeyboardEvent): boolean => {
@@ -1174,8 +1191,10 @@ export async function boot(): Promise<void> {
   };
   startGate.addEventListener("keydown", (ev) => {
     if (!gateHandlesAnyKey) return; // handled by buttons or load-intent start
-    if (ev.key === "F1") {
-      // Read the controls without starting; keep the gate up.
+    if (ev.key === "F1" || ev.key === "?") {
+      // Read the controls without starting; keep the gate up. '?' (a single
+      // printable char) would otherwise be caught by startsTheGame and begin
+      // the game, so it is handled here, before that check, exactly like F1.
       ev.preventDefault();
       live.announce(HELP_TEXT);
       return;

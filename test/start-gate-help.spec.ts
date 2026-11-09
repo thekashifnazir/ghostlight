@@ -32,7 +32,7 @@ test.describe("F1 on the start gate (uninformed-playtest fix)", () => {
     await expect(live(page)).toContainText(
       "Left and Right cycle the things, people and exits in the room.",
     );
-    await expect(live(page)).toContainText("F1 reads this help.");
+    await expect(live(page)).toContainText("F1 or question mark reads this help.");
 
     // The game surface has NOT been activated: #game is still a plain div,
     // never promoted to role="application" (which only happens on start).

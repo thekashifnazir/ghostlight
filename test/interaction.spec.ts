@@ -43,7 +43,7 @@ test.describe("spoken onboarding", () => {
     await expect(live(page)).toContainText("Inn bar");
     await expect(live(page)).toContainText(
       "Left and Right move through the room. Enter acts, Down examines. " +
-        "Slash to type a command. H for a hint. F1 for all keys.",
+        "Slash to type a command. H for a hint. F1 or ? for all keys.",
     );
 
     // Cross to the next room: the recording's one command is `walk 105`, the
@@ -61,7 +61,7 @@ test.describe("spoken onboarding", () => {
     // The new room is read (the replay's walk 105 diff changes the room), and
     // the onboarding must NOT appear again on this later room.
     await expect(live(page)).toContainText("Here:");
-    await expect(live(page)).not.toContainText("F1 for all keys");
+    await expect(live(page)).not.toContainText("F1 or ? for all keys");
   });
 });
 
