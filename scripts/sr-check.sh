@@ -34,7 +34,7 @@ set -u -o pipefail
 REPO="$(cd "$(dirname "$0")/.." && pwd)"
 export SR_VM="${SR_VM:-Ghostlight Win11}"
 export SR_GL="${SR_GL:-C:\\gl}"
-SR_SNAPSHOT="${SR_SNAPSHOT:-3 NVDA logging + helpers}"
+SR_SNAPSHOT="${SR_SNAPSHOT:-4 activated}"
 SR_PORT="${SR_PORT:-9222}"
 DEFAULT_WAIT_MS="${SR_DEFAULT_WAIT_MS:-1500}"
 

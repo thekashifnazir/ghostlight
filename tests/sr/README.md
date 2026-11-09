@@ -29,7 +29,7 @@ The command:
 1. Validates the scenario (and stops here if it is missing or malformed — the
    VM is never touched).
 2. Reverts the Parallels VM **"Ghostlight Win11"** to snapshot
-   **"3 NVDA logging + helpers"**, starts NVDA, and starts Chrome on the URL.
+   **"4 activated"**, starts NVDA, and starts Chrome on the URL.
 3. Runs the scenario's steps in order, pressing real keys and reading back what
    NVDA actually spoke.
 4. Prints one PASS/FAIL line per step, writes a JSON report plus the raw NVDA
@@ -138,7 +138,7 @@ who cannot send F1. It never collides with `/`, which opens the command box.
 
 ### Requirements
 
-- A Mac with `prlctl` and the "Ghostlight Win11" VM on snapshot 3. This cannot
+- A Mac with `prlctl` and the "Ghostlight Win11" VM on snapshot 4. This cannot
   run in CI — it needs the live VM.
 - Node (for the TypeScript helpers, run through `vite-node`).
 

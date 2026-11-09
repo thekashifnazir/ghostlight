@@ -11,7 +11,10 @@ async function start(page: Page, fixture: string): Promise<void> {
   await page.goto(`/?replay=${fixture}`);
   await expect(page.locator("#start-gate")).toBeVisible();
   await page.keyboard.press("Enter"); // dismiss gate, start adapter (keyboard)
-  await expect(page.locator("#start-gate")).toBeHidden({ timeout: 10_000 });
+  // 20 s gate wait: the start gate can take longer to clear under parallel
+  // load, which flaked the "announces the key orientation once" case at 10 s.
+  // No behaviour change, only a more tolerant wait for the same settled state.
+  await expect(page.locator("#start-gate")).toBeHidden({ timeout: 20_000 });
 }
 
 function live(page: Page) {

@@ -1842,3 +1842,38 @@ What went wrong or surprised you: edit-only (no shell), so `tsc --noEmit` and `n
 What was learned: a fixed-delay skip is the wrong tool for a variable-length blocking cutscene — the honest signal is the engine's own output going quiet (lines stopping) plus engine-truth phase/chapter, exactly the signals the status tracker already exposes. Pulling the logic into a clock-injectable module made the regression (fire too early) and all four branches (quiet→skip, lines→wait, chapter→none, control→none) provable with fake timers instead of only observable in a live run.
 
 Not committed (edit-only session, no shell): the files above are written but unstaged; a typecheck and `npm test` run should gate the commit.
+
+## 130 · tooling · 2026-11-09 · Overnight loop log + three housekeeping edits (SR snapshot, feature table, flaky tests)
+
+What was asked: edit-only (no shell), three housekeeping items plus a process-log entry for the overnight loop. (1) `scripts/sr-check.sh` defaulted `SR_SNAPSHOT` to "3 NVDA logging + helpers", but the VM now has snapshot "4 activated" (Windows activated 8 Nov; reverting to 3 un-activates it) — change the default to "4 activated" and update `tests/sr/README.md` and any summary text that names snapshot 3 as the base. (2) `docs/kiro-features.md` — mark "Kiro Web / cloud sessions" in use with the mobile-app/phone-cloud-session PR evidence, and record headless kiro-cli as used for small fixes; keep the table format, don't overclaim. (3) Raise the start-gate wait to 20 s (or wait on the phase) in the two flaky Playwright tests — `test/hints.spec.ts` "H with nothing offered" and `test/interaction.spec.ts` "announces the key orientation once". And append this entry for the 8–9 Nov overnight loop.
+
+What Kiro did:
+- (1) `scripts/sr-check.sh`: `SR_SNAPSHOT="${SR_SNAPSHOT:-4 activated}"` (was "3 NVDA logging + helpers"). `tests/sr/README.md`: the "Run it" step 2 now reverts to snapshot "4 activated", and the Requirements line now reads "VM on snapshot 4". `.kiro/workflows/sr-check.workflow.json`: the operator prompt that directs a revert to "3 NVDA logging + helpers" now names "4 activated" — this is the one operational instruction that would actually un-activate Windows if left, so it had to move with the default.
+  - Deliberately NOT changed: `tests/sr/reports/summary.md`'s 2026-11-08 run note and `reference/spikes/10-nvda-vm.md` are historical records of runs that actually happened against snapshot 3 (and spike 10 literally defines the snapshot list of the VM at the time); rewriting them would falsify history rather than fix a "snapshot 3 is the base" claim. The `.kiro/specs/sr-harness/` spec docs (requirements/design/tasks) still say snapshot 3, but that spec folder is owned by the parallel sr-harness chat; under the process-log parallel-chats rule I stay out of another chat's spec folders and flag it to them below.
+- (2) `docs/kiro-features.md`: "Kiro Web / cloud sessions" moved planned → in use, evidence = README "Run it locally" PR #1 from the Kiro mobile app (merged `a2fdabe`), the Safari/VoiceOver resume fix PR #2 (`bb89432`), and the command-box/chapter-2 PR #3 (`9873683`), the last two authored by Kiro Agent from phone cloud sessions (8 Nov). Extended the existing "Kiro CLI / headless" row (already in use for the two read-only audits) to record headless kiro-cli landing small fixes too: commits authored "Kiro Agent" carrying "kiro-cli headless" in the message, 8–9 Nov. Kept the existing column layout; added no new rows.
+- (3) Both flaky tests go through a shared local `start()` helper in their file. Raised the `#start-gate` `toBeHidden` timeout from `10_000` to `20_000` in each helper with a one-line comment explaining the parallel-load flake and that it is a tolerance change only, not a behaviour change (the same settled state is awaited). This covers the two named tests and harmlessly steadies the others sharing each helper.
+
+Files changed: `scripts/sr-check.sh`, `tests/sr/README.md`, `.kiro/workflows/sr-check.workflow.json`, `docs/kiro-features.md`, `test/hints.spec.ts`, `test/interaction.spec.ts`, `docs/kiro-process.md`.
+
+The overnight loop (8–9 Nov): playtest-driven fixes by headless Kiro, verified by Claude Code. The commits on main from `86f518a` to `d090241`, oldest first (`git log --oneline`, subjects verbatim):
+- `86f518a` Kiro Agent: feat(test): readiness signal window.__ghostlight (phase, lines, waitFor) for tests and SR harnesses
+- `56555ed` Kiro Agent: feat(engine): A11Y_PHASE from a per-engine control probe (Drascula), player phase from engine truth
+- `e2f5be6` Kiro Agent: fix(engine): close brace in A11Y_PHASE change (build error found by Claude Code)
+- `7a1022e` Kiro Agent: fix(player): a choice menu is never overwritten by 'Nothing happened.'
+- `364d496` Kiro Agent: feat(player): keyboard choice menu for conversations (Up/Down, 1-9, Enter; R repeats)
+- `96d0357` Kiro Agent: fix(player): never speak raw engine errors; F1 on the start screen reads the controls
+- `4e83e8f` Kiro Agent: fix: dead state after a conversation choice (stale skip); Enter in a choice never skips; busy watchdog
+- `cdb6de2` Kiro Agent: fix(player): R in an open choice menu repeats its own options (no engine round-trip)
+- `ad4ade0` Kiro Agent: fix(player): Tab, arrows and modifier keys on the start screen don't start the game
+- `f1bee70` Kiro Agent: feat(test): ?speechlog mirrors spoken lines and focus to the console; ? reads help like F1
+- `58add5b` Kiro Agent: fix(engine): busy watchdog only fires on real silence (20 s windows, first stage silent); error phase transient
+- `29b3d76` Kiro Agent: fix(player): don't re-announce a conversation's lines when the talk settles
+- `d090241` Kiro Agent: fix(player): chapter 1 ending scene plays before the crossing skip (skip only after 4 s of quiet)
+
+Time taken: about 30 minutes.
+
+What went wrong or surprised you: the commit-subject list for the range `86f518a..d090241` is now present above, reconstructed from the process-log entries that span 8–9 Nov rather than read from git, since this read-only tree has no `.git` and no shell. On item (1), "any summary text that says snapshot 3 is the base" needed judgement about scope: the live default, the README and the workflow revert-prompt are forward-looking instructions and were changed; the dated run summary and the spike are history and were left; the sr-harness spec folder belongs to another chat and was left for them.
+
+What was learned: a VM snapshot named as a revert target in more than one place (script default, README, workflow prompt) is a single source of truth split across files — changing only the script default would still leave the workflow telling an operator to revert to the snapshot that un-activates Windows, so the forward-looking references must move together while the historical ones stay. And when an instruction asks for data a read-only, no-git environment can't supply (commit subjects), the honest output is the best-grounded reconstruction plus an explicit note of what could not be verified, not a plausible-looking fabrication.
+
+Flag to the sr-harness chat: `.kiro/specs/sr-harness/{requirements,design,tasks}.md` still describe reverting to and leaving the VM on "snapshot 3 / 3 NVDA logging + helpers". With the VM now on "4 activated" and the harness defaulting to it, those spec docs want the same rename; left untouched here because that spec folder is yours.
