@@ -5,10 +5,10 @@
     {
       "cmd": "walk 159",
       "raw": [
+        "A11Y_PHASE control",
         "A11Y_PHASE busy",
         "A11Y_CMD walk 159",
         "A11Y_DIFF {\"cmd\":\"walk 159\",\"room\":[14,12],\"objects\":[{\"num\":151,\"name\":\"SALIDA\",\"rect\":[251,50,68,143],\"walkTo\":[254,185],\"visible\":true,\"door\":true,\"toRoom\":10},{\"num\":154,\"name\":\"BALCONY\",\"rect\":[92,83,29,37],\"walkTo\":[108,180],\"visible\":true,\"door\":false},{\"num\":154,\"name\":\"BALCONY\",\"rect\":[177,83,27,35],\"walkTo\":[189,182],\"visible\":true,\"door\":false},{\"num\":155,\"name\":\"LAMP\",\"rect\":[7,66,41,59],\"walkTo\":[109,188],\"visible\":true,\"door\":false},{\"num\":156,\"name\":\"DOOR\",\"rect\":[131,125,32,47],\"walkTo\":[145,177],\"visible\":true,\"door\":true,\"toRoom\":14},{\"num\":158,\"name\":\"ARC\",\"rect\":[52,101,32,56],\"walkTo\":[66,166],\"visible\":true,\"door\":true,\"toRoom\":8}],\"hero\":{\"x\":163,\"y\":183},\"changed\":true}",
-        "A11Y {\"chapter\":2,\"room\":12,\"hero\":{\"x\":163,\"y\":183},\"objects\":[{\"num\":151,\"name\":\"SALIDA\",\"rect\":[251,50,68,143],\"walkTo\":[254,185],\"visible\":true,\"door\":true,\"toRoom\":10},{\"num\":154,\"name\":\"BALCONY\",\"rect\":[92,83,29,37],\"walkTo\":[108,180],\"visible\":true,\"door\":false},{\"num\":154,\"name\":\"BALCONY\",\"rect\":[177,83,27,35],\"walkTo\":[189,182],\"visible\":true,\"door\":false},{\"num\":155,\"name\":\"LAMP\",\"rect\":[7,66,41,59],\"walkTo\":[109,188],\"visible\":true,\"door\":false},{\"num\":156,\"name\":\"DOOR\",\"rect\":[131,125,32,47],\"walkTo\":[145,177],\"visible\":true,\"door\":true,\"toRoom\":14},{\"num\":158,\"name\":\"ARC\",\"rect\":[52,101,32,56],\"walkTo\":[66,166],\"visible\":true,\"door\":true,\"toRoom\":8}],\"inventory\":[28],\"flags\":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]}",
         "A11Y_PHASE control"
       ]
     }

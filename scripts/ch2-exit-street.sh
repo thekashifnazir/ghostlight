@@ -176,20 +176,16 @@ LAST_PHASE="$(printf '%s\n' "$A11Y_LINES" | grep -E '^A11Y_PHASE ' | tail -1)"
 printf '%s\n' "$LAST_PHASE" | grep -qF 'A11Y_PHASE control' \
   || fail_guard "last phase after the exit is not control (got: $LAST_PHASE) — the exit wedged on busy"
 
-# Guard 3 (THE FIX, part 2): the new room's A11Y state line is re-emitted after
-# the exit, so the player's hotspot list refreshes to room 12 and the room name
-# is spoken on arrival. A room-12 state line with the street's own hotspots must
-# appear AFTER the walk-159 diff.
-AFTER_WALK="$(printf '%s\n' "$A11Y_LINES" | awk '/A11Y_DIFF \{"cmd":"walk 159"/{seen=1} seen')"
-printf '%s\n' "$AFTER_WALK" | grep -qE 'A11Y \{"chapter":2,"room":12' \
-  || fail_guard "no room-12 A11Y state line re-emitted after the exit (hotspot list would stay on the inn bar)"
+# Guard 3: the walk-159 A11Y_DIFF itself carries the street's own hotspots
+# (e.g. the inn door 156), so the player's hotspot list refreshes to room 12
+# from the diff alone. No separate room-12 A11Y state line is expected: the
+# 9 Nov root cause was a player exception on the street's duplicate hotspot 154
+# (fixed in the player), not a missing engine line.
+WALK_DIFF="$(printf '%s\n' "$A11Y_LINES" | grep -E '^A11Y_DIFF \{"cmd":"walk 159"' | tail -1)"
+printf '%s\n' "$WALK_DIFF" | grep -qF '"room":[14,12]' \
+  || fail_guard "the walk-159 diff does not carry room [14,12]"
+printf '%s\n' "$WALK_DIFF" | grep -qF '"num":156' \
+  || fail_guard "the walk-159 diff is missing the street's inn door (156)"
 
-# Guard 4: the re-emitted room-12 state line carries the street's own hotspots
-# (e.g. the inn door 156 and the street-to-square exit 151), not the inn bar's —
-# so the player's hotspot list genuinely shows room 12.
-ROOM12_LINE="$(printf '%s\n' "$AFTER_WALK" | grep -E 'A11Y \{"chapter":2,"room":12' | tail -1)"
-printf '%s\n' "$ROOM12_LINE" | grep -qF '"num":156' \
-  || fail_guard "the re-emitted room-12 state line is missing the inn door (156); hotspot list did not refresh"
-
-log "guard held: exit settled, room 14 -> 12, A11Y_PHASE control emitted, room-12 state re-emitted"
+log "guard held: exit settled, room 14 -> 12 in one diff with the street hotspots, A11Y_PHASE control emitted"
 exit 0
