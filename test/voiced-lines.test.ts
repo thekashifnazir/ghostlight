@@ -224,23 +224,6 @@ describe("stale dialogue dropped on a focus move (Left/Right)", () => {
     return { region, live, flushAll };
   }
 
-  it("announceDialogue paces lines and dropPendingDialogue discards the rest", () => {
-    const { region, live, flushAll } = harness();
-
-    // A burst of three dialogue lines queue; none is announced until a flush.
-    live.announceDialogue("Line 1.");
-    live.announceDialogue("Line 2.");
-    live.announceDialogue("Line 3.");
-    expect(region.textContent).toBe(""); // nothing read yet
-
-    // A focus move drops the whole queued (unread) burst...
-    live.dropPendingDialogue();
-    // ...and the focus line is announced normally and is the next thing heard.
-    live.announce("skull, 2 of 2");
-    flushAll(); // the (now empty) scheduled flush runs harmlessly
-    expect(region.textContent).toBe("skull, 2 of 2");
-  });
-
   it("drops only the backlog: a line already read stays the current line", () => {
     const { region, live, flushAll } = harness();
     live.announceDialogue("Line 1.");

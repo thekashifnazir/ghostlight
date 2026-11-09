@@ -151,9 +151,12 @@ export class LiveRegion {
       this.transcript.appendChild(p);
       this.transcript.scrollTop = this.transcript.scrollHeight;
     }
-    // Defer only the region write, so a focus move can drop it.
-    this.pendingDialogue.push(line);
-    this.scheduleFlush();
+    // Write the region now. A deferred write (an earlier version) landed AFTER
+    // a following synchronous line such as "Chapter 2: ..." and overwrote it,
+    // so dialogue is written immediately; with voiced lines off by default the
+    // backlog a focus move used to hear is mostly gone. dropPendingDialogue()
+    // stays as the hook for any queued writes.
+    this.region.textContent = line;
   }
 
   /**
@@ -183,6 +186,8 @@ export class LiveRegion {
     this.region.textContent = next;
     if (this.pendingDialogue.length > 0) this.scheduleFlush();
   }
+
+  /** Re-announce the most recent line (the repeat key, R). Resets the back
    *  cursor so a following Shift+R starts from the most recent earlier line. */
   repeat(): void {
     this.backCursor = 0;
