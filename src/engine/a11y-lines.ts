@@ -18,6 +18,82 @@ import type {
   RoomState,
 } from "./adapter.js";
 
+/**
+ * Every A11Y prefix token the engine emits. Kept here so `splitA11yLines`
+ * recognises exactly the same set of line starts the parser dispatches on, and
+ * so a new prefix is added in one place.
+ */
+const A11Y_PREFIXES = [
+  "A11Y",
+  "A11Y_DIFF",
+  "A11Y_TEXT",
+  "A11Y_CHOICES",
+  "A11Y_INV",
+  "A11Y_CMD",
+  "A11Y_PHASE",
+  "A11Y_ERR",
+  "A11Y_SAVED",
+  "A11Y_HOVER",
+  "A11Y_SAY",
+] as const;
+
+/**
+ * Split one raw `printErr` string into separate A11Y lines.
+ *
+ * The engine emits one A11Y line per `g_system->logMessage` call, but on some
+ * backends two consecutive lines reach `Module.printErr` GLUED together with no
+ * newline between them — e.g. a room-changing command's A11Y_DIFF followed
+ * immediately by A11Y_PHASE:
+ *
+ *   ...,"changed":true}A11Y_PHASE control
+ *
+ * With them glued, `JSON.parse` of the first payload fails (it swallows the
+ * trailing `A11Y_PHASE control`), `parseA11yLine` drops the whole thing, and
+ * the player never applies the room change. This pure splitter undoes the glue:
+ * it splits on real newlines first, then also splits a segment just before any
+ * known A11Y prefix that directly follows a `}` or `]` — i.e. the close of a
+ * JSON payload. Both separated and glued input come out as clean per-line
+ * strings in order.
+ *
+ * It never splits inside A11Y_TEXT message text that merely contains the
+ * letters "A11Y" mid-sentence: a split point requires the preceding character
+ * to be `}` or `]` (a JSON payload boundary) — plain prose does not end a token
+ * that way — in addition to a real newline, which `split` already handles.
+ */
+export function splitA11yLines(raw: string): string[] {
+  if (raw == null) return [];
+  const out: string[] = [];
+  for (const segment of raw.split(/\r?\n/)) {
+    let start = 0;
+    // Scan for a prefix token that begins right after a `}` or `]`. Start at 1
+    // so index 0 (the segment's own leading prefix) is never a split point.
+    for (let i = 1; i < segment.length; i++) {
+      const prev = segment[i - 1];
+      if (prev !== "}" && prev !== "]") continue;
+      if (startsWithPrefixToken(segment, i)) {
+        out.push(segment.slice(start, i));
+        start = i;
+      }
+    }
+    out.push(segment.slice(start));
+  }
+  return out;
+}
+
+/**
+ * True when `s` at index `i` begins a known A11Y prefix token followed by a
+ * space or the end of the string. Requiring the boundary avoids matching a
+ * longer identifier that merely starts with a prefix's letters.
+ */
+function startsWithPrefixToken(s: string, i: number): boolean {
+  for (const prefix of A11Y_PREFIXES) {
+    if (!s.startsWith(prefix, i)) continue;
+    const after = s[i + prefix.length];
+    if (after === undefined || after === " ") return true;
+  }
+  return false;
+}
+
 /** Strip a ScummVM "WARNING: " prefix and a single trailing "!" if present. */
 function unwrap(line: string): string {
   let s = line.trim();

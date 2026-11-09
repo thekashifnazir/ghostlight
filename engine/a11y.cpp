@@ -2596,30 +2596,32 @@ bool A11yLayer::poll() {
 	if (ranCommand) {
 		if (cmdChangedRoom) {
 			// A command-driven within-chapter room change (a walk through a
-			// door). The A11Y_DIFF above already carried the room/chapter change
-			// and the new room's objects, but TWO things still need to happen on
-			// THIS settling frame, and both were missing before — leaving the
-			// web player wedged on `busy` after an exit (the inn-bar -> street
-			// bug):
+			// door). The A11Y_DIFF above already carries the room/chapter change
+			// AND the new room's objects, so it is the single carrier for the
+			// transition — the player applies the room change and refreshes its
+			// hotspot list straight from that diff. We deliberately do NOT
+			// re-emit a separate A11Y room-state line here: that would make the
+			// player read the room twice and autosave twice on one exit. (An
+			// earlier fix emitted it on the assumption the diff was not enough;
+			// with the glued-line split fixed in the player, the diff reaches
+			// the player intact and the extra line is redundant.) The
+			// chapter-crossing path keeps its single-diff shape via the carrier
+			// and does NOT reach here (it returned true above).
 			//
-			//   * Re-emit the new room's A11Y room-state line so the player's
-			//     hotspot list refreshes to the room just entered and the room
-			//     name is spoken on arrival, exactly as a fresh room entry does
-			//     (the player maps the A11Y room line to a room read). The
-			//     chapter-crossing path keeps its single-diff shape via the
-			//     carrier and does NOT reach here (it returned true above), so
-			//     the leave-tavern crossing fixture is untouched.
-			//   * Re-stamp _lastPollMs to NOW. The whole walk + door transition
-			//     ran inside this one poll() frame, taking hundreds of ms, so the
-			//     top-of-frame stamp is now stale (> kPollFreshMs). Without a
-			//     fresh stamp updateControlPhase()'s probe would read the player
-			//     as NOT in control and emit `busy`, so the engine-truth web
-			//     player (src/engine/status.ts drives its phase ONLY from
-			//     A11Y_PHASE and never settles on the diff) would never return to
-			//     `ready`. Re-stamping means the settling frame reports `control`.
-			emitRoomState();
+			// Re-stamp _lastPollMs to NOW. The whole walk + door transition ran
+			// inside this one poll() frame, taking hundreds of ms, so the
+			// top-of-frame stamp is now stale (> kPollFreshMs). Without a fresh
+			// stamp updateControlPhase()'s probe would read the player as NOT in
+			// control and emit `busy`, so the engine-truth web player
+			// (src/engine/status.ts drives its phase ONLY from A11Y_PHASE and
+			// never settles on the diff) would never return to `ready`.
+			// Re-stamping means the settling frame reports `control`. Sync the
+			// last-room markers to the settled state too, exactly as the
+			// no-room-change branch does.
 			if (g_system)
 				_lastPollMs = g_system->getMillis();
+			_lastChapter = _engine->currentChapter;
+			_lastRoom = _engine->_roomNumber;
 		} else {
 			// No room change: the A11Y_DIFF carried the result, so no separate
 			// A11Y room-state line (the look/take/talk transcripts show the diff

@@ -18,7 +18,7 @@ import {
   type EngineEvent,
   serializeCommand,
 } from "./adapter.js";
-import { parseA11yLine } from "./a11y-lines.js";
+import { parseA11yLine, splitA11yLines } from "./a11y-lines.js";
 import { bootEngine, type ScummvmBootModule } from "./boot.js";
 
 /** Emscripten MEMFS; the page writes the command file through it. */
@@ -104,11 +104,14 @@ export class LiveAdapter implements EngineAdapter {
 
   /**
    * Read path: ScummVM emits A11Y lines on stderr, which Emscripten delivers to
-   * `Module.printErr`. We install a printErr that passes each line to the
-   * previous handler and then runs it through the one shared `parseA11yLine`,
-   * forwarding typed events to listeners — the exact same decode the replay
-   * adapter uses, so live and replay cannot drift. boot.ts calls this once, on
-   * the Module, before `scummvm.js` loads, so no early A11Y line is missed.
+   * `Module.printErr`. We split each delivered string into its separate A11Y
+   * lines first (some backends glue two consecutive lines together with no
+   * newline between them — e.g. an A11Y_DIFF immediately followed by
+   * A11Y_PHASE — which would make `JSON.parse` fail and drop the whole line),
+   * then pass each line through the one shared `parseA11yLine`, forwarding
+   * typed events to listeners — the exact same decode the replay adapter uses,
+   * so live and replay cannot drift. boot.ts calls this once, on the Module,
+   * before `scummvm.js` loads, so no early A11Y line is missed.
    */
   installReader(module: ScummvmBootModule): void {
     // Keep a reference for send(). The cast is sound: ScummvmModule only adds an
@@ -119,9 +122,11 @@ export class LiveAdapter implements EngineAdapter {
     const previous = module.printErr;
     module.printErr = (line: string) => {
       previous?.(line);
-      const event = parseA11yLine(line);
-      if (event) {
-        for (const l of this.listeners) l(event);
+      for (const one of splitA11yLines(line)) {
+        const event = parseA11yLine(one);
+        if (event) {
+          for (const l of this.listeners) l(event);
+        }
       }
     };
   }

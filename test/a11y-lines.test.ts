@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseA11yLine } from "../src/engine/a11y-lines.js";
+import { parseA11yLine, splitA11yLines } from "../src/engine/a11y-lines.js";
 
 describe("parseA11yLine", () => {
   it("parses an A11Y room-state line into a room event", () => {
@@ -150,5 +150,82 @@ describe("parseA11yLine", () => {
     expect(parseA11yLine("A11Y_CHOICES {}")).toBeNull();
     expect(parseA11yLine("A11Y_INV {}")).toBeNull();
     expect(parseA11yLine("A11Y_SAVED notanumber")).toBeNull();
+  });
+});
+
+describe("splitA11yLines", () => {
+  // The two glued examples proven on the live site: a room-changing A11Y_DIFF
+  // whose payload ends in `}` immediately followed by the next A11Y line, with
+  // no newline between them. Unsplit, JSON.parse of the diff fails and the whole
+  // line is dropped, so the room change is lost.
+  const DIFF =
+    'A11Y_DIFF {"cmd":"walk 159","room":[14,12],"changed":true}';
+  const ROOM =
+    'A11Y {"chapter":2,"room":12,"hero":{"x":100,"y":150},' +
+    '"objects":[],"inventory":[],"flags":[0]}';
+
+  it("splits a diff glued to a following A11Y_PHASE line (live-site symptom)", () => {
+    const glued = DIFF + "A11Y_PHASE control";
+    expect(splitA11yLines(glued)).toEqual([DIFF, "A11Y_PHASE control"]);
+    // Each half now parses: the diff carries the room change, the phase settles.
+    const [diff, phase] = splitA11yLines(glued).map(parseA11yLine);
+    expect(diff?.type).toBe("diff");
+    expect(phase).toEqual({ type: "phase", phase: "control" });
+  });
+
+  it("splits a diff glued to a following A11Y room-state line (current main)", () => {
+    const glued = DIFF + ROOM;
+    expect(splitA11yLines(glued)).toEqual([DIFF, ROOM]);
+    const [diff, room] = splitA11yLines(glued).map(parseA11yLine);
+    expect(diff?.type).toBe("diff");
+    expect(room?.type).toBe("room");
+  });
+
+  it("splits a payload ending in ']' glued to the next line", () => {
+    const choices = 'A11Y_CHOICES {"choices":[]}';
+    // A payload whose JSON ends in a bracket `]` is also a valid split boundary.
+    const glued = 'A11Y_INV {"items":[]}' + choices;
+    expect(splitA11yLines(glued)).toEqual(['A11Y_INV {"items":[]}', choices]);
+  });
+
+  it("returns a single normal line unchanged", () => {
+    expect(splitA11yLines(DIFF)).toEqual([DIFF]);
+  });
+
+  it("splits multiple newline-separated lines (no gluing)", () => {
+    const blob = ["A11Y_CMD walk 159", DIFF, "A11Y_PHASE control"].join("\n");
+    expect(splitA11yLines(blob)).toEqual([
+      "A11Y_CMD walk 159",
+      DIFF,
+      "A11Y_PHASE control",
+    ]);
+  });
+
+  it("handles a mix of newlines and gluing in one string", () => {
+    const blob = "A11Y_CMD walk 159\n" + DIFF + "A11Y_PHASE control";
+    expect(splitA11yLines(blob)).toEqual([
+      "A11Y_CMD walk 159",
+      DIFF,
+      "A11Y_PHASE control",
+    ]);
+  });
+
+  it("never splits inside A11Y_TEXT text that merely contains 'A11Y'", () => {
+    // The letters A11Y appear mid-sentence, not after a JSON payload boundary,
+    // so the line must stay whole and parse as one text event.
+    const text = "A11Y_TEXT the sign reads A11Y is not a command here";
+    expect(splitA11yLines(text)).toEqual([text]);
+    expect(parseA11yLine(text)).toEqual({
+      type: "text",
+      line: "the sign reads A11Y is not a command here",
+    });
+  });
+
+  it("does not split an A11Y_TEXT line that happens to contain '}A11Y' mid-text", () => {
+    // Even a `}` immediately before the letters A11Y stays whole UNLESS what
+    // follows is a real prefix token with a space/end boundary. "A11Yish" is not
+    // a known prefix, so no split.
+    const text = "A11Y_TEXT he muttered }A11Yish nonsense";
+    expect(splitA11yLines(text)).toEqual([text]);
   });
 });
