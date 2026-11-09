@@ -44,6 +44,7 @@ import { Inventory } from "./ui/inventory.js";
 import { ListMode } from "./ui/list-mode.js";
 import { LiveRegion } from "./ui/live-region.js";
 import { isMacPlatform } from "./ui/platform.js";
+import { addMacGameSurfaceText } from "./ui/game-surface.js";
 import { VerbMenu } from "./ui/verb-menu.js";
 import { loadReadVoiced, saveReadVoiced } from "./ui/voiced-lines.js";
 
@@ -639,6 +640,10 @@ export async function boot(): Promise<void> {
     gameEl.setAttribute("role", "application");
     gameEl.setAttribute("aria-label", "Ghostlight game");
     gameEl.tabIndex = -1;
+    // Mac only: VoiceOver reads an application with no accessible content as
+    // "empty application", so give it a hidden text child. Never on other
+    // platforms, because it stops NVDA entering focus mode (see game-surface.ts).
+    addMacGameSurfaceText(gameEl, currentPlatform());
   };
 
   // Keep the game surface's accessible name naming the current room, so when a
