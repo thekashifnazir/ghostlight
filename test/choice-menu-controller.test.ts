@@ -35,7 +35,7 @@ const FOCUSED: Hotspot = {
 };
 
 function harness() {
-  document.body.innerHTML = `<div id="m" role="menu"></div>`;
+  document.body.innerHTML = `<div id="m"></div>`;
   const el = document.getElementById("m")!;
 
   const sent: Command[] = [];
@@ -126,7 +126,7 @@ describe("Controller routing: conversation choice menu", () => {
   it("routes arrows to the menu and consumes them (none reach list mode)", () => {
     const { controller, choiceMenu, listCalls } = harness();
     choiceMenu.openWith(DRUNK);
-    const items = document.querySelectorAll('[role="menuitem"]');
+    const items = document.querySelectorAll('[role="option"]');
 
     expect(controller.handleKey("ArrowDown")).toBe(true);
     expect(document.activeElement).toBe(items[1]);

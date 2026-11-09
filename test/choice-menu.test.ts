@@ -3,11 +3,14 @@
 // The conversation choice menu (A11Y_CHOICES). Before it existed a blind player
 // talking to the drunk in the tavern had NO keyboard way to pick a choice, so
 // the engine sat blocked forever. These tests pin the menu's behaviour against
-// the screen-reader-focus rules (role=menu/menuitem with aria-posinset/
-// aria-setsize, the open line is the menu name and count only, navigation is
-// silent in the live region) and the two rules that differ from the verb menu
-// and the inventory: Escape does NOT close the menu (the engine is waiting), and
-// number keys / R pick directly / repeat the options.
+// the screen-reader-focus rules (role=listbox/option with aria-posinset/
+// aria-setsize and aria-selected on the focused option, the open line is the
+// menu name and count only, navigation is silent in the live region) and the
+// two rules that differ from the verb menu and the inventory: Escape does NOT
+// close the menu (the engine is waiting), and number keys / R pick directly /
+// repeat the options. The listbox role (not role=menu) is deliberate: it stops
+// VoiceOver adding its wrong "Control-Option-Space to choose, Escape to close"
+// menu hint.
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ChoiceMenu, type ChoiceOption } from "../src/ui/choice-menu.js";
 
@@ -19,7 +22,7 @@ const DRUNK: ChoiceOption[] = [
 ];
 
 function setup() {
-  document.body.innerHTML = `<div id="m" role="menu"></div>`;
+  document.body.innerHTML = `<div id="m"></div>`;
   const el = document.getElementById("m")!;
   const announce = vi.fn();
   const choose = vi.fn<(n: number) => void>();
@@ -31,13 +34,26 @@ function setup() {
 describe("ChoiceMenu", () => {
   beforeEach(() => vi.restoreAllMocks());
 
-  it("opens hidden, then shows roving-focus menuitems with option 1 focused", () => {
+  it("the container is a listbox named Choices, not a role=menu", () => {
+    const { el, menu } = setup();
+    // The listbox role (not role=menu) stops VoiceOver adding its menu hint.
+    expect(el.getAttribute("role")).toBe("listbox");
+    expect(el.getAttribute("aria-label")).toBe("Choices");
+    menu.openWith(DRUNK);
+    expect(el.getAttribute("role")).toBe("listbox");
+    // No menu/menuitem roles anywhere — those are what trigger the wrong hint.
+    expect(el.querySelectorAll('[role="menu"], [role="menuitem"]')).toHaveLength(
+      0,
+    );
+  });
+
+  it("opens hidden, then shows roving-focus options with option 1 focused and selected", () => {
     const { el, menu } = setup();
     expect(el.hidden).toBe(true);
     menu.openWith(DRUNK);
     expect(menu.isOpen()).toBe(true);
     expect(el.hidden).toBe(false);
-    const items = el.querySelectorAll('[role="menuitem"]');
+    const items = el.querySelectorAll('[role="option"]');
     expect(items).toHaveLength(3);
     // Roving focus: exactly one tabbable, option 1 focused.
     const tabbable = Array.from(items).filter(
@@ -47,9 +63,13 @@ describe("ChoiceMenu", () => {
     expect(document.activeElement).toBe(items[0]);
     // The option text is on the button, read by the screen reader on focus.
     expect(items[0].textContent).toBe("HI BOSS, HOW ARE YOU?");
-    // Each menuitem exposes its position/size for the reader (R6.3).
+    // Each option exposes its position/size for the reader (R6.3).
     expect(items[0].getAttribute("aria-posinset")).toBe("1");
     expect(items[0].getAttribute("aria-setsize")).toBe("3");
+    // aria-selected marks the focused option (1) and only it.
+    expect(items[0].getAttribute("aria-selected")).toBe("true");
+    expect(items[1].getAttribute("aria-selected")).toBe("false");
+    expect(items[2].getAttribute("aria-selected")).toBe("false");
     expect(items[2].getAttribute("aria-posinset")).toBe("3");
   });
 
@@ -70,19 +90,24 @@ describe("ChoiceMenu", () => {
     expect(announce).toHaveBeenLastCalledWith("Choices, 1 option.");
   });
 
-  it("navigation moves roving focus but writes nothing to the live region", () => {
+  it("navigation moves roving focus (and aria-selected) but writes nothing to the live region", () => {
     const { el, menu, announce } = setup();
     menu.openWith(DRUNK);
     announce.mockClear();
+    const items = el.querySelectorAll('[role="option"]');
     menu.next(); // -> option 2
-    const items = el.querySelectorAll('[role="menuitem"]');
     expect(document.activeElement).toBe(items[1]);
+    // aria-selected follows roving focus: only option 2 is selected now.
+    expect(items[1].getAttribute("aria-selected")).toBe("true");
+    expect(items[0].getAttribute("aria-selected")).toBe("false");
     menu.next(); // -> option 3
     expect(document.activeElement).toBe(items[2]);
     menu.next(); // wraps -> option 1
     expect(document.activeElement).toBe(items[0]);
+    expect(items[0].getAttribute("aria-selected")).toBe("true");
     menu.prev(); // wraps back -> option 3
     expect(document.activeElement).toBe(items[2]);
+    expect(items[2].getAttribute("aria-selected")).toBe("true");
     expect(announce).not.toHaveBeenCalled();
   });
 
@@ -148,7 +173,7 @@ describe("ChoiceMenu", () => {
     ];
     announce.mockClear();
     menu.openWith(followUp);
-    const items = el.querySelectorAll('[role="menuitem"]');
+    const items = el.querySelectorAll('[role="option"]');
     expect(items).toHaveLength(2);
     expect(items[0].textContent).toBe("YES.");
     expect(document.activeElement).toBe(items[0]);
@@ -161,7 +186,7 @@ describe("ChoiceMenu", () => {
     menu.close();
     expect(menu.isOpen()).toBe(false);
     expect(el.hidden).toBe(true);
-    expect(el.querySelectorAll('[role="menuitem"]')).toHaveLength(0);
+    expect(el.querySelectorAll('[role="option"]')).toHaveLength(0);
     expect(choose).not.toHaveBeenCalled();
   });
 

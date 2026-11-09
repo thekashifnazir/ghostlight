@@ -326,13 +326,17 @@
           <!-- Inventory: a keyboard list of carried items. -->
           <div id="inventory" role="menu" aria-label="Inventory" hidden></div>
 
-          <!-- Choice menu: a roving-focus menu for conversation choices. Opened
-               by main.ts when the engine offers choices (A11Y_CHOICES / phase
-               'choice'); the engine is BLOCKED waiting for a pick, so the player
-               cannot close it by hand (Escape re-states how to choose). Closed
-               by main.ts when the engine leaves the choice phase or a fresh set
-               of choices replaces it. -->
-          <div id="choice-menu" role="menu" aria-label="Choices" hidden></div>
+          <!-- Choice menu: a roving-focus listbox for conversation choices.
+               Opened by main.ts when the engine offers choices (A11Y_CHOICES /
+               phase 'choice'); the engine is BLOCKED waiting for a pick, so the
+               player cannot close it by hand (Escape re-states how to choose).
+               A role=listbox (not role=menu) so VoiceOver does not add its own
+               "Control-Option-Space to choose, Escape to close" menu hint,
+               which is wrong here — Enter picks and Escape does not close. The
+               options are role=option with aria-selected on the focused one.
+               Closed by main.ts when the engine leaves the choice phase or a
+               fresh set of choices replaces it. -->
+          <div id="choice-menu" role="listbox" aria-label="Choices" hidden></div>
 
           <!-- Typed command box: "/" opens it. A labelled single-line input that
                parses a plain-English phrase and sends the resolved command. -->

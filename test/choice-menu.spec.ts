@@ -54,14 +54,18 @@ test.describe("conversation choice menu (replay)", () => {
     await expect(page.locator(CHOICE_MENU)).toBeVisible();
     await expect(live(page)).toContainText("Choices, 3 options.");
 
-    // The menu is a role=menu with three roving-focus menuitems; option 1 is
-    // focused and carries aria-posinset/aria-setsize for the screen reader.
-    const items = page.locator(`${CHOICE_MENU} [role="menuitem"]`);
+    // The menu is a role=listbox with three roving-focus options; option 1 is
+    // focused, selected, and carries aria-posinset/aria-setsize for the reader.
+    // The listbox role (not role=menu) stops VoiceOver adding its wrong menu
+    // hint ("Control-Option-Space to choose, Escape to close").
+    await expect(page.locator(CHOICE_MENU)).toHaveAttribute("role", "listbox");
+    const items = page.locator(`${CHOICE_MENU} [role="option"]`);
     await expect(items).toHaveCount(3);
     await expect(items.first()).toBeFocused();
     await expect(items.first()).toHaveText("HI BOSS, HOW ARE YOU?");
     await expect(items.first()).toHaveAttribute("aria-posinset", "1");
     await expect(items.first()).toHaveAttribute("aria-setsize", "3");
+    await expect(items.first()).toHaveAttribute("aria-selected", "true");
   });
 
   test("arrows move focus silently; R repeats the options as one line", async ({
@@ -72,7 +76,7 @@ test.describe("conversation choice menu (replay)", () => {
     await page.keyboard.press("Enter"); // open the menu
     await expect(page.locator(CHOICE_MENU)).toBeVisible();
 
-    const items = page.locator(`${CHOICE_MENU} [role="menuitem"]`);
+    const items = page.locator(`${CHOICE_MENU} [role="option"]`);
     // Down moves roving focus to option 2 (no live-region write for the move;
     // the focused button is what the screen reader reads).
     await page.keyboard.press("ArrowDown");
@@ -164,5 +168,28 @@ test.describe("conversation choice menu (replay)", () => {
 
     await expect(live(page)).toContainText("NOT BAD, AND YOU?");
     await expect(live(page)).not.toContainText("mismatch");
+  });
+
+  test("the game surface is named after the room, so returning focus says where the player is", async ({
+    page,
+  }) => {
+    // Issue 2: when the choice menu closes, focus returns to #game. Its
+    // accessible name must name the room (not a bare "Ghostlight game, empty
+    // application"), so a screen reader says where the player is in one short
+    // phrase. The drunk fixture is in the Inn bar (room 62).
+    await start(page, "drunk-choices");
+    await focusDrunk(page);
+
+    const game = page.locator("#game");
+    await expect(game).toHaveAttribute("aria-label", "Ghostlight game, Inn bar");
+
+    // Pick option 1: the menu closes and focus returns to #game, whose name now
+    // reads the room — a short phrase, not the full room text.
+    await page.keyboard.press("Enter"); // open the menu (option 1 focused)
+    await expect(page.locator(CHOICE_MENU)).toBeVisible();
+    await page.keyboard.press("Enter"); // pick option 1
+    await expect(page.locator(CHOICE_MENU)).toBeHidden();
+    await expect(game).toBeFocused();
+    await expect(game).toHaveAttribute("aria-label", "Ghostlight game, Inn bar");
   });
 });

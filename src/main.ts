@@ -540,6 +540,21 @@ export async function boot(): Promise<void> {
     gameEl.tabIndex = -1;
   };
 
+  // Keep the game surface's accessible name naming the current room, so when a
+  // menu or the command box closes and focus returns to #game, VoiceOver says
+  // where the player is ("Ghostlight game, Inn bar") rather than the bare
+  // "Ghostlight game, empty application". One short phrase only — the full room
+  // is read by L, not on every focus return (screen-reader-output: focus return
+  // must not speak a long text). No live-region write: a focus change adds no
+  // line (screen-reader-focus R2.6); this only updates the element's name.
+  const updateGameLabel = (): void => {
+    const name = pack.roomName(state.room);
+    gameEl.setAttribute(
+      "aria-label",
+      name ? `Ghostlight game, ${name}` : "Ghostlight game",
+    );
+  };
+
   // Move keyboard focus to the game's role="application" element, silently
   // (screen-reader-focus R1, R2). It arms the application surface first, so the
   // very first focus lands on a role=application element (the markup ships
@@ -761,7 +776,8 @@ export async function boot(): Promise<void> {
         // can pick with the arrows, Enter or a number key (before this, the
         // player had no keyboard way in and was stuck — the drunk in the
         // tavern). The menu announces "Choices, N options." and focuses option
-        // 1, whose text the screen reader reads from the focused menuitem; it
+        // 1, whose text the screen reader reads from the focused listbox option;
+        // it
         // does not repeat the option text in the live region (screen-reader-
         // focus R6). markChoices() records that this command produced a choice
         // menu WITHOUT announcing a second numbered line, so the settle diff
@@ -854,6 +870,9 @@ export async function boot(): Promise<void> {
     state.inventory = s.inventory;
     currentList = buildHotspotList(s, pack);
     rebuildRoomLabels();
+    // Name the game surface after this room, so returning focus to #game (after
+    // a menu or the command box closes) says where the player is.
+    updateGameLabel();
     list.rebuild(currentList);
     inventory.setItems(s.inventory);
     // On the first room after Start, append the one-time key orientation to the
@@ -921,6 +940,9 @@ export async function boot(): Promise<void> {
     if (diff.room || diff.chapter) {
       if (diff.chapter) state.chapter = diff.chapter[1];
       if (diff.room) state.room = diff.room[1];
+      // Re-name the game surface after the new room, so returning focus to
+      // #game names where the player is now (one short phrase).
+      updateGameLabel();
       // A chapter change settles any pending crossing: the engine advanced on
       // its own, so the scheduler disarms and sends no skip.
       if (diff.chapter) crossingSkip?.noteChapter(diff.chapter[1]);

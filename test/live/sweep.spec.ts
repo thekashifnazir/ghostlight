@@ -451,8 +451,9 @@ test.describe("live sweep (Chrome + WebKit)", () => {
 
     // The choice UI is shown (phase 'choice') and announced. The menu announces
     // the menu name and count ("Choices, N options."), NOT a numbered list —
-    // the focused option's text is read by the screen reader from the menuitem
-    // button, so the live region is not double-spoken (screen-reader-focus R6).
+    // the focused option's text is read by the screen reader from the listbox
+    // option button, so the live region is not double-spoken (screen-reader-
+    // focus R6).
     expect(enterPhase).toBe("choice");
     expect(enterChoiceLine).toMatch(/Choices, \d+ options?\./);
 

@@ -6,12 +6,19 @@
 // had no choice handling, so a blind player talking to the drunk in the tavern
 // was stuck. This menu is the keyboard way in.
 //
-// It follows the verb-menu / inventory patterns exactly — a role=menu with
-// roving-focus role=menuitem buttons, each carrying aria-posinset/aria-setsize,
-// so a focus-mode screen reader reads "<option>, N of M" from the focused
-// button itself with no double-speak (screen-reader-focus R6). The open line
-// gives the menu name and count only ("Choices, N options."); the focused
-// option's text is read by the screen reader, not repeated in the live region.
+// It uses a role=listbox with roving-focus role=option buttons, each carrying
+// aria-posinset/aria-setsize and aria-selected on the focused one, so a
+// focus-mode screen reader reads "<option>, selected, N of M" from the focused
+// option itself with no double-speak (screen-reader-focus R6). A listbox (not a
+// role=menu) is deliberate: on role=menu/menuitem VoiceOver reads its own menu
+// hint — "To choose this menu item, press Control-Option-Space. To close this
+// menu, press Escape." — which is wrong here (Enter picks, Escape does not
+// close). A listbox of options carries no such hint, so VoiceOver describes a
+// selectable list, which matches how this menu actually behaves. The listbox
+// itself keeps the accessible name "Choices"; the verb and inventory menus are
+// left as role=menu. The open line gives the menu name and count only
+// ("Choices, N options."); the focused option's text is read by the screen
+// reader, not repeated in the live region.
 //
 // Two rules differ from the verb menu and the inventory, because here the
 // engine is BLOCKED waiting for a choice:
@@ -53,6 +60,11 @@ export class ChoiceMenu {
   constructor(el: HTMLElement, cb: ChoiceMenuCallbacks) {
     this.el = el;
     this.cb = cb;
+    // The container is the listbox itself: a role=listbox named "Choices",
+    // holding role=option buttons. Set here (not only in markup) so a menu
+    // built in a bare test container is a proper listbox too.
+    this.el.setAttribute("role", "listbox");
+    this.el.setAttribute("aria-label", "Choices");
     this.el.hidden = true;
   }
 
@@ -79,12 +91,15 @@ export class ChoiceMenu {
     this.buttons = options.map((opt, i) => {
       const b = this.el.ownerDocument.createElement("button");
       b.type = "button";
-      b.setAttribute("role", "menuitem");
+      b.setAttribute("role", "option");
       b.textContent = opt.text;
       // NVDA and JAWS announce "N of M" from these, so the position is read on
       // focus without a second live-region line (screen-reader-focus R6.3).
       b.setAttribute("aria-setsize", String(total));
       b.setAttribute("aria-posinset", String(i + 1));
+      // aria-selected marks the currently-focused option (set in full by
+      // focusCurrent below), so a listbox reader says "selected" for it.
+      b.setAttribute("aria-selected", i === 0 ? "true" : "false");
       b.dataset.n = String(opt.n);
       b.tabIndex = i === 0 ? 0 : -1;
       b.addEventListener("click", () => this.chooseAt(i));
@@ -181,7 +196,11 @@ export class ChoiceMenu {
 
   private focusCurrent(): void {
     this.buttons.forEach((b, i) => {
-      b.tabIndex = i === this.index ? 0 : -1;
+      const selected = i === this.index;
+      b.tabIndex = selected ? 0 : -1;
+      // Keep aria-selected on the focused option only, so a listbox reader
+      // reports exactly one selected option as roving focus moves.
+      b.setAttribute("aria-selected", selected ? "true" : "false");
     });
     this.buttons[this.index]?.focus();
   }
