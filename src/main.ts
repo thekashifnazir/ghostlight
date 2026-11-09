@@ -1036,10 +1036,13 @@ export async function boot(): Promise<void> {
    */
   const renderStartAction = (): void => {
     // Match the gate's first sentence to this variant (web-build R4.1): a
-    // fresh Start, dismissed by the button or any key.
+    // fresh Start, dismissed by the button, or by Enter, Space or a letter.
+    // (Not "any key": Tab, the arrows and screen-reader keys must not start it,
+    // so a blind player can explore the gate before deciding to play.)
     const instruction = doc.getElementById("gate-instruction");
     if (instruction)
-      instruction.textContent = "Press the Start button, or any key, to begin.";
+      instruction.textContent =
+        "Press the Start button, or Enter, Space or any letter, to begin.";
 
     const startButton = doc.createElement("button");
     startButton.id = "start-button";
@@ -1136,18 +1139,39 @@ export async function boot(): Promise<void> {
     renderStartAction();
   }
 
-  // The gate's "any key begins" shortcut, kept for a fresh start. Suppressed
-  // when the Continue / New game choice is showing (the buttons own the keys)
-  // or when a load intent already auto-started boot.
+  // The gate's "press a key to begin" shortcut, kept for a fresh start.
+  // Suppressed when the Continue / New game choice is showing (the buttons own
+  // the keys) or when a load intent already auto-started boot.
   //
-  // F1 is the one exception: on the gate it reads the controls (the same
-  // HELP_TEXT as in-game F1) and must NOT start the game — a tester pressing
-  // F1 to learn the keys found it launched straight into play instead. So the
-  // handler intercepts F1 first, announces the help text, and returns without
-  // starting, leaving the gate visible and the shortcut live for a later key.
-  // It is a plain (not once) listener so F1 can be pressed repeatedly; any
-  // other key still starts and then the started/gateHandlesAnyKey guards make
-  // further presses no-ops.
+  // It must start ONLY on an intentional "begin" key and never on the keys a
+  // screen-reader user presses to EXPLORE the page before they have decided to
+  // play (an uninformed playtest found Tab started the game: a blind player
+  // pressing Tab, Shift+Tab, the arrows and screen-reader modifier keys to feel
+  // out the gate was dropped straight into play). So the shortcut starts only
+  // on Enter, Space, or a single printable character (a letter, number or
+  // symbol), and ignores everything else: Tab, Shift, Control, Alt, Meta,
+  // CapsLock, Insert, the arrow keys, Escape, the function keys, and any key
+  // pressed with Ctrl/Alt/Meta held (those are shortcuts, not "begin").
+  //
+  // F1 is a further exception among the ignored keys: on the gate it reads the
+  // controls (the same HELP_TEXT as in-game F1) rather than doing nothing — a
+  // tester pressing F1 to learn the keys should hear them. It is a plain (not
+  // once) listener so F1 can be pressed repeatedly; a real "begin" key still
+  // starts, after which the started / gateHandlesAnyKey guards make further
+  // presses no-ops.
+  const startsTheGame = (ev: KeyboardEvent): boolean => {
+    // A modifier chord (Ctrl/Alt/Meta + something) is a shortcut, never begin.
+    // Shift is allowed through so Shift + a letter (a capital) still begins.
+    if (ev.ctrlKey || ev.altKey || ev.metaKey) return false;
+    // Enter and Space are the explicit "begin" keys. Chrome reports Space as
+    // " " and some older engines as "Spacebar"; accept both.
+    if (ev.key === "Enter" || ev.key === " " || ev.key === "Spacebar")
+      return true;
+    // A single printable character (letter, number, symbol) begins; named keys
+    // like "Tab", "Shift", "ArrowLeft", "Escape", "F1" are longer than one code
+    // point and are ignored. Spreading the string handles astral characters.
+    return [...ev.key].length === 1;
+  };
   startGate.addEventListener("keydown", (ev) => {
     if (!gateHandlesAnyKey) return; // handled by buttons or load-intent start
     if (ev.key === "F1") {
@@ -1156,6 +1180,10 @@ export async function boot(): Promise<void> {
       live.announce(HELP_TEXT);
       return;
     }
+    // Ignore the navigation and modifier keys a screen-reader user presses to
+    // explore the page (Tab, Shift+Tab, arrows, Escape, modifiers, F-keys, and
+    // any Ctrl/Alt/Meta chord): let them do their normal thing, do not start.
+    if (!startsTheGame(ev)) return;
     ev.preventDefault();
     void startPlaying();
   });
