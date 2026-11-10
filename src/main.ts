@@ -363,8 +363,8 @@ export async function boot(): Promise<void> {
     crossingSkip?.noteLine();
   };
 
-  // Same tap for interrupt(). The default cut is silent (two invisible
-  // characters), so it is NOT a spoken line: it is logged as "[cut]" to the
+  // Same tap for interrupt(). The default cut is silent (two or three
+  // combining grapheme joiners), so it is NOT a spoken line: it is logged as "[cut]" to the
   // console under ?speechlog only, never in the status log. A cut with an
   // explicit word is spoken, so it is recorded like any spoken line.
   const liveInterrupt = live.interrupt.bind(live);

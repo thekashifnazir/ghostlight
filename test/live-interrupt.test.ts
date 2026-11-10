@@ -1,17 +1,18 @@
 // @vitest-environment jsdom
 // LiveRegion.interrupt: cut off a screen reader still reading a long polite
 // line by changing the assertive region silently. Measured on VoiceOver +
-// Safari: only an assertive-region change stops it; two invisible characters
-// stop it within about 250 ms and say nothing, while a single invisible
-// character is read by name.
+// Safari: only an assertive-region change stops it. Chromium drops changes made
+// only of whitespace or format characters, so the cut uses U+034F combining
+// grapheme joiners (two, then three, alternating because Chromium ignores a
+// write of the same text). A single invisible character is read by name.
 import { beforeEach, describe, expect, it } from "vitest";
 import { ChoiceMenu } from "../src/ui/choice-menu.js";
 import { LiveRegion } from "../src/ui/live-region.js";
 import { Narrator } from "../src/ui/narrator.js";
 
 const LONG = "A long line that is still being read aloud by the reader.";
-const NBSP2 = "\u00a0\u00a0";
-const ZWSP2 = "\u200b\u200b";
+const CGJ2 = "\u034f\u034f";
+const CGJ3 = "\u034f\u034f\u034f";
 
 describe("LiveRegion.interrupt", () => {
   let polite: HTMLElement;
@@ -29,28 +30,46 @@ describe("LiveRegion.interrupt", () => {
     live = new LiveRegion(polite, transcript, undefined, assertive, () => time);
   });
 
-  it("writes two invisible characters when a long line was announced just now", () => {
+  it("writes two combining grapheme joiners when a long line was announced just now", () => {
     live.announce("Pick a reply, 4 options. ".repeat(10));
     time += 100;
     expect(live.interrupt()).toBe(true);
-    expect(assertive.textContent).toBe(NBSP2);
+    expect(assertive.textContent).toBe(CGJ2);
     expect(assertive.textContent).not.toContain("Picked");
     // The polite region and the last line are untouched.
     expect(polite.textContent).toContain("Pick a reply");
     expect(live.lastLine()).toContain("Pick a reply");
   });
 
-  it("alternates the two pairs so consecutive cuts always change the content", () => {
+  it("alternates two and three joiners so consecutive cuts always change the content", () => {
     live.announce(LONG);
     const seen: string[] = [];
     for (let i = 0; i < 4; i++) {
       expect(live.interrupt()).toBe(true);
       seen.push(assertive.textContent!);
     }
-    expect(seen).toEqual([NBSP2, ZWSP2, NBSP2, ZWSP2]);
+    expect(seen).toEqual([CGJ2, CGJ3, CGJ2, CGJ3]);
     for (const s of seen) {
-      expect(s.length).toBe(2);
+      expect(s).toMatch(/^\u034f+$/);
       expect(s).not.toContain("\u2060");
+    }
+  });
+
+  it("two consecutive interrupts write different text", () => {
+    live.announce(LONG);
+    expect(live.interrupt()).toBe(true);
+    const first = assertive.textContent;
+    expect(live.interrupt()).toBe(true);
+    const second = assertive.textContent;
+    expect(second).not.toBe(first);
+    expect(first!.length).not.toBe(second!.length);
+  });
+
+  it("never writes whitespace or zero-width characters, which Chromium drops", () => {
+    live.announce(LONG);
+    for (let i = 0; i < 4; i++) {
+      live.interrupt();
+      expect(assertive.textContent).not.toMatch(/[\s\u00a0\u200b\u2060]/);
     }
   });
 
@@ -153,7 +172,7 @@ describe("Narrator onVoicedSuppressed interrupt wiring", () => {
     narrator.announce(LONG);
     narrator.text("Welcome to my castle.", true);
     expect(cuts).toBe(1);
-    expect(assertive.textContent).toBe(NBSP2);
+    expect(assertive.textContent).toBe(CGJ2);
     // The voiced line stayed out of the polite region.
     expect(polite.textContent).toBe(LONG);
   });

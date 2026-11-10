@@ -11,9 +11,16 @@ import type { Hotspot } from "../model/hotspot-list.js";
 /** How many earlier lines Shift+R can step back through. */
 const HISTORY_LIMIT = 20;
 
-/** Silent cut payloads: two characters each, never one (one is read by name). */
-const SILENT_CUT_A = "\u00a0\u00a0"; // two no-break spaces
-const SILENT_CUT_B = "\u200b\u200b"; // two zero-width spaces
+/**
+ * Silent cut payloads, built from U+034F COMBINING GRAPHEME JOINER (CGJ).
+ * Chromium drops a live-region change whose text is only whitespace or format
+ * (Unicode Cf) characters, so no-break and zero-width spaces never reach
+ * VoiceOver there. CGJ is not dropped, and two of them stop VoiceOver while
+ * it says nothing. Chromium also fires nothing when the text is the SAME as
+ * last time, so the payloads differ in length (two, then three) and alternate.
+ */
+const SILENT_CUT_A = "\u034f\u034f"; // two combining grapheme joiners
+const SILENT_CUT_B = "\u034f\u034f\u034f"; // three combining grapheme joiners
 
 export class LiveRegion {
   private readonly region: HTMLElement;
@@ -309,11 +316,14 @@ export class LiveRegion {
    * in the polite region NEVER stops VoiceOver. Only a change to an
    * aria-live="assertive" region does. A real word ("Picked.") stops it in
    * about 420 ms but is spoken. A SINGLE invisible character is read out by
-   * name ("space", "zero width space"). TWO invisible characters stop VoiceOver
-   * within about 250 ms and it says nothing: two no-break spaces, two
-   * zero-width spaces, and U+2060 + U+200B + U+2060 all did this. So the
-   * default write is two characters, alternating between the two pairs so
-   * consecutive cuts always change the content. Toggling aria-live off and on
+   * name ("space", "zero width space"). Two invisible characters stopped
+   * VoiceOver in Safari, but Chromium (Chrome, Edge) DROPS a live-region change
+   * made only of whitespace or format (Cf) characters, so spaces and zero-width
+   * spaces did nothing there. Two U+034F combining grapheme joiners reach
+   * VoiceOver: it stopped within about 375 ms in Chrome and 250 ms in Safari
+   * and spoke nothing. Chromium also ignores a write of the same text as the
+   * previous one, so the default write alternates two joiners and three
+   * joiners (5 of 5 stops in Chrome, 375-381 ms). Toggling aria-live off and on
    * breaks a live region in Safari (it never announces again), so aria-live is
    * never touched.
    *
