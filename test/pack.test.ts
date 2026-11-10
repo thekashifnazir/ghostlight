@@ -41,6 +41,19 @@ describe("Pack reader", () => {
     expect(pack.itemName(13, 2)).toBe("bubble gum");
   });
 
+  it("does not borrow another chapter's item name", () => {
+    // Item ids are reused per chapter: id 19 is a coin in chapter 2 and a rope in chapter 4.
+    expect(pack.itemName(19, 2)).toBe("one coin");
+    expect(pack.itemName(19, 4)).toBe("rope");
+    expect(pack.itemName(11, 2)).toBe("earplugs");
+    expect(pack.itemName(11, 4)).toBe("axe");
+    // Chapter 1 has only the phone; an id valid only in 2 and 3 is unknown there.
+    expect(pack.itemName(19, 1)).toBeUndefined();
+    // Chapter 6 is not written, so nothing is borrowed from earlier chapters.
+    expect(pack.itemName(19, 6)).toBeUndefined();
+    expect(pack.itemName(28, 6)).toBeUndefined();
+  });
+
   it("applies text fixes by context and room", () => {
     // Spanish hotspot name, room-scoped.
     expect(pack.applyTextFixes("ESCALERA", "hotspot", 14)).toBe("stairs");

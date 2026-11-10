@@ -247,14 +247,16 @@ export class Pack {
 
   /**
    * The spoken name for a carried item id, preferring an entry valid in the
-   * current chapter. Returns undefined if the pack has no such item.
+   * current chapter. Item ids are reused for different objects in each
+   * chapter, so when a chapter is given and no entry is valid in it this
+   * returns undefined rather than another chapter's name. With no chapter it
+   * returns the first entry for the id. Undefined if the pack has no such item.
    */
   itemName(id: number, chapter?: number): string | undefined {
     const matches = this.data.items.filter((it) => it.id === id);
     if (matches.length === 0) return undefined;
     if (chapter != null) {
-      const inChapter = matches.find((it) => it.chapters.includes(chapter));
-      if (inChapter) return inChapter.name;
+      return matches.find((it) => it.chapters.includes(chapter))?.name;
     }
     return matches[0].name;
   }
