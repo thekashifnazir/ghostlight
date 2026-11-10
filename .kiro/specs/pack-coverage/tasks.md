@@ -8,14 +8,16 @@ Each task is a single, reviewable commit. The engine-driving tasks (2, 3, 8, 9) 
   - Confirm, from `reference/census.json`, how reachability is represented (exit graph plus cutscene-only rooms 56, 57, 102) so stages 1 and 5 agree on which rooms count as reachable.
   - _Requirements: 1.6, dependency (transport-settle), 5.5_
 
-- [ ] 2. Survey script: drive drascula-mcp native from a checkpoint to each reachable room
+- [x] 2. Survey script: drive drascula-mcp native from a checkpoint to each reachable room
+  - Written (`packs/survey/survey.ts` CLI plus the engine-free `survey-core.ts`, unit tests in `packs/tools/test/survey.test.ts`); the live run against the native engine is done by Claude Code, not yet run.
   - Write `packs/survey/survey.ts` that launches `drascula-mcp` with the native transport and the pipeline's own save path, and drives only through the documented MCP tools (`start { slot }`, `state`, `look`, `walk`, etc.); never touch the command file, serialiser or parser directly.
   - Load a Crew checkpoint by copying it into the pipeline's save path and calling `start { slot }`; walk the census exit graph for the target chapter, reaching each unvisited neighbour via `walk <doorHotspot>` and confirming the room change.
   - Record a reached/unreached verdict per census room; a door that does not open or a command that does not settle is a recorded blocked edge or failed step with its reason, and the walk continues (never hang, never abort).
   - Stop the session on completion or failure; read Crew checkpoints but never write, delete or commit them.
   - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7_
 
-- [ ] 3. Dump: write the engine's raw room state and a screenshot per reached room
+- [x] 3. Dump: write the engine's raw room state and a screenshot per reached room
+  - Written as part of `survey-core.ts` / `survey.ts` (screenshots behind `--screenshots`, the gitignore rule was already present); the live run is done by Claude Code, not yet run.
   - For each reached room write `packs/survey/<room>/state.json` (the MCP `state` snapshot: chapter, room, hero, objects with hotspot numbers and rectangles, inventory, all 50 flags), `verbs.json` (which of look/take/open/close/talk/push/walk the engine answered, plus the game's own look text verbatim), and `meta.json` (checkpoint slot, date, engine build, per-hotspot door flag and census destination).
   - Capture `screenshot.png` of the room against the native window; if capture fails, still write the dump and record that the room's draft must be `seen: false`. The screenshot is game art: add `packs/survey/**/screenshot.png` to `.gitignore` so only the state/verbs/meta dumps and drafts are committed.
   - Keep raw engine text verbatim (Spanish and misspelt names preserved for a later text-fix decision); write no `.env` content or key into any dump.
