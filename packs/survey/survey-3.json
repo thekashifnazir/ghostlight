@@ -1,0 +1,18 @@
+{
+  "chapter": 3,
+  "slot": 30,
+  "date": "2026-11-10",
+  "engineBuild": "scummvm@2026-11-10T11:50:46.130Z",
+  "rooms": [
+    {
+      "room": 13,
+      "verdict": "reached"
+    },
+    {
+      "room": 20,
+      "verdict": "reached"
+    }
+  ],
+  "blockedEdges": [],
+  "failedSteps": []
+}

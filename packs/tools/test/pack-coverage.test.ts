@@ -38,9 +38,9 @@ describe("pack-coverage: claimed chapters are fully described", () => {
     expect(offenders, `hotspots without names: ${offenders.join("; ")}`).toEqual([]);
   });
 
-  it("reports the report as ok for the current pack (chapters 1 and 2)", () => {
+  it("reports the report as ok for the current pack (chapters 1 to 3)", () => {
     const report = buildCoverageReport(freshPack(), census);
-    expect(report.claimedChapters).toEqual([1, 2]);
+    expect(report.claimedChapters).toEqual([1, 2, 3]);
     expect(report.ok).toBe(true);
   });
 
@@ -59,14 +59,14 @@ describe("pack-coverage: claimed chapters are fully described", () => {
   });
 
   it("fails a chapter claimed before its rooms are described", () => {
-    // Claim chapter 3 (rooms 13, 20) without describing them: the report must
-    // flag both as missing, i.e. the guard rail trips.
+    // Claim chapter 4 (rooms 21, 22, ...) without describing them: the report
+    // must flag them as missing, i.e. the guard rail trips.
     const pack = freshPack();
-    pack.pack.coverage.chapters = [1, 2, 3];
+    pack.pack.coverage.chapters = [1, 2, 3, 4];
     const report = buildCoverageReport(pack, census);
-    const ch3 = report.chapters.find((c) => c.chapter === 3)!;
-    expect(ch3.missingRooms).toContain(13);
-    expect(ch3.missingRooms).toContain(20);
+    const ch4 = report.chapters.find((c) => c.chapter === 4)!;
+    expect(ch4.missingRooms).toContain(21);
+    expect(ch4.missingRooms).toContain(22);
     expect(report.ok).toBe(false);
   });
 });

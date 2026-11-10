@@ -1,0 +1,20 @@
+{
+  "room": 13,
+  "probes": [
+    {
+      "num": 101,
+      "answered": [
+        "look"
+      ],
+      "rejected": []
+    },
+    {
+      "num": 51,
+      "answered": [
+        "look"
+      ],
+      "rejected": [],
+      "lookText": "IT'S A VAMPIRE THAT WON'T LET ME COME THROUGH HE LOOKS LIKE YODA, BUT A LITTLE TALLER"
+    }
+  ]
+}
