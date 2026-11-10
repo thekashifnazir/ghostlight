@@ -35,6 +35,15 @@
 
 namespace Drascula {
 
+// True when the chapter 5 plug (item 16) is held on the cursor. The original
+// game deliberately keeps it there: selectVerb() will not stow item 16 in
+// chapter 5 (the fix for ScummVM bug #3885), and the player clicks the held
+// plug on the wall socket. The a11y layer must not stow it (that throws it
+// away), must accept it as a `use` item, and reports it as carried.
+static bool isHeldPlug(const DrasculaEngine *e) {
+	return e->currentChapter == 5 && e->takeObject == 1 && e->pickedObject == 16;
+}
+
 // Monotonic count of `A11Y_ERR ` lines emitted. The diff layer (task 17) needs
 // to know whether the command it just ran failed, because a command that erred
 // emits an A11Y_ERR and NO A11Y_DIFF (the replay fixtures and the task-22
@@ -405,6 +414,9 @@ void A11yLayer::takeSnapshot(Snapshot &snap) const {
 		if (id >= 7)
 			snap.inventory.push_back(id);
 	}
+	// Chapter 5 plug held on the cursor counts as carried (see isHeldPlug()).
+	if (isHeldPlug(e))
+		snap.inventory.push_back(16);
 
 	for (int f = 0; f < NUM_FLAGS; f++)
 		snap.flags[f] = e->flags[f];
@@ -459,6 +471,12 @@ Common::String A11yLayer::buildRoomState() {
 			json += ",";
 		json += Common::String::format("%d", id);
 		firstItem = false;
+	}
+	// Chapter 5 plug held on the cursor counts as carried (see isHeldPlug()).
+	if (isHeldPlug(e)) {
+		if (!firstItem)
+			json += ",";
+		json += "16";
 	}
 
 	// Flags: all 50, reported faithfully including flag 12's self-flipping
@@ -1075,7 +1093,12 @@ bool A11yLayer::runVerbOnSlot(int verb, int slot) {
 	// held (pickedObject == 1..6), and dropping that would dump a bogus
 	// verb-number "item" into inventory. The next command's own top-of-function
 	// reset clears a still-held verb, so leaving a held verb for it is correct.
-	if (e->takeObject == 1 && e->pickedObject >= 7)
+	//
+	// Exception, chapter 5 plug (bug #3885): the original game deliberately
+	// keeps item 16 on the cursor in chapter 5 (selectVerb() will not stow it),
+	// and the player then clicks it on the wall socket. Stowing it here would
+	// throw it away, so leave it held; `use 16 <num>` accepts it from the cursor.
+	if (e->takeObject == 1 && e->pickedObject >= 7 && !isHeldPlug(e))
 		e->selectVerb(kVerbNone);
 	return false;
 }
@@ -1179,7 +1202,14 @@ bool A11yLayer::useItemOnSlot(int itemId, int slot) {
 	// `if (takeObject == 1) addObject(pickedObject)` then clears takeObject, so
 	// after this the hero holds nothing and no stale verb number can leak into
 	// the inventory on the next pick (interface.cpp selectVerb).
-	if (e->takeObject == 1)
+	//
+	// Chapter 5 plug (bug #3885): if the plug is already held on the cursor and
+	// is the item being used, leave it there. selectVerb(kVerbNone) would throw
+	// it away (the original never stows item 16 in chapter 5), and it is
+	// already in the state the room handler reads (takeObject == 1,
+	// pickedObject == 16), so there is nothing to pick up either.
+	bool alreadyHeldPlug = itemId == 16 && isHeldPlug(e);
+	if (e->takeObject == 1 && !alreadyHeldPlug)
 		e->selectVerb(kVerbNone);
 
 	// Pick up the item the game's way: take it out of its inventory slot
@@ -1187,8 +1217,10 @@ bool A11yLayer::useItemOnSlot(int itemId, int slot) {
 	// chooseObject sets takeObject = 1, pickedObject = id). This is the state a
 	// left-click on the item in the inventory screen leaves behind, and it is
 	// what the room-action handlers read.
-	e->removeObject(itemId);
-	e->pickObject(itemId);
+	if (!alreadyHeldPlug) {
+		e->removeObject(itemId);
+		e->pickObject(itemId);
+	}
 
 	// Warp the cursor to the object's hotspot centre so the engine's hover name
 	// matches the object the use runs on (R3.3), the same as a verb command.
@@ -1219,7 +1251,9 @@ bool A11yLayer::useItemOnSlot(int itemId, int slot) {
 	// puts it back (its addObject(pickedObject)) and clears the cursor — the
 	// right-click a player would do. Guarding on `takeObject == 1` means we
 	// never double-add a consumed item.
-	if (e->takeObject == 1)
+	// Chapter 5 plug (bug #3885): a plug still on the cursor stays there, as in
+	// the original, so it can be tried again on another target.
+	if (e->takeObject == 1 && !isHeldPlug(e))
 		e->selectVerb(kVerbNone);
 	return false;
 }
@@ -1298,7 +1332,7 @@ bool A11yLayer::dispatchUse(const Common::String &arg) {
 			"A11Y_ERR %d is a verb slot, not an inventory item (items are id 7+)", itemId));
 		return false;
 	}
-	if (!itemInInventory(itemId)) {
+	if (!itemInInventory(itemId) && !(itemId == 16 && isHeldPlug(_engine))) {
 		emitLine(Common::String::format(
 			"A11Y_ERR item %d is not in the inventory", itemId));
 		return false;
@@ -1493,6 +1527,21 @@ void A11yLayer::dispatchInventory() {
 		if (!look.empty())
 			json += Common::String::format(",\"look\":\"%s\"", jsonEscape(look.c_str()).c_str());
 
+		json += "}";
+	}
+
+	// The plug held on the cursor in chapter 5 is not in inventoryObjects[]
+	// but the player has it, so list it too (see isHeldPlug()).
+	if (isHeldPlug(e)) {
+		if (!first)
+			json += ",";
+		json += "{\"id\":16";
+		Common::String name = itemName(16);
+		if (!name.empty())
+			json += Common::String::format(",\"name\":\"%s\"", jsonEscape(name.c_str()).c_str());
+		Common::String look = itemLookLine(16);
+		if (!look.empty())
+			json += Common::String::format(",\"look\":\"%s\"", jsonEscape(look.c_str()).c_str());
 		json += "}";
 	}
 
