@@ -64,15 +64,14 @@ static uint32 g_lastEngineOutputMs = 0;
 
 // --- Cross-chapter diff carrier (task 17/18, R4.3 / design "Settling") ------
 //
-// A `walk` through a chapter-ending door (chapter 1's door 105) runs
-// animation_2_1() and makes exitRoom() return true, which we relay up so
-// runCurrentChapter() returns and run() advances to the next chapter. That tears
-// down the chapter-1 A11yLayer (it lives on the stack of runCurrentChapter())
-// BEFORE the next chapter's first room (chapter 2 room 14) is set up — so the
-// chapter-1 layer cannot build the crossing's A11Y_DIFF itself: the "after"
-// state does not exist yet when it is destroyed.
+// A chapter-ending `walk` (chapter 1's door 105, chapter 2's crossings) or a
+// verb / `use` whose checkAction() returned true (chapters 3 to 6) ends the
+// chapter and tears down this layer (it lives on the stack of runCurrentChapter())
+// BEFORE the next chapter's first room (for chapter 1, chapter 2 room 14) is set
+// up, so the ending chapter's layer cannot build the crossing's A11Y_DIFF itself:
+// the "after" state does not exist yet when it is destroyed.
 //
-// Instead the chapter-1 layer, at the moment it detects the crossing, stashes
+// Instead the ending chapter's layer, at the moment it detects the crossing, stashes
 // the before-snapshot, the `cmd` string, the error-count baseline and the
 // `said` lines captured during the cutscene into this module-static carrier
 // (module-static so it survives the layer's destruction, like g_errCount). The
@@ -842,11 +841,13 @@ void A11yLayer::readCommandFile() {
 // commands have a handler. Anything else has no handler yet, so it emits
 // A11Y_ERR and the layer keeps running (R2.5) — exactly the behaviour a real,
 // still-unimplemented command should have until its task lands.
-// Returns true when this command ended the chapter (a `walk` through a
-// chapter-ending door whose exitRoom() returned true). poll() relays that up so
-// the main-loop hook ends runCurrentChapter(), exactly as the engine's own
-// `if (verify1()) return true;` does for a real door click. Every other command
-// returns false.
+// Returns true when this command ended the chapter: a `walk` through a
+// chapter-ending door (exitRoom() returned true), or a verb / `use` on a room
+// object whose room action code made checkAction() return true (chapters 3 to 6
+// end this way). poll() relays that up so the main-loop hook ends
+// runCurrentChapter(), exactly as the engine's own `if (verify1()) return true;`
+// and `if (checkAction(...)) return true;` do for a real click. Every other
+// command returns false.
 bool A11yLayer::runCommand(const Common::String &cmd) {
 	emitLine(Common::String("A11Y_CMD ") + cmd);
 
@@ -877,29 +878,23 @@ bool A11yLayer::runCommand(const Common::String &cmd) {
 	// has no kVerb of its own in these commands — it is kVerbTalk — and `take`
 	// is the engine's kVerbPick.
 	if (verb == "look") {
-		dispatchVerb(kVerbLook, arg);
-		return false;
+		return dispatchVerb(kVerbLook, arg);
 	}
 	if (verb == "take") {
-		dispatchVerb(kVerbPick, arg);
-		return false;
+		return dispatchVerb(kVerbPick, arg);
 	}
 	if (verb == "open") {
-		dispatchVerb(kVerbOpen, arg);
-		return false;
+		return dispatchVerb(kVerbOpen, arg);
 	}
 	if (verb == "close") {
-		dispatchVerb(kVerbClose, arg);
-		return false;
+		return dispatchVerb(kVerbClose, arg);
 	}
 	if (verb == "talk") {
-		dispatchVerb(kVerbTalk, arg);
-		return false;
+		return dispatchVerb(kVerbTalk, arg);
 	}
 	if (verb == "push") {
 		// The engine's "push/move" verb is kVerbMove.
-		dispatchVerb(kVerbMove, arg);
-		return false;
+		return dispatchVerb(kVerbMove, arg);
 	}
 
 	// Doors and walking (task 9, R3.8 / R2.6). One numeric arg is an object
@@ -913,8 +908,7 @@ bool A11yLayer::runCommand(const Common::String &cmd) {
 	// Use an inventory item on a room object (task 10, R3.4 / R3.5):
 	// `use <item> on <obj>` or `use <item> <obj>`.
 	if (verb == "use") {
-		dispatchUse(arg);
-		return false;
+		return dispatchUse(arg);
 	}
 
 	// Inventory listing (task 13, R6.4). `inventory` and the short alias `inv`
@@ -1009,7 +1003,7 @@ int A11yLayer::slotForObjectNum(int num) const {
 //     verify2(). checkAction() only runs the generic room_0 "no, I can't"
 //     reply when _hasName is set, so without this an unhandled verb would stay
 //     silent instead of giving the game's own refusal.
-void A11yLayer::runVerbOnSlot(int verb, int slot) {
+bool A11yLayer::runVerbOnSlot(int verb, int slot) {
 	DrasculaEngine *e = _engine;
 
 	// Clear any verb still held from a previous command before selecting the
@@ -1056,7 +1050,12 @@ void A11yLayer::runVerbOnSlot(int verb, int slot) {
 	e->trackFinal = e->trackObj[slot];
 	e->_walkToObject = true;
 	e->walkToPoint(e->_roomObject[slot]);
-	e->checkAction(e->objectNum[slot]);
+	// checkAction() returns true when the action ended the chapter (the
+	// original game's `if (checkAction(...)) return true;`). Relay that to the
+	// caller and skip the item-return step: the chapter is over and its state
+	// is being torn down.
+	if (e->checkAction(e->objectNum[slot]))
+		return true;
 
 	// R3.5 item return — drop a newly-PICKED item into the inventory, as a
 	// right-click would. Some room handlers reward a plain verb-on-object with
@@ -1078,16 +1077,17 @@ void A11yLayer::runVerbOnSlot(int verb, int slot) {
 	// reset clears a still-held verb, so leaving a held verb for it is correct.
 	if (e->takeObject == 1 && e->pickedObject >= 7)
 		e->selectVerb(kVerbNone);
+	return false;
 }
 
 // Handle a `<verb> <num>` command: resolve the slot for the engine object
 // number, emit A11Y_ERR if it is not in the room (R2.5), else run the verb on
-// that slot. Returns true when the command was understood (even if the object
-// was missing); false only when the argument was not a number.
+// that slot. Returns true only when the verb ended the chapter (checkAction()
+// returned true); every other outcome, including an A11Y_ERR, returns false.
 bool A11yLayer::dispatchVerb(int verbConst, const Common::String &arg) {
 	if (arg.empty()) {
 		emitLine("A11Y_ERR verb needs an object number, e.g. `look 52`");
-		return true;
+		return false;
 	}
 
 	// Parse the object number. a11y object ids are plain strings of digits
@@ -1096,7 +1096,7 @@ bool A11yLayer::dispatchVerb(int verbConst, const Common::String &arg) {
 	for (uint i = 0; i < arg.size(); i++) {
 		if (arg[i] < '0' || arg[i] > '9') {
 			emitLine(Common::String("A11Y_ERR object must be a number, got: ") + arg);
-			return true;
+			return false;
 		}
 	}
 	int num = atoi(arg.c_str());
@@ -1106,29 +1106,27 @@ bool A11yLayer::dispatchVerb(int verbConst, const Common::String &arg) {
 	// checkAction(50) against the hero (e.g. `look 50` is look-at-self).
 	if (num == 50) {
 		runVerbOnSelf(verbConst);
-		return true;
+		return false;
 	}
 
 	// A room object: resolve its slot and run the verb through the engine's own
 	// room-object path (task 8).
 	int slot = slotForObjectNum(num);
-	if (slot >= 0) {
-		runVerbOnSlot(verbConst, slot);
-		return true;
-	}
+	if (slot >= 0)
+		return runVerbOnSlot(verbConst, slot);
 
 	// Not a room object. It may be an inventory item the player wants to act on
 	// in the inventory screen (R3.6), e.g. `look 28` to look at the phone. Real
 	// items are id >= 7 (gotcha 7); verb slots 1..6 are not items.
 	if (num >= 7 && slotForItem(num) >= 0) {
 		runVerbOnItemSlot(verbConst, num);
-		return true;
+		return false;
 	}
 
 	// Neither a room object, the hero, nor an inventory item the player holds.
 	emitLine(Common::String::format(
 		"A11Y_ERR object %d is not in this room or inventory", num));
-	return true;
+	return false;
 }
 
 // --- Use an inventory item on a room object (task 10, R3.4 / R3.5) ----------
@@ -1173,7 +1171,7 @@ bool A11yLayer::itemInInventory(int itemId) const {
 
 // Apply item `itemId` to the room object in `slot`, then return the item to the
 // inventory if the action did not consume it (R3.4, R3.5).
-void A11yLayer::useItemOnSlot(int itemId, int slot) {
+bool A11yLayer::useItemOnSlot(int itemId, int slot) {
 	DrasculaEngine *e = _engine;
 
 	// Drop whatever verb/item is currently held, returning it to the inventory,
@@ -1209,7 +1207,10 @@ void A11yLayer::useItemOnSlot(int itemId, int slot) {
 	e->trackFinal = e->trackObj[slot];
 	e->_walkToObject = true;
 	e->walkToPoint(e->_roomObject[slot]);
-	e->checkAction(e->objectNum[slot]);
+	// checkAction() true == this use ended the chapter. Relay it and skip the
+	// item return: the chapter is over and its state is being torn down.
+	if (e->checkAction(e->objectNum[slot]))
+		return true;
 
 	// R3.5 — item return. If the item was consumed, the handler already removed
 	// it and cleared the picked object (takeObject == 0). If the use did not
@@ -1220,12 +1221,14 @@ void A11yLayer::useItemOnSlot(int itemId, int slot) {
 	// never double-add a consumed item.
 	if (e->takeObject == 1)
 		e->selectVerb(kVerbNone);
+	return false;
 }
 
 // Parse and dispatch `use <item> on <obj>` / `use <item> <obj>` (R3.4). Rejects
 // an item not in inventory, an object not in the room, and malformed syntax
-// with A11Y_ERR, keeping the layer running (R2.5).
-void A11yLayer::dispatchUse(const Common::String &arg) {
+// with A11Y_ERR, keeping the layer running (R2.5). Returns true only when the
+// use ended the chapter (a room-object use whose checkAction() returned true).
+bool A11yLayer::dispatchUse(const Common::String &arg) {
 	// Split the argument into whitespace-separated words, collapsing runs of
 	// spaces. arg is already trimmed by runCommand().
 	Common::Array<Common::String> words;
@@ -1249,12 +1252,12 @@ void A11yLayer::dispatchUse(const Common::String &arg) {
 	// or the hero), so this is an error here (R2.5).
 	if (words.empty()) {
 		emitLine("A11Y_ERR use needs an item and a target: `use <item> on <object>`");
-		return;
+		return false;
 	}
 	if (words.size() == 1) {
 		emitLine("A11Y_ERR use needs a target: `use <item> on <object>` "
 		         "(a room object, another item, or 50 for the hero)");
-		return;
+		return false;
 	}
 
 	// Accept both `use <item> on <obj>` and `use <item> <obj>`. When the middle
@@ -1271,7 +1274,7 @@ void A11yLayer::dispatchUse(const Common::String &arg) {
 	} else {
 		emitLine("A11Y_ERR use takes `<item> on <object>` or `<item> <object>`, "
 		         "e.g. `use 18 on 188`");
-		return;
+		return false;
 	}
 
 	// Both the item id and the object number must be plain strings of digits
@@ -1280,11 +1283,11 @@ void A11yLayer::dispatchUse(const Common::String &arg) {
 	int itemId, objNum;
 	if (!parseInt(itemWord, itemId) || itemId < 0) {
 		emitLine(Common::String("A11Y_ERR use item must be a number, got: ") + itemWord);
-		return;
+		return false;
 	}
 	if (!parseInt(objWord, objNum) || objNum < 0) {
 		emitLine(Common::String("A11Y_ERR use object must be a number, got: ") + objWord);
-		return;
+		return false;
 	}
 
 	// The item must actually be in the inventory (gotcha 7: real items are
@@ -1293,12 +1296,12 @@ void A11yLayer::dispatchUse(const Common::String &arg) {
 	if (itemId < 7) {
 		emitLine(Common::String::format(
 			"A11Y_ERR %d is a verb slot, not an inventory item (items are id 7+)", itemId));
-		return;
+		return false;
 	}
 	if (!itemInInventory(itemId)) {
 		emitLine(Common::String::format(
 			"A11Y_ERR item %d is not in the inventory", itemId));
-		return;
+		return false;
 	}
 
 	// The target is object 50, the hero / self (R3.7): `use <item> on 50`.
@@ -1306,15 +1309,14 @@ void A11yLayer::dispatchUse(const Common::String &arg) {
 	// key item-on-self on `pickedObject == <itemId> && fl == 50`.
 	if (objNum == 50) {
 		useItemOnSelf(itemId);
-		return;
+		return false;
 	}
 
 	// The target may be a live room object (task 10): `use <item> on <objNum>`.
+	// A use that ends the chapter returns true, relayed to runCommand().
 	int slot = slotForObjectNum(objNum);
-	if (slot >= 0) {
-		useItemOnSlot(itemId, slot);
-		return;
-	}
+	if (slot >= 0)
+		return useItemOnSlot(itemId, slot);
 
 	// The target may be another inventory item (item-on-item, R3.6): both the
 	// held item and the target are in the inventory, combined on the inventory
@@ -1324,16 +1326,17 @@ void A11yLayer::dispatchUse(const Common::String &arg) {
 		if (objNum == itemId) {
 			emitLine(Common::String::format(
 				"A11Y_ERR cannot use item %d on itself", itemId));
-			return;
+			return false;
 		}
 		useItemOnItemSlot(itemId, objNum);
-		return;
+		return false;
 	}
 
 	// Not the hero, a room object, or an inventory item.
 	emitLine(Common::String::format(
 		"A11Y_ERR target %d is not a room object, an inventory item, or the hero (50)",
 		objNum));
+	return false;
 }
 
 // --- Inventory listing (task 13, R6.4 / gotcha 9) ---------------------------
@@ -2573,9 +2576,10 @@ bool A11yLayer::poll() {
 		_inRunCommand = false;
 
 		if (endedChapter) {
-			// The command was a `walk` through a chapter-ending door: exitRoom()
-			// ran the crossing cutscene (animation_2_1) and returned true, and
-			// runCommand() relayed that up to us. We must now end the chapter so
+			// The command ended the chapter: a `walk` through a chapter-ending
+			// door (exitRoom() ran the crossing cutscene, e.g. animation_2_1, and
+			// returned true), or a verb / `use` whose checkAction() returned
+			// true. runCommand() relayed that up to us. We must now end the chapter so
 			// run() advances to the next one — but the NEXT chapter's first room
 			// is not set up yet, so the crossing's A11Y_DIFF cannot be built
 			// here (the after-state does not exist). Stash the before-snapshot,

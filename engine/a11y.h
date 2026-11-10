@@ -329,13 +329,15 @@ private:
 	// then run the engine's walkToPoint() + checkAction() for that slot (R3.1,
 	// R3.2). This is the body of verify2()'s per-object branch, run directly on
 	// the chosen slot rather than via a pixel hit test, so it is reliable when
-	// the hero wins the hit test or hotspots overlap (gotcha 6).
-	void runVerbOnSlot(int verb, int slot);
+	// the hero wins the hit test or hotspots overlap (gotcha 6). Returns true
+	// when checkAction() ended the chapter (no item return is done then).
+	bool runVerbOnSlot(int verb, int slot);
 
 	// Parse a verb command of the form `<verb> <num>` (e.g. `look 52`): look up
 	// the slot for `num`, emit A11Y_ERR if the object is not in the room (R2.5),
 	// otherwise run the verb on that slot. `verbConst` is the engine's kVerb*
-	// value for the a11y verb word. Returns true if it handled the command.
+	// value for the a11y verb word. Returns true only when the verb ended the
+	// chapter (checkAction() returned true); false for every other outcome.
 	bool dispatchVerb(int verbConst, const Common::String &arg);
 
 	// Handle the `use` command (task 10, R3.4 / R3.5). The only form this task
@@ -348,7 +350,8 @@ private:
 	// inventory, the object is not in the room, or the syntax is malformed. A
 	// bare `use <item>` (no target) has no standalone-use path in this engine,
 	// so it is an A11Y_ERR here; self / object-50 targets belong to task 11.
-	void dispatchUse(const Common::String &arg);
+	// Returns true only when the use ended the chapter (checkAction() true).
+	bool dispatchUse(const Common::String &arg);
 
 	// True when inventory item id `itemId` (a real item, id >= 7) is currently
 	// held in a live inventory slot (inventoryObjects[1..]). Used to reject a
@@ -361,8 +364,9 @@ private:
 	// then return the item to the inventory if the use did not consume it
 	// (R3.5). Runs the GAME'S OWN room-action handler (checkAction), so applying
 	// uses behave exactly as a mouse would, and a non-applying use leaves the
-	// item safely back in inventory rather than lost.
-	void useItemOnSlot(int itemId, int slot);
+	// item safely back in inventory rather than lost. Returns true when
+	// checkAction() ended the chapter (no item return is done then).
+	bool useItemOnSlot(int itemId, int slot);
 
 	// --- Inventory-screen targets and self / object 50 (task 11, R3.6/R3.7) --
 
