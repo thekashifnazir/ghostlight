@@ -194,7 +194,8 @@ A11yLayer::A11yLayer(DrasculaEngine *engine)
 	  _mainCmdDiffPending(false), _mainCmdOpenedConverse(false), _mainCmdErrCount(0),
 	  _queueHead(0), _inRunCommand(false), _lastSkipPollMs(0),
 	  _clickState(kClickIdle), _lastPhase(kPhaseNone), _probe(nullptr),
-	  _lastPollMs(0), _watchdogStage(0), _watchdogBaseMs(0) {
+	  _lastPollMs(0), _watchdogStage(0), _watchdogBaseMs(0),
+	  _walkGuardArmed(false) {
 	for (int i = 0; i < 4; i++)
 		_choiceBottom[i] = 0;
 	// The per-engine "player in control" probe the phase logic reads. This is
@@ -1067,7 +1068,7 @@ bool A11yLayer::runVerbOnSlot(int verb, int slot) {
 	// pixel hit test.
 	e->trackFinal = e->trackObj[slot];
 	e->_walkToObject = true;
-	e->walkToPoint(e->_roomObject[slot]);
+	guardedWalkToPoint(e->_roomObject[slot]);
 	// checkAction() returns true when the action ended the chapter (the
 	// original game's `if (checkAction(...)) return true;`). Relay that to the
 	// caller and skip the item-return step: the chapter is over and its state
@@ -1238,7 +1239,7 @@ bool A11yLayer::useItemOnSlot(int itemId, int slot) {
 	// test (gotcha 6). The room handler branches on pickedObject == itemId.
 	e->trackFinal = e->trackObj[slot];
 	e->_walkToObject = true;
-	e->walkToPoint(e->_roomObject[slot]);
+	guardedWalkToPoint(e->_roomObject[slot]);
 	// checkAction() true == this use ended the chapter. Relay it and skip the
 	// item return: the chapter is over and its state is being torn down.
 	if (e->checkAction(e->objectNum[slot]))
@@ -1960,7 +1961,7 @@ bool A11yLayer::walkObject(int slot) {
 	// walk never ends the chapter, so report false.
 	e->trackFinal = e->trackObj[slot];
 	e->_walkToObject = true;
-	e->walkToPoint(e->_roomObject[slot]);
+	guardedWalkToPoint(e->_roomObject[slot]);
 	return false;
 }
 
@@ -1981,7 +1982,7 @@ void A11yLayer::walkPoint(int x, int y) {
 	// stops walkToPoint() applying trackFinal (the object-facing direction)
 	// from a previous command.
 	e->_walkToObject = false;
-	e->walkToPoint(Common::Point(cx, cy));
+	guardedWalkToPoint(Common::Point(cx, cy));
 }
 
 // --- Conversations (task 15, R7.1 / R7.2 / R6.3 / gotcha 4) -----------------
@@ -3192,6 +3193,93 @@ void A11yLayer::runBusyWatchdog() {
 	}
 }
 
+// --- Walk overshoot guard (ch4 room 22 hang, 10 Nov) ------------------------
+//
+// The engine's walk ends only through the stop tests at the top of
+// moveCharacters() (actors.cpp). Each is an exact-hit window one step wide:
+// for a sideways walk, "is the hero's centre within STEP_X - 1 px of the
+// target"; for an up/down walk, "are the feet within STEP_Y - 1 px". There is
+// no "already past it" test. A sideways step is normally exactly STEP_X (8) px,
+// so it cannot jump the 8 px window, but increaseFrameNum() also re-scales the
+// sprite for perspective each frame (curX += curWidth - newWidth), and when
+// the width grows by one pixel on the same frame as the last step, the centre
+// moves 9 px and lands one pixel beyond the window. From then on the test can
+// never pass, so walkToPoint()'s loop never sees !_characterMoved and the hero
+// walks on forever.
+//
+// Concrete case: chapter 4 room 22, hero at (207,160) after `look 180`, then
+// `use 22 52` walks to the magpie point (190,177). dx == dy == 17, so
+// startWalking() picks a sideways walk (track 0) with stepY 8; the centre goes
+// 207, 199, 191, and on the third step the feet cross scale row 176 (width 38
+// to 39), so the centre lands on 182, one short of the window [183,190].
+//
+// This guard only acts once the walk is past its window, i.e. once it could no
+// longer stop by itself. A walk the engine ends normally never reaches that
+// state, so it is unchanged. It is armed only around this layer's own
+// walkToPoint() calls; player clicks and scripted walks are left alone.
+
+bool A11yLayer::walkOvershot(int chapter, int track, int heroLeft, int heroWidth,
+                             int feetY, int targetX, int targetY) {
+	if (track == 0 || track == 1) {
+		// Chapter 2 tests the left edge (track 0) or right edge (track 1);
+		// the other chapters test the centre (moveCharacters()).
+		int x;
+		if (chapter == 2)
+			x = (track == 0) ? heroLeft : heroLeft + heroWidth;
+		else
+			x = heroLeft + heroWidth / 2;
+		if (track == 0)
+			return x < targetX - (STEP_X - 1);
+		return x > targetX + (STEP_X - 1);
+	}
+	if (track == 2)
+		return feetY < targetY - (STEP_Y - 1);
+	if (track == 3)
+		return feetY > targetY + (STEP_Y - 1);
+	return false;
+}
+
+void A11yLayer::guardedWalkToPoint(const Common::Point &target) {
+	_walkGuardArmed = true;
+	_engine->walkToPoint(target);
+	_walkGuardArmed = false;
+}
+
+void A11yLayer::checkWalkOvershoot() {
+	if (!_walkGuardArmed)
+		return;
+	DrasculaEngine *e = _engine;
+	if (!e->_characterMoved)
+		return;
+	// Chapter 5 room 45 pins the hero to (0,0) every frame (the engine's own
+	// bug #5903 workaround in increaseFrameNum()), so position says nothing
+	// about the walk there. Leave it to the engine.
+	if (e->currentChapter == 5 && e->_roomNumber == 45)
+		return;
+
+	// walkToPoint() stores its target in roomX/roomY before startWalking().
+	if (!walkOvershot(e->currentChapter, e->trackProtagonist, e->curX, e->curWidth,
+	                  e->curY + e->curHeight, e->roomX, e->roomY))
+		return;
+
+	// End the walk the way the engine's own track-1 arrival does in
+	// moveCharacters(): stop, reset the step sizes and place the hero on the
+	// target point. The overshoot is a pixel or two past the window, so the
+	// hero ends where a normal arrival would. walkToPoint() then sees
+	// !_characterMoved and returns, applying trackFinal as usual.
+	e->_characterMoved = false;
+	e->stepX = STEP_X;
+	e->stepY = STEP_Y;
+	if (e->currentChapter == 2)
+		e->curX = e->roomX - e->curWidth + 4;
+	else
+		e->curX = e->roomX - e->curWidth / 2;
+	e->curY = e->roomY - e->curHeight;
+	_walkGuardArmed = false;
+	debug(1, "Ghostlight: walk overshoot guard ended a walk at (%d,%d)",
+	      e->roomX, e->roomY);
+}
+
 // Hook body: run from the end of DrasculaEngine::updateEvents() every frame.
 // Because a cutscene/speech loop can call updateEvents() every ~10 ms, reading
 // the command file on each call would churn the filesystem; so we throttle to
@@ -3213,6 +3301,12 @@ void A11yLayer::onUpdateEvents() {
 	// no-op whenever the engine is still showing life (poll() fresh or a line
 	// emitted within the window) or nothing is queued.
 	runBusyWatchdog();
+
+	// End an a11y walk that has walked past its stop window and so can never
+	// stop by itself (see checkWalkOvershoot). Every frame, not throttled:
+	// walkToPoint() calls updateEvents() each frame, so this runs right after
+	// the step that overshot, before the hero goes any further.
+	checkWalkOvershoot();
 
 	// Throttle: at most one command-file read per ~250 ms from this hook. poll()
 	// still reads every frame when the main loop is running; this cap only

@@ -905,6 +905,44 @@ private:
 	int _watchdogStage;
 	uint32 _watchdogBaseMs;
 
+	// Walk overshoot guard (ch4 room 22 hang, 10 Nov). True only while one of
+	// this layer's own walkToPoint() calls is running (see guardedWalkToPoint).
+	// While armed, onUpdateEvents() checks every frame whether the hero has
+	// already walked PAST the engine's stop window on the axis the engine tests
+	// (see walkOvershot). Past that window the engine's exact-hit stop test in
+	// moveCharacters() can never fire again, so walkToPoint() would loop
+	// forever; the guard ends that walk the way the engine's own arrival does.
+	bool _walkGuardArmed;
+
+	// Run the engine's own walkToPoint(target) with the overshoot guard armed.
+	// Every a11y walk that blocks on walkToPoint() goes through this. A walk
+	// that stops normally is unchanged: the guard only acts once the walk can
+	// no longer stop by itself.
+	void guardedWalkToPoint(const Common::Point &target);
+
+	// Called from onUpdateEvents() each frame. If the guard is armed and the
+	// running walk has overshot, end it: place the hero on the target point
+	// (the same placement the engine's own track-1 arrival does in
+	// moveCharacters()) and clear _characterMoved so walkToPoint() returns.
+	void checkWalkOvershoot();
+
+	// Pure overshoot test, kept free of engine state (like watchdogDecision)
+	// and ported line for line in tests/engine/walk-overshoot.test.ts. Mirrors
+	// the stop windows in moveCharacters() (actors.cpp):
+	//   track 0 (left):  stop while (chapter 2: left edge, else centre) is in
+	//                    [targetX - (STEP_X-1), targetX]; overshot if below it.
+	//   track 1 (right): stop while (chapter 2: right edge, else centre) is in
+	//                    [targetX, targetX + (STEP_X-1)]; overshot if above it.
+	//   track 2 (up):    stop while feet in [targetY - (STEP_Y-1), targetY];
+	//                    overshot if above it (smaller y).
+	//   track 3 (down):  stop while feet in [targetY, targetY + (STEP_Y-1)];
+	//                    overshot if below it (larger y).
+	// startWalking() always picks the direction toward the target, and each
+	// step moves the tested coordinate monotonically toward and then past it,
+	// so once overshot the engine's test can never pass again.
+	static bool walkOvershot(int chapter, int track, int heroLeft, int heroWidth,
+	                         int feetY, int targetX, int targetY);
+
 	// How long (ms) the engine may show no sign of life (no poll(), no emitted
 	// line) with commands queued before each watchdog stage fires. 20 s per the
 	// Fix C tuning: long enough never to trip on the legitimate long Von Braun
