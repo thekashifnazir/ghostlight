@@ -164,6 +164,28 @@ run_configure() {
   done
 }
 
+# require_vorbis -- stop unless the configured tree has Vorbis (USE_VORBIS).
+#
+# WHY: the game ships its music as an Ogg pack. If ScummVM is built without
+# Vorbis, configure still succeeds, the engine finds the Ogg pack at run time,
+# cannot play it, and opens a modal "CD audio tracks" warning
+# (warnMissingExtractedCDAudio) that blocks the a11y layer. So Vorbis is
+# required, not optional. configure writes USE_VORBIS into config.h when found.
+# Runs after every configure AND when configure is skipped on a stamp match, so a
+# tree configured without Vorbis can never pass silently.
+require_vorbis() {
+  if grep -q '^#define USE_VORBIS' "$SCUMMVM_DIR/config.h" 2>/dev/null; then
+    log "Vorbis support found (USE_VORBIS set in config.h)"
+    return 0
+  fi
+  die "ScummVM was configured WITHOUT Vorbis (USE_VORBIS is not set in $SCUMMVM_DIR/config.h).
+  Without it the game cannot play its Ogg audio pack and hangs on a modal \"CD audio tracks\" dialog.
+  Install the development packages, then re-run with --reconfigure:
+    Debian/Ubuntu:  sudo apt install libvorbis-dev libogg-dev
+    macOS:          brew install libvorbis
+  Then: scripts/build-engine.sh --reconfigure"
+}
+
 # --- preflight ---------------------------------------------------------------
 
 [ -d "$SCUMMVM_DIR" ]  || die "vendor/scummvm missing. Run scripts/fetch.sh first."
@@ -252,6 +274,14 @@ fi
 cd "$SCUMMVM_DIR"
 
 CONFIGURE_ARGS=(--disable-all-engines --enable-engine=drascula)
+# Native: do NOT pass --enable-vorbis. In this ScummVM, =yes skips the library
+# probe, so configure would not fail early on a missing libvorbis; it would set
+# USE_VORBIS anyway and only fail at link time, and it would defeat
+# require_vorbis. Leaving it on autodetect makes USE_VORBIS an honest probe result.
+# Web: ScummVM's emscripten branch forces Vorbis/Ogg OFF unless explicitly
+# enabled (they come from emscripten ports), so they must be passed, as
+# scripts/build-web.sh already does.
+[ "$WEB" -eq 1 ] && CONFIGURE_ARGS+=(--enable-ogg --enable-vorbis)
 
 # A --clean wipes the config, so a reconfigure is mandatory after it.
 [ "$CLEAN" -eq 1 ] && RECONFIGURE=1
@@ -266,9 +296,11 @@ if [ "$WEB" -eq 1 ]; then
   if [ "$want_configure" -eq 1 ]; then
     log "configuring Emscripten build (Drascula only)"
     run_configure web
+    require_vorbis
     engine_fingerprint > "$CONFIG_STAMP"
   else
     log "tree already configured for these engine sources; skipping configure (reuse config.mk)"
+    require_vorbis
   fi
   log "building with emmake make -j$JOBS"
   emmake make -j"$JOBS"
@@ -277,9 +309,11 @@ else
   if [ "$want_configure" -eq 1 ]; then
     log "configuring native build (Drascula only)"
     run_configure native
+    require_vorbis
     engine_fingerprint > "$CONFIG_STAMP"
   else
     log "tree already configured for these engine sources; skipping configure (reuse config.mk)"
+    require_vorbis
   fi
   log "building with make -j$JOBS"
   make -j"$JOBS"
