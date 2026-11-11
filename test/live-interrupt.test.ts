@@ -9,6 +9,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { ChoiceMenu } from "../src/ui/choice-menu.js";
 import { LiveRegion } from "../src/ui/live-region.js";
 import { Narrator } from "../src/ui/narrator.js";
+import { speakHint } from "../src/ui/hint-speech.js";
 
 const LONG = "A long line that is still being read aloud by the reader.";
 const CGJ2 = "\u034f\u034f";
@@ -175,5 +176,85 @@ describe("Narrator onVoicedSuppressed interrupt wiring", () => {
     expect(assertive.textContent).toBe(CGJ2);
     // The voiced line stayed out of the polite region.
     expect(polite.textContent).toBe(LONG);
+  });
+});
+
+describe("speakHint cuts the screen reader (H)", () => {
+  const mk = (opts: { willPlay: boolean; readVoiced?: boolean; reject?: boolean; noAudio?: boolean }) => {
+    document.body.innerHTML = `<div id="log" role="log"></div><div id="int" aria-live="assertive"></div>`;
+    const polite = document.getElementById("log")!;
+    const assertive = document.getElementById("int")!;
+    const live = new LiveRegion(polite, undefined, undefined, assertive, () => 1000);
+    live.announce(LONG);
+    const order: string[] = [];
+    const ri = live.interrupt.bind(live);
+    live.interrupt = (w?: string) => {
+      order.push("cut");
+      return ri(w);
+    };
+    const ra = live.announce.bind(live);
+    live.announce = (t: string) => {
+      order.push("announce");
+      ra(t);
+    };
+    const audio = opts.noAudio
+      ? undefined
+      : {
+          willPlay: () => opts.willPlay,
+          play: () => {
+            order.push("play");
+            return opts.reject ? Promise.reject(new Error("x")) : Promise.resolve();
+          },
+        };
+    const deps = {
+      live,
+      audio,
+      readVoicedLines: opts.readVoiced ?? false,
+      noHintText: "Nothing to hint at.",
+      recordStatus: () => {},
+      logVoiced: () => {},
+    };
+    return { live, assertive, order, deps };
+  };
+  const hint = { kind: "hint", milestoneId: "m", tier: "nudge", text: "Try the drawer.", audioKey: "k" } as const;
+
+  it("voiced hint: cuts before the voice starts, text stays out of the polite region", () => {
+    const t = mk({ willPlay: true });
+    speakHint(hint, t.deps);
+    expect(t.order).toEqual(["cut", "play"]);
+    expect(t.assertive.textContent).toBe(CGJ2);
+    expect(t.live.lastLine()).toBe("Try the drawer.");
+  });
+
+  it("text hint (ghost voice off or no file): cuts, then announces", () => {
+    const t = mk({ willPlay: false });
+    speakHint(hint, t.deps);
+    expect(t.order).toEqual(["cut", "announce", "play"]);
+  });
+
+  it("text hint with no audio at all: cuts, then announces", () => {
+    const t = mk({ willPlay: false, noAudio: true });
+    speakHint(hint, t.deps);
+    expect(t.order).toEqual(["cut", "announce"]);
+  });
+
+  it("D on (voiced lines read): cuts, announces, then plays", () => {
+    const t = mk({ willPlay: true, readVoiced: true });
+    speakHint(hint, t.deps);
+    expect(t.order).toEqual(["cut", "announce", "play"]);
+  });
+
+  it("nothing to hint at: no cut, announced as before", () => {
+    const t = mk({ willPlay: true });
+    speakHint({ kind: "none" }, t.deps);
+    expect(t.order).toEqual(["announce"]);
+    expect(t.assertive.textContent).toBe("");
+  });
+
+  it("R repeats the hint after a voiced hint", () => {
+    const t = mk({ willPlay: true });
+    speakHint(hint, t.deps);
+    t.live.repeat();
+    expect(document.getElementById("log")!.textContent).toBe("Try the drawer.");
   });
 });

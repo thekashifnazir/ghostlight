@@ -5,6 +5,7 @@
 // (via ?replay=) or the LiveAdapter stub, loads the pack, subscribes to adapter
 // events, and routes them to the model and UI.
 
+import { speakHint } from "./ui/hint-speech.js";
 import type {
   Command,
   Diff,
@@ -495,41 +496,15 @@ export async function boot(): Promise<void> {
   // so a hint is never silent. The "nothing to hint at" line is always spoken.
   const askHint = (): void => {
     void hintEngine.ask(state.room).then((r) => {
-      if (r.kind === "none") {
-        live.announce(NO_HINT_TEXT);
-        return;
-      }
-      // Will the ghost actually voice this hint? willPlay is synchronous: true
-      // only when the voice is enabled AND a file is cached for the key. A local
-      // binding so the branch below can call play without re-null-checking.
-      const audio = ghostAudio;
-      const voiced = audio?.willPlay(r.audioKey) === true;
-      if (audio && voiced && !readVoicedLines) {
-        // The ghost will speak it and the player has NOT asked for voiced lines
-        // to be read: keep the hint text out of the live region (it is spoken
-        // aloud), but record it so R repeats it, log it, and mirror it to the
-        // transcript / ?speechlog as a voiced line — exactly as a suppressed
-        // voiced character line (narrator.suppressVoiced + onVoicedSuppressed).
-        live.record(r.text);
-        status.recordLine(r.text);
-        speechlog?.voiced(r.text);
-        // If playback rejects after all, fall back to announcing the text so the
-        // hint is never silent (R5.1, R6.5).
-        audio.play(r.audioKey).catch(() => {
-          live.announce(r.text);
-        });
-        return;
-      }
-      // The ghost will not voice it (voice off, no file, or not yet started),
-      // OR reading voiced lines is on: announce the text as before, then play
-      // the whisper if there is one. A play rejection is harmless here — the
-      // text is already spoken.
-      live.announce(r.text);
-      if (audio) {
-        audio.play(r.audioKey).catch(() => {
-          /* text is already spoken; the whisper is flavour only (R6.5). */
-        });
-      }
+      // speakHint cuts the screen reader before a real hint (voiced or text).
+      speakHint(r, {
+        live,
+        audio: ghostAudio,
+        readVoicedLines,
+        noHintText: NO_HINT_TEXT,
+        recordStatus: (t) => status.recordLine(t),
+        logVoiced: (t) => speechlog?.voiced(t),
+      });
     });
   };
 
