@@ -4,13 +4,13 @@
 
 Ghostlight makes *Drascula: The Vampire Strikes Back*, the 1996 freeware point-and-click adventure, playable with a screen reader in a web browser. The real game runs in ScummVM, so room contents, exits, inventory and progress come straight from the engine, and your own screen reader reads back what happened.
 
-Live: [ghostlight.kashifnazir.com/?live](https://ghostlight.kashifnazir.com/?live) · Demo video: coming · Devpost: coming
+Live: [ghostlight.kashifnazir.com/?live](https://ghostlight.kashifnazir.com/?live) · Demo video: coming (by 1 December) · Devpost: coming (by 4 December)
 
 **Kiroween 2026 · category: Resurrection · November 2026**
 
 Built with Kiro · ScummVM Drascula engine · TypeScript · Web Audio · ElevenLabs voice · Cloudflare + R2 hosting
 
-> Ghostlight is a work in progress. The name is a placeholder and the parts below are at different stages of completion.
+> Ghostlight is a work in progress. All six chapters can be played to the final ending; room descriptions cover every room of chapters 1 to 3, and chapters 4 to 6 are being drafted.
 
 ## Try it in 60 seconds
 
@@ -52,7 +52,7 @@ Typing plain English (`look`, `use the coins on the machine`, `go through the ba
 
 **The player.** The page in `src/` is HTML and TypeScript with no framework. It runs list mode over the engine's state, parses typed commands into the same engine commands, and writes every functional line into an ARIA live region so the player's own screen reader speaks it. The game canvas is hidden from assistive technology; nothing a player needs exists only as pixels.
 
-**The pack.** An accessibility pack (in `packs/`) is a per-game JSON file that supplies what the engine cannot: names and descriptions for rooms and exits, spoken names for hotspots, item names, fixes for leftover engine strings, cutscene descriptions, and progress milestones. The format is documented in `packs/FORMAT.md` with a JSON Schema and a cross-reference validator. `drascula-en.json` is the first pack and covers chapters 1 and 2.
+**The pack.** An accessibility pack (in `packs/`) is a per-game JSON file that supplies what the engine cannot: names and descriptions for rooms and exits, spoken names for hotspots, item names, fixes for leftover engine strings, cutscene descriptions, and progress milestones. The format is documented in `packs/FORMAT.md` with a JSON Schema and a cross-reference validator. `drascula-en.json` is the first pack and covers every room of chapters 1 to 3 (chapter 1: rooms 62 and 63; chapter 2: 17 rooms; chapter 3: rooms 13 and 20).
 
 **Hints and the ghost voice.** Each milestone in the pack carries three hint tiers: a nudge that points at the area, a clue that names the place and the thing, and an answer that gives the exact action in game verbs. A hint is only offered once its prerequisites are reached and the milestone is not yet done, so it never reveals a puzzle the player has not got to. The hints are also voiced as an interruptible whisper, generated with the ElevenLabs API (the Alice voice on the `eleven_v4` model), layered on top of the text, which already works on its own.
 
@@ -144,7 +144,7 @@ The player and pack suites use property-based tests (fast-check) alongside examp
 
 ## Known limits
 
-- The pack covers **chapters 1 and 2** only. The format allows chapters 3 to 6, but they are not written yet.
+- The pack covers **chapters 1 to 3**. Chapters 4 to 6 can be played to the final ending, but their room descriptions are still being drafted, so players hear the engine's plainer names there.
 - Music is **made quieter** under the ghost's voice and the narration, but it is not ducked out of the way with proper sidechaining yet.
 - The hosted engine build will be **rebuilt after the engine spec closes**, so the live link can lag behind the engine patch in this repository.
 
@@ -154,7 +154,7 @@ This repository carries three licences, one per kind of thing in it.
 
 - **Apache License 2.0** (see [`LICENSE`](LICENSE)) covers the code: the player, the parser, the pack format, the tools, the MCP server and the scummvm-access power. It is a permissive licence with an explicit patent grant, so these parts stay reusable.
 - **CC BY 4.0** (see [`packs/LICENSE`](packs/LICENSE)) covers the accessibility pack *data* in `packs/` (the `<gameId>-<lang>.json` files): the room and object descriptions, exit labels, hints and other authored text. Reuse it with attribution.
-- **GPL-3.0-or-later** (see [`engine/COPYING`](engine/COPYING)) covers the engine patch in `engine/`, which modifies GPL ScummVM code, as does any wasm built from it.
+- **GPL-3.0-or-later** (see [`engine/COPYING`](engine/COPYING)) covers the engine patch in `engine/`, which modifies GPL ScummVM code, as does any wasm built from it. The live site serves the corresponding source for the hosted engine at [`/source/`](https://ghostlight.kashifnazir.com/source/): the `engine/` files, `hooks.patch`, the pinned ScummVM commit, the build script and the GPL text.
 
 A root [`NOTICE`](NOTICE) file records these, as the Apache licence expects.
 
@@ -166,7 +166,7 @@ The ghost's hint lines are voiced with the [ElevenLabs](https://elevenlabs.io/) 
 
 List mode, presenting the game as lists of objects, exits and inventory to move through, follows an idea Brandon Cole set out in [Adventuring Blind](https://www.brandoncole.net/?p=128) (August 2013), on how a blind player can work through a point-and-click adventure.
 
-This project does not make claims about what blind or low-vision players need without a source. Testing with blind players is planned, through an accessibility consultant and the Games for Blind Gamers community, rather than asserted here.
+This project does not make claims about what blind or low-vision players need without a source. Two testers, a blind accessibility consultant and a moderator of the Games for Blind Gamers community, were sent the build on 11 November 2026, and longer sessions are planned for 22 to 27 November, so findings come from them rather than being asserted here.
 
 ## More
 

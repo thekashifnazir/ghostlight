@@ -131,7 +131,7 @@ from R2 on first load.
   modification source at `/source/` (step 5 above): the `engine/` files,
   `hooks.patch`, the pinned ScummVM commit (`ad351d1e`) with a GitHub link, the
   `build-web.sh` script, short build steps and the GPL text. The page footer
-  links to it. The Ghostlight page, Worker and config are MIT.
+  links to it. The Ghostlight page, Worker and config are Apache-2.0.
 - **No committed game data, no committed key.** `web/public/` is gitignored and
   rebuilt each deploy; credentials are supplied at deploy time by name.
 
