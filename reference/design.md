@@ -161,8 +161,8 @@ Claude Code stays on research, spikes and outside verification. App code, specs 
 - Solo. Four weeks from 8 Nov (Flip the Switch ends 7 Nov). H Company hackathon takes Sat 28 Nov.
 - 4,000 Kiro credits once the resubmitted request is approved; until then, Kash's own plan. Estimated build use 600 to 1,200 credits; Crew is the unknown.
 - Public GitHub repo, open-source licence visible in About, `/.kiro` committed and not gitignored, working URL, video under 3 minutes on YouTube with voiceover and no copyrighted music, Kiro write-up.
-- Claim limits from the hackathonideas repo: code is "AI-generated under my direction"; no claims about blind players' needs without a source; no Cloudhouse IP.
-- No real blind tester is lined up yet. Outreach to ObjectInSpace and Brandon Cole is Kash's call; until then, decisions rest on the published research.
+- Claim limits from the hackathonideas repo: code is "AI-generated under my direction"; no claims about blind players' needs without a source; no employer IP.
+- No real blind tester is lined up yet. Outreach to a screen-reader game modder and a blind accessibility writer is Kash's call; until then, decisions rest on the published research.
 
 ## 12. Decided by Kash
 
