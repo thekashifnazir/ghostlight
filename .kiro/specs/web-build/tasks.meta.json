@@ -1,0 +1,22 @@
+{
+  "pbtResults": {},
+  "executionHistory": {
+    "1. Write `scripts/build-web.sh` (reproducible macOS Emscripten build)": [
+      {
+        "executionId": "9b63cb8d-50ca-43e5-a0ed-262c2e2f8698",
+        "chatSessionId": "sess_9246e8da-2c3e-48be-9f8a-46deb5d2f551",
+        "timestamp": 1794012865149
+      },
+      {
+        "executionId": "c18c42ed-fc02-415e-b1ea-1cdf0c20ff8e",
+        "chatSessionId": "sess_3f5cac24-f360-46dc-ad1a-dd0d7b7afe78",
+        "timestamp": 1794014127641
+      },
+      {
+        "executionId": "c18c42ed-fc02-415e-b1ea-1cdf0c20ff8e",
+        "chatSessionId": "sess_3f5cac24-f360-46dc-ad1a-dd0d7b7afe78",
+        "timestamp": 1794014130989
+      }
+    ]
+  }
+}

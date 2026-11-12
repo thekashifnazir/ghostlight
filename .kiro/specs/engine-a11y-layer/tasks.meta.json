@@ -1,0 +1,422 @@
+{
+  "pbtResults": {},
+  "executionHistory": {
+    "2. Engine code layout and build script": [
+      {
+        "executionId": "806f6deb-73f6-44bc-a096-f2fe138fd324",
+        "chatSessionId": "sess_4be4816d-3604-40bc-b0e0-0ff8a881b72b",
+        "timestamp": 1793999652153
+      },
+      {
+        "executionId": "2ddd10cc-9e70-4e57-8e86-68143a3d8b97",
+        "chatSessionId": "sess_4be4816d-3604-40bc-b0e0-0ff8a881b72b",
+        "timestamp": 1794000659111
+      },
+      {
+        "executionId": "2ddd10cc-9e70-4e57-8e86-68143a3d8b97",
+        "chatSessionId": "sess_4be4816d-3604-40bc-b0e0-0ff8a881b72b",
+        "timestamp": 1794000942999
+      }
+    ],
+    "3. Startup: intro skip, subtitles guard, first room state": [
+      {
+        "executionId": "f8caf047-6cd1-4bdb-9d25-a8e4813a54e6",
+        "chatSessionId": "sess_7cc08150-95a1-4d77-bc27-9fccf5fe0d61",
+        "timestamp": 1794001017395
+      },
+      {
+        "executionId": "f8caf047-6cd1-4bdb-9d25-a8e4813a54e6",
+        "chatSessionId": "sess_7cc08150-95a1-4d77-bc27-9fccf5fe0d61",
+        "timestamp": 1794001024062
+      },
+      {
+        "executionId": "f8caf047-6cd1-4bdb-9d25-a8e4813a54e6",
+        "chatSessionId": "sess_7cc08150-95a1-4d77-bc27-9fccf5fe0d61",
+        "timestamp": 1794001839630
+      }
+    ],
+    "4. Room state snapshot and `A11Y` emission": [
+      {
+        "executionId": "f8caf047-6cd1-4bdb-9d25-a8e4813a54e6",
+        "chatSessionId": "sess_7cc08150-95a1-4d77-bc27-9fccf5fe0d61",
+        "timestamp": 1794001017431
+      },
+      {
+        "executionId": "f8caf047-6cd1-4bdb-9d25-a8e4813a54e6",
+        "chatSessionId": "sess_7cc08150-95a1-4d77-bc27-9fccf5fe0d61",
+        "timestamp": 1794001846487
+      },
+      {
+        "executionId": "f8caf047-6cd1-4bdb-9d25-a8e4813a54e6",
+        "chatSessionId": "sess_7cc08150-95a1-4d77-bc27-9fccf5fe0d61",
+        "timestamp": 1794002306674
+      }
+    ],
+    "5. Command file reader and queue": [
+      {
+        "executionId": "f8caf047-6cd1-4bdb-9d25-a8e4813a54e6",
+        "chatSessionId": "sess_7cc08150-95a1-4d77-bc27-9fccf5fe0d61",
+        "timestamp": 1794001017479
+      },
+      {
+        "executionId": "f8caf047-6cd1-4bdb-9d25-a8e4813a54e6",
+        "chatSessionId": "sess_7cc08150-95a1-4d77-bc27-9fccf5fe0d61",
+        "timestamp": 1794002311114
+      }
+    ],
+    "6. Checkpoint: replay the tavern script (after reader + room state)": [
+      {
+        "executionId": "f8caf047-6cd1-4bdb-9d25-a8e4813a54e6",
+        "chatSessionId": "sess_7cc08150-95a1-4d77-bc27-9fccf5fe0d61",
+        "timestamp": 1794001017537
+      },
+      {
+        "executionId": "f8caf047-6cd1-4bdb-9d25-a8e4813a54e6",
+        "chatSessionId": "sess_7cc08150-95a1-4d77-bc27-9fccf5fe0d61",
+        "timestamp": 1794002702058
+      },
+      {
+        "executionId": "f8caf047-6cd1-4bdb-9d25-a8e4813a54e6",
+        "chatSessionId": "sess_7cc08150-95a1-4d77-bc27-9fccf5fe0d61",
+        "timestamp": 1794003312604
+      }
+    ],
+    "7. Synthetic click model": [
+      {
+        "executionId": "f8caf047-6cd1-4bdb-9d25-a8e4813a54e6",
+        "chatSessionId": "sess_7cc08150-95a1-4d77-bc27-9fccf5fe0d61",
+        "timestamp": 1794001017579
+      },
+      {
+        "executionId": "f8caf047-6cd1-4bdb-9d25-a8e4813a54e6",
+        "chatSessionId": "sess_7cc08150-95a1-4d77-bc27-9fccf5fe0d61",
+        "timestamp": 1794003315797
+      },
+      {
+        "executionId": "ec8e67cb-0781-45bc-bbee-81b703ab5e05",
+        "chatSessionId": "sess_7cc08150-95a1-4d77-bc27-9fccf5fe0d61",
+        "timestamp": 1794003681728
+      },
+      {
+        "executionId": "ec8e67cb-0781-45bc-bbee-81b703ab5e05",
+        "chatSessionId": "sess_7cc08150-95a1-4d77-bc27-9fccf5fe0d61",
+        "timestamp": 1794004010735
+      }
+    ],
+    "8. Verb-on-object dispatch (direct, not pixels)": [
+      {
+        "executionId": "f8caf047-6cd1-4bdb-9d25-a8e4813a54e6",
+        "chatSessionId": "sess_7cc08150-95a1-4d77-bc27-9fccf5fe0d61",
+        "timestamp": 1794001017621
+      },
+      {
+        "executionId": "ec8e67cb-0781-45bc-bbee-81b703ab5e05",
+        "chatSessionId": "sess_7cc08150-95a1-4d77-bc27-9fccf5fe0d61",
+        "timestamp": 1794004013904
+      },
+      {
+        "executionId": "515f7a5c-4d20-400c-be5f-2029a8bb311d",
+        "chatSessionId": "sess_7cc08150-95a1-4d77-bc27-9fccf5fe0d61",
+        "timestamp": 1794004641643
+      },
+      {
+        "executionId": "515f7a5c-4d20-400c-be5f-2029a8bb311d",
+        "chatSessionId": "sess_7cc08150-95a1-4d77-bc27-9fccf5fe0d61",
+        "timestamp": 1794005041451
+      }
+    ],
+    "9. Doors and walking": [
+      {
+        "executionId": "f8caf047-6cd1-4bdb-9d25-a8e4813a54e6",
+        "chatSessionId": "sess_7cc08150-95a1-4d77-bc27-9fccf5fe0d61",
+        "timestamp": 1794001017662
+      },
+      {
+        "executionId": "515f7a5c-4d20-400c-be5f-2029a8bb311d",
+        "chatSessionId": "sess_7cc08150-95a1-4d77-bc27-9fccf5fe0d61",
+        "timestamp": 1794005044795
+      },
+      {
+        "executionId": "515f7a5c-4d20-400c-be5f-2029a8bb311d",
+        "chatSessionId": "sess_7cc08150-95a1-4d77-bc27-9fccf5fe0d61",
+        "timestamp": 1794005337845
+      }
+    ],
+    "10. Use item on object; item return": [
+      {
+        "executionId": "f8caf047-6cd1-4bdb-9d25-a8e4813a54e6",
+        "chatSessionId": "sess_7cc08150-95a1-4d77-bc27-9fccf5fe0d61",
+        "timestamp": 1794001017700
+      },
+      {
+        "executionId": "515f7a5c-4d20-400c-be5f-2029a8bb311d",
+        "chatSessionId": "sess_7cc08150-95a1-4d77-bc27-9fccf5fe0d61",
+        "timestamp": 1794005340991
+      },
+      {
+        "executionId": "515f7a5c-4d20-400c-be5f-2029a8bb311d",
+        "chatSessionId": "sess_7cc08150-95a1-4d77-bc27-9fccf5fe0d61",
+        "timestamp": 1794005900042
+      }
+    ],
+    "11. Inventory-screen targets and self (object 50)": [
+      {
+        "executionId": "f8caf047-6cd1-4bdb-9d25-a8e4813a54e6",
+        "chatSessionId": "sess_7cc08150-95a1-4d77-bc27-9fccf5fe0d61",
+        "timestamp": 1794001017737
+      },
+      {
+        "executionId": "515f7a5c-4d20-400c-be5f-2029a8bb311d",
+        "chatSessionId": "sess_7cc08150-95a1-4d77-bc27-9fccf5fe0d61",
+        "timestamp": 1794005903357
+      },
+      {
+        "executionId": "515f7a5c-4d20-400c-be5f-2029a8bb311d",
+        "chatSessionId": "sess_7cc08150-95a1-4d77-bc27-9fccf5fe0d61",
+        "timestamp": 1794006578262
+      }
+    ],
+    "12. Checkpoint: replay the tavern script (after core dispatch)": [
+      {
+        "executionId": "f8caf047-6cd1-4bdb-9d25-a8e4813a54e6",
+        "chatSessionId": "sess_7cc08150-95a1-4d77-bc27-9fccf5fe0d61",
+        "timestamp": 1794001017778
+      },
+      {
+        "executionId": "515f7a5c-4d20-400c-be5f-2029a8bb311d",
+        "chatSessionId": "sess_7cc08150-95a1-4d77-bc27-9fccf5fe0d61",
+        "timestamp": 1794006581707
+      },
+      {
+        "executionId": "515f7a5c-4d20-400c-be5f-2029a8bb311d",
+        "chatSessionId": "sess_7cc08150-95a1-4d77-bc27-9fccf5fe0d61",
+        "timestamp": 1794007244034
+      }
+    ],
+    "13. `inventory` listing": [
+      {
+        "executionId": "f8caf047-6cd1-4bdb-9d25-a8e4813a54e6",
+        "chatSessionId": "sess_7cc08150-95a1-4d77-bc27-9fccf5fe0d61",
+        "timestamp": 1794001017812
+      },
+      {
+        "executionId": "515f7a5c-4d20-400c-be5f-2029a8bb311d",
+        "chatSessionId": "sess_7cc08150-95a1-4d77-bc27-9fccf5fe0d61",
+        "timestamp": 1794007247924
+      },
+      {
+        "executionId": "515f7a5c-4d20-400c-be5f-2029a8bb311d",
+        "chatSessionId": "sess_7cc08150-95a1-4d77-bc27-9fccf5fe0d61",
+        "timestamp": 1794007950171
+      }
+    ],
+    "14. Text capture": [
+      {
+        "executionId": "f8caf047-6cd1-4bdb-9d25-a8e4813a54e6",
+        "chatSessionId": "sess_7cc08150-95a1-4d77-bc27-9fccf5fe0d61",
+        "timestamp": 1794001017850
+      },
+      {
+        "executionId": "515f7a5c-4d20-400c-be5f-2029a8bb311d",
+        "chatSessionId": "sess_7cc08150-95a1-4d77-bc27-9fccf5fe0d61",
+        "timestamp": 1794007953866
+      },
+      {
+        "executionId": "515f7a5c-4d20-400c-be5f-2029a8bb311d",
+        "chatSessionId": "sess_7cc08150-95a1-4d77-bc27-9fccf5fe0d61",
+        "timestamp": 1794009210842
+      }
+    ],
+    "15. Conversations": [
+      {
+        "executionId": "f8caf047-6cd1-4bdb-9d25-a8e4813a54e6",
+        "chatSessionId": "sess_7cc08150-95a1-4d77-bc27-9fccf5fe0d61",
+        "timestamp": 1794001017885
+      },
+      {
+        "executionId": "515f7a5c-4d20-400c-be5f-2029a8bb311d",
+        "chatSessionId": "sess_7cc08150-95a1-4d77-bc27-9fccf5fe0d61",
+        "timestamp": 1794009214243
+      },
+      {
+        "executionId": "515f7a5c-4d20-400c-be5f-2029a8bb311d",
+        "chatSessionId": "sess_7cc08150-95a1-4d77-bc27-9fccf5fe0d61",
+        "timestamp": 1794009940417
+      }
+    ],
+    "16. Cutscene/speech skipping": [
+      {
+        "executionId": "f8caf047-6cd1-4bdb-9d25-a8e4813a54e6",
+        "chatSessionId": "sess_7cc08150-95a1-4d77-bc27-9fccf5fe0d61",
+        "timestamp": 1794001017926
+      },
+      {
+        "executionId": "515f7a5c-4d20-400c-be5f-2029a8bb311d",
+        "chatSessionId": "sess_7cc08150-95a1-4d77-bc27-9fccf5fe0d61",
+        "timestamp": 1794009944000
+      },
+      {
+        "executionId": "515f7a5c-4d20-400c-be5f-2029a8bb311d",
+        "chatSessionId": "sess_7cc08150-95a1-4d77-bc27-9fccf5fe0d61",
+        "timestamp": 1794010563914
+      }
+    ],
+    "17. Snapshot diff and `A11Y_DIFF` emission": [
+      {
+        "executionId": "f8caf047-6cd1-4bdb-9d25-a8e4813a54e6",
+        "chatSessionId": "sess_7cc08150-95a1-4d77-bc27-9fccf5fe0d61",
+        "timestamp": 1794001017969
+      },
+      {
+        "executionId": "515f7a5c-4d20-400c-be5f-2029a8bb311d",
+        "chatSessionId": "sess_7cc08150-95a1-4d77-bc27-9fccf5fe0d61",
+        "timestamp": 1794010568101
+      },
+      {
+        "executionId": "515f7a5c-4d20-400c-be5f-2029a8bb311d",
+        "chatSessionId": "sess_7cc08150-95a1-4d77-bc27-9fccf5fe0d61",
+        "timestamp": 1794011587904
+      }
+    ],
+    "18. Checkpoint: replay the tavern script (after diff)": [
+      {
+        "executionId": "f8caf047-6cd1-4bdb-9d25-a8e4813a54e6",
+        "chatSessionId": "sess_7cc08150-95a1-4d77-bc27-9fccf5fe0d61",
+        "timestamp": 1794001018030
+      },
+      {
+        "executionId": "515f7a5c-4d20-400c-be5f-2029a8bb311d",
+        "chatSessionId": "sess_7cc08150-95a1-4d77-bc27-9fccf5fe0d61",
+        "timestamp": 1794011591919
+      },
+      {
+        "executionId": "956c06dc-3acf-479b-acfe-31d3f98dfa79",
+        "chatSessionId": "sess_8e91a920-6985-4b32-90fc-f77d43cdd16e",
+        "timestamp": 1794014178981
+      },
+      {
+        "executionId": "2d6ef55c-a195-4ac8-8832-89a22b1e9d06",
+        "chatSessionId": "sess_8e91a920-6985-4b32-90fc-f77d43cdd16e",
+        "timestamp": 1794015959930
+      },
+      {
+        "executionId": "bd2b16ca-84b3-4820-950a-a864aa2f3a21",
+        "chatSessionId": "sess_8e91a920-6985-4b32-90fc-f77d43cdd16e",
+        "timestamp": 1794016904781
+      },
+      {
+        "executionId": "c997ea6e-f3f0-410d-9c16-2c591fc0b6a3",
+        "chatSessionId": "sess_8e91a920-6985-4b32-90fc-f77d43cdd16e",
+        "timestamp": 1794050256239
+      },
+      {
+        "executionId": "438374ac-5dc7-4b15-9d2b-ee2d9e06c574",
+        "chatSessionId": "sess_8e91a920-6985-4b32-90fc-f77d43cdd16e",
+        "timestamp": 1794050460197
+      }
+    ],
+    "19. Saving and loading": [
+      {
+        "executionId": "f8caf047-6cd1-4bdb-9d25-a8e4813a54e6",
+        "chatSessionId": "sess_7cc08150-95a1-4d77-bc27-9fccf5fe0d61",
+        "timestamp": 1794001018064
+      },
+      {
+        "executionId": "084aabd3-37f9-4ef9-b29d-d52072adeb35",
+        "chatSessionId": "sess_8e91a920-6985-4b32-90fc-f77d43cdd16e",
+        "timestamp": 1794051673453
+      }
+    ],
+    "20. Low-level commands and parity lines": [
+      {
+        "executionId": "f8caf047-6cd1-4bdb-9d25-a8e4813a54e6",
+        "chatSessionId": "sess_7cc08150-95a1-4d77-bc27-9fccf5fe0d61",
+        "timestamp": 1794001018105
+      }
+    ],
+    "21. Replay transcripts as regression fixtures": [
+      {
+        "executionId": "f8caf047-6cd1-4bdb-9d25-a8e4813a54e6",
+        "chatSessionId": "sess_7cc08150-95a1-4d77-bc27-9fccf5fe0d61",
+        "timestamp": 1794001018146
+      }
+    ],
+    "22. Property-based tests (TypeScript + fast-check)": [
+      {
+        "executionId": "f8caf047-6cd1-4bdb-9d25-a8e4813a54e6",
+        "chatSessionId": "sess_7cc08150-95a1-4d77-bc27-9fccf5fe0d61",
+        "timestamp": 1794001018185
+      }
+    ],
+    "23. Finalise the patch": [
+      {
+        "executionId": "f8caf047-6cd1-4bdb-9d25-a8e4813a54e6",
+        "chatSessionId": "sess_7cc08150-95a1-4d77-bc27-9fccf5fe0d61",
+        "timestamp": 1794001018269
+      }
+    ],
+    "24. Verifier custom agent against requirements": [
+      {
+        "executionId": "f8caf047-6cd1-4bdb-9d25-a8e4813a54e6",
+        "chatSessionId": "sess_7cc08150-95a1-4d77-bc27-9fccf5fe0d61",
+        "timestamp": 1794001018304
+      }
+    ],
+    "23. Cutscene over-skip guard": [
+      {
+        "executionId": "084aabd3-37f9-4ef9-b29d-d52072adeb35",
+        "chatSessionId": "sess_8e91a920-6985-4b32-90fc-f77d43cdd16e",
+        "timestamp": 1794053228904
+      }
+    ],
+    "24. Finalise the patch": [
+      {
+        "executionId": "084aabd3-37f9-4ef9-b29d-d52072adeb35",
+        "chatSessionId": "sess_8e91a920-6985-4b32-90fc-f77d43cdd16e",
+        "timestamp": 1794054439546
+      }
+    ],
+    "25. Verifier custom agent against requirements": [
+      {
+        "executionId": "084aabd3-37f9-4ef9-b29d-d52072adeb35",
+        "chatSessionId": "sess_8e91a920-6985-4b32-90fc-f77d43cdd16e",
+        "timestamp": 1794056366231
+      }
+    ],
+    "26. Follow-up (from task 25): live native ch2-handbag `open 22` returns A11Y_ERR (R3.6)": [
+      {
+        "executionId": "63b11bb7-7016-47ab-9a7a-334d99c4e530",
+        "chatSessionId": "sess_8e91a920-6985-4b32-90fc-f77d43cdd16e",
+        "timestamp": 1794062098452
+      }
+    ],
+    "28. Re-record `tavern.json` so the inventory step uses `inventory`, not `inv`": [
+      {
+        "executionId": "63b11bb7-7016-47ab-9a7a-334d99c4e530",
+        "chatSessionId": "sess_8e91a920-6985-4b32-90fc-f77d43cdd16e",
+        "timestamp": 1794064544424
+      }
+    ],
+    "29. Emit a conversation's opening `A11Y_DIFF` when the choices appear, not after it ends": [
+      {
+        "executionId": "63b11bb7-7016-47ab-9a7a-334d99c4e530",
+        "chatSessionId": "sess_8e91a920-6985-4b32-90fc-f77d43cdd16e",
+        "timestamp": 1794065703939
+      }
+    ],
+    "30. Add an optional hero `{x,y}` to `A11Y_DIFF` when the hero moved": [
+      {
+        "executionId": "63b11bb7-7016-47ab-9a7a-334d99c4e530",
+        "chatSessionId": "sess_8e91a920-6985-4b32-90fc-f77d43cdd16e",
+        "timestamp": 1794066494885
+      }
+    ],
+    "27. Follow-up (from task 25): register task 22 property tests for PBT status tracking": [
+      {
+        "executionId": "63b11bb7-7016-47ab-9a7a-334d99c4e530",
+        "chatSessionId": "sess_8e91a920-6985-4b32-90fc-f77d43cdd16e",
+        "timestamp": 1794070688918
+      }
+    ]
+  }
+}
