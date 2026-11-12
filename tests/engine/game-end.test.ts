@@ -50,6 +50,7 @@ function harness(slot: string, settleMs: number): NativeHarness {
     binary: p.binary,
     gamePath: p.gamePath,
     extraPath: p.extraPath,
+    savePath: process.env.GHOSTLIGHT_SAVEPATH ?? "/tmp/ghostlight-engine",
     saveSlot: Number(slot),
     settleMs,
     label: `native:slot${slot}`,

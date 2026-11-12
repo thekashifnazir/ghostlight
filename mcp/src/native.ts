@@ -53,6 +53,16 @@ const START_CAP_MS = 60_000;
  */
 const COMMAND_CAP_MS = 10_000;
 
+/**
+ * The final action of the game (`use 9 56`, the crucifix on Drascula) starts
+ * the ending animation, which is silent for tens of seconds before the spoken
+ * lines and A11Y_GAME_END arrive (60 to 90 s measured on the native engine).
+ * Only this command gets the longer quiet-period bound; every other command
+ * keeps the 10 s stall detection.
+ */
+const FINAL_ACTION = "use 9 56";
+const ENDING_CAP_MS = 180_000;
+
 /** The command file name the engine reads under the save path. */
 const COMMAND_FILE = "a11y-cmd.txt";
 
@@ -263,6 +273,7 @@ export class NativeTransport implements Transport {
     // per send is correct and leaves nothing behind for the next frame.
     writeFileSync(this.commandFile, expected + "\n");
 
+    const capMs = expected === FINAL_ACTION ? ENDING_CAP_MS : COMMAND_CAP_MS;
     return new Promise<CommandResult>((resolve) => {
       // A QUIET-PERIOD cap, not an absolute one: it fires only after
       // COMMAND_CAP_MS with NO A11Y output at all for this command. Any A11Y
@@ -276,24 +287,24 @@ export class NativeTransport implements Transport {
         this.pending = undefined;
         if (!p) return;
         this.log(
-          `timeout "${expected}" after ${COMMAND_CAP_MS / 1000}s quiet; ` +
+          `timeout "${expected}" after ${capMs / 1000}s quiet; ` +
             `last A11Y line: ${this.lastA11yLine || "(none)"}`,
         );
         resolve({
           events: p.events,
           error:
             `native transport: command "${expected}" did not settle within ` +
-            `${COMMAND_CAP_MS / 1000}s of engine silence (no A11Y_DIFF/A11Y_ERR` +
+            `${capMs / 1000}s of engine silence (no A11Y_DIFF/A11Y_ERR` +
             `/A11Y_CHOICES). Last A11Y line seen: ` +
             `${this.lastA11yLine || "(none)"}. The session is still up; call ` +
             `stop to tear it down.`,
         });
       };
 
-      let timer = setTimeout(onTimeout, COMMAND_CAP_MS);
+      let timer = setTimeout(onTimeout, capMs);
       const bump = () => {
         clearTimeout(timer);
-        timer = setTimeout(onTimeout, COMMAND_CAP_MS);
+        timer = setTimeout(onTimeout, capMs);
       };
       const clear = () => clearTimeout(timer);
 
@@ -438,6 +449,21 @@ export class NativeTransport implements Transport {
     this.lastA11yLine = line.trim();
     this.pending?.bump();
 
+    // The last chapter ended. Always remember it, whether or not a command is
+    // still waiting (the ending can land after the command's cap fired), so
+    // every later send/snapshot answers the game-ended message at once. A
+    // waiting command settles with `ended`. The credits run and the engine
+    // exits by itself afterwards (expected, see onChildExit).
+    if (event.type === "gameEnd") {
+      this.gameEnded = true;
+      const p = this.pending;
+      if (p && !p.resolveRoom) {
+        p.events.push(event);
+        this.settle({ events: p.events, ended: { said: event.said } });
+      }
+      return;
+    }
+
     // During start(), the first room state resolves the boot promise. A pre-room
     // subtitles error (A11Y_ERR mentioning subtitles) fails the boot (R6.7).
     if (this.awaitingRoom || this.awaitingRoomError) {
@@ -494,14 +520,6 @@ export class NativeTransport implements Transport {
     }
 
     p.events.push(event);
-
-    // The last chapter ended: this is the command's settle. The credits run and
-    // the engine exits by itself afterwards (expected, see onChildExit).
-    if (event.type === "gameEnd") {
-      this.gameEnded = true;
-      this.settle({ events: p.events, ended: { said: event.said } });
-      return;
-    }
 
     // A snapshot wait (`state`/`dump`) settles on the fresh room-state line the
     // command emits, resolving the snapshot promise with that RoomState; the

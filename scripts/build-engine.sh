@@ -62,6 +62,9 @@ HOOKS_PATCH="$ENGINE_SRC/hooks.patch"
 # redundant (and intermittently flaky, see run_configure) re-configure when the
 # tree is already configured for exactly these sources. See step 4.
 CONFIG_STAMP="$SCUMMVM_DIR/.ghostlight-config-stamp"
+# Copy of the hooks.patch last applied to the tree, so a changed patch can be
+# unapplied before the new one goes on (see step 3).
+APPLIED_PATCH="$SCUMMVM_DIR/.ghostlight-hooks-applied.patch"
 
 # --- options -----------------------------------------------------------------
 
@@ -205,7 +208,7 @@ fi
 if [ "$CLEAN" -eq 1 ]; then
   log "cleaning previous engine source changes"
   rm -f "$DRASCULA_DIR/a11y.cpp" "$DRASCULA_DIR/a11y.h"
-  rm -f "$CONFIG_STAMP"
+  rm -f "$CONFIG_STAMP" "$APPLIED_PATCH"
   git -C "$SCUMMVM_DIR" checkout -q -- engines/drascula/module.mk engines/drascula 2>/dev/null || true
   ( cd "$SCUMMVM_DIR" && make distclean >/dev/null 2>&1 || true )
 fi
@@ -243,11 +246,25 @@ fi
 # with git apply. --check first so a bad patch fails loudly, not half-applied.
 
 if [ -f "$HOOKS_PATCH" ] && grep -Eq '^(diff |--- |\+\+\+ |@@ )' "$HOOKS_PATCH"; then
+  # If hooks.patch changed since it was last applied, the tree still carries the
+  # OLD version, which would make neither forward nor reverse apply of the new
+  # one succeed. Reverse the copy we kept of what we applied, first.
+  if [ -f "$APPLIED_PATCH" ] && ! cmp -s "$APPLIED_PATCH" "$HOOKS_PATCH"; then
+    if git -C "$SCUMMVM_DIR" apply --reverse --check "$APPLIED_PATCH" 2>/dev/null; then
+      log "hooks.patch changed; unapplying the previously applied version"
+      git -C "$SCUMMVM_DIR" apply --reverse "$APPLIED_PATCH"
+    else
+      log "previously applied hooks.patch does not reverse cleanly; trying the new one as is"
+    fi
+    rm -f "$APPLIED_PATCH"
+  fi
   log "applying engine/hooks.patch"
   if git -C "$SCUMMVM_DIR" apply --check "$HOOKS_PATCH" 2>/dev/null; then
     git -C "$SCUMMVM_DIR" apply "$HOOKS_PATCH"
+    cp "$HOOKS_PATCH" "$APPLIED_PATCH"
   elif git -C "$SCUMMVM_DIR" apply --reverse --check "$HOOKS_PATCH" 2>/dev/null; then
     log "hooks.patch already applied; skipping"
+    [ -f "$APPLIED_PATCH" ] || cp "$HOOKS_PATCH" "$APPLIED_PATCH"
   else
     die "hooks.patch does not apply cleanly to the pinned checkout"
   fi
