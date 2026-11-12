@@ -544,7 +544,17 @@
     { "id": 14, "chapters": [5], "name": "stake", "description": "A wooden stake." },
     { "id": 15, "chapters": [5], "name": "brains", "description": "A set of brains." },
     { "id": 16, "chapters": [5], "name": "plug", "description": "A plug." },
-    { "id": 17, "chapters": [5], "name": "keys", "description": "A bunch of keys." }
+    { "id": 17, "chapters": [5], "name": "keys", "description": "A bunch of keys." },
+    { "id": 9, "chapters": [6], "name": "crucifix", "description": "A crucifix." },
+    {
+      "id": 20,
+      "chapters": [6],
+      "name": "thing from your hand",
+      "description": "Something you took from your own hand on the pendulum. Looking at it, John says he has to cut his nails.",
+      "note": "Engine enum is kItemReefer2 and engine/a11y.cpp calls it \"reefer\", but that is only the ch4/ch5 cigarette's name reused for the id. In chapter 6 it comes from the player's own hand (hotspot 101, room 102) and its look line is DAMN, I HAVE TO CUT MY NAILS!. What it is shown as in the inventory is not confirmed, so the name stays neutral; rename it once someone has looked at the inventory icon in play."
+    },
+    { "id": 21, "chapters": [6], "name": "scotch on the rocks", "description": "A Transylvanian scotch on the rocks." },
+    { "id": 28, "chapters": [6], "name": "mobile phone", "description": "Your mobile phone, a Christmas present." }
   ],
   "cutscenes": {
     "animation_1_1": {

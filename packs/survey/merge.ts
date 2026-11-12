@@ -20,6 +20,7 @@ import { join, resolve } from "node:path";
 
 import type { Pack, Room, Exit, RoomObject, TextFix } from "../tools/src/types.js";
 import type { ReviewList, ReviewUnit } from "./types.js";
+import { serializePack } from "./serialize-pack.js";
 
 export interface MergeSummary {
   accepted: number;
@@ -176,8 +177,13 @@ function main(argv: string[]): number {
   }
 
   const { pack: next, summary } = mergeAccepted(pack, review, reachableByChapter);
-  next.pack.updated = new Date().toISOString().slice(0, 10);
-  writeFileSync(packPath, JSON.stringify(next, null, 2) + "\n");
+  // Merging nothing must leave the file untouched, so the date only moves when
+  // something was actually merged.
+  if (summary.accepted > 0) {
+    next.pack.updated = new Date().toISOString().slice(0, 10);
+  }
+  // The one pack writer: a stable layout, so a merge diff shows only the change.
+  writeFileSync(packPath, serializePack(next));
   console.log(
     `merge: ${summary.accepted} accepted unit(s) into rooms ${summary.roomsTouched.join(", ") || "(none)"}; ` +
       `textFixes +${summary.textFixesAdded}; kept ${summary.keptExisting} existing; ` +

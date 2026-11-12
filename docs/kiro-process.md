@@ -1952,3 +1952,20 @@ What went wrong or surprised you: the obvious fix (put the hero back inside the 
 What was learned: hand-simulate the engine's own frame order before choosing a fix. And a watchdog that can only queue input can never end a loop that does not read input; a guard has to act on the loop's own exit condition.
 
 Not committed (edit-only session, no shell): needs the native build, `npm --prefix tests/engine test`, and the room 22 repro before commit.
+
+## 135 · pack · 2026-11-11 · Stable pack layout for merge.ts, and chapter 6 item names
+
+**What was asked:** (1) Stop `packs/survey/merge.ts` rewriting the whole pack in a different layout, so a merge diff shows only the change. (2) Item 20 in chapter 6 has the wrong name; check the other chapter 6 items too.
+
+**What Kiro did:** Worked in file-read/write-only mode, so nothing below has been run yet.
+- Layout: the pack's hand layout is not regular enough to match byte for byte (some entries are `{ "k": v }`, some `{"k": v}`, long notes sit inline), so a serializer that copies it is not possible. Chose the second option: one stable layout plus one writer. `packs/survey/serialize-pack.ts` writes a value on one line when its one-line form is at most 120 characters, else opens it across lines; each value's layout depends only on itself, so a merge changes only the merged room's lines. `packs/survey/format-pack.ts` does the one-time reformat with a deep-equal check before it writes. `merge.ts` now writes through `serializePack` and only moves `pack.updated` when something was merged.
+- Test: `packs/tools/test/pack-writer.test.ts` round-trips the real pack, checks zero-room merge is byte-identical, one-room merge changes exactly one line, and covers the layout rules.
+- Items: `itemName(id, chapter)` is already chapter-aware. Item 20 only had an entry for chapters 2 and 3, so in chapter 6 the player reads the placeholder "item 20", not "Von Braun's brew" (that name only comes out of a chapter-less lookup). Added chapter 6 entries for items 9, 20, 21 and 28.
+
+**Files changed:** `packs/survey/serialize-pack.ts`, `packs/survey/format-pack.ts`, `packs/survey/merge.ts`, `packs/tools/test/pack-writer.test.ts`, `packs/drascula-en.json`, `docs/kiro-process.md`.
+
+**Time taken:** about 40 minutes.
+
+**What went wrong or surprised you:** The survey report's claim that the fallback "would call it Von Braun's brew" does not match the code; the chapter-aware path returns the placeholder. Parsing the pack in JavaScript puts digit-string keys in ascending order, so rooms 62 and 63 (written before 14 and 15 by hand) move after them on the first reformat; no content changes. Item 20's real identity in chapter 6 could not be confirmed from the data (the engine only has the enum name `kItemReefer2`), so it got a neutral name.
+
+**What was learned:** A byte-stable writer needs a layout rule that depends only on the value being written, not on neighbours, or one edit moves lines elsewhere.

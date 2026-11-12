@@ -49,9 +49,12 @@ describe("Pack reader", () => {
     expect(pack.itemName(11, 4)).toBe("axe");
     // Chapter 1 has only the phone; an id valid only in 2 and 3 is unknown there.
     expect(pack.itemName(19, 1)).toBeUndefined();
-    // Chapter 6 is not written, so nothing is borrowed from earlier chapters.
+    // An id with no chapter 6 entry borrows nothing from earlier chapters
+    // (17 is named in chapters 2 to 5 but not in 6).
     expect(pack.itemName(19, 6)).toBeUndefined();
-    expect(pack.itemName(28, 6)).toBeUndefined();
+    expect(pack.itemName(17, 6)).toBeUndefined();
+    // Chapter 6 now names the phone itself.
+    expect(pack.itemName(28, 6)).toBe("mobile phone");
   });
 
   it("applies text fixes by context and room", () => {
