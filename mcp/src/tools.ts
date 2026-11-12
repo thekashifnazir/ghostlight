@@ -271,6 +271,16 @@ export class Tools {
   private async dispatch(cmd: Command): Promise<ToolReply> {
     const result = await this.session.send(cmd);
     if (result.error) return err(result.error, { events: result.events });
+    if (result.ended) {
+      return ok({
+        ended: true,
+        message:
+          "The game ended. The credits are playing and the engine will exit on " +
+          "its own; that exit is expected, not an error. Call stop when done.",
+        said: result.ended.said,
+        events: result.events,
+      });
+    }
     return ok({ diff: result.diff, events: result.events });
   }
 }

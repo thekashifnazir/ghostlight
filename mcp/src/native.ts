@@ -104,6 +104,10 @@ interface PendingSend {
 /** The engine's own full-snapshot command (A11Y line: emits the room state). */
 const STATE_COMMAND = "state";
 
+const GAME_ENDED_MESSAGE =
+  "the game has ended (the credits ran and the engine exits on its own). " +
+  "Call stop, then start for a new session.";
+
 export class NativeTransport implements Transport {
   private readonly config: NativeConfig;
   private readonly commandFile: string;
@@ -132,6 +136,9 @@ export class NativeTransport implements Transport {
    * of only "no diff within N s".
    */
   private lastA11yLine = "";
+
+  /** True once `A11Y_GAME_END` was seen: the engine's later exit is expected. */
+  private gameEnded = false;
 
   /** One-shot resolver for the first room state during start(). */
   private awaitingRoom: ((room: RoomState) => void) | undefined;
@@ -223,6 +230,7 @@ export class NativeTransport implements Transport {
         ),
       );
       child.once("exit", (code) => {
+        this.onChildExit(code);
         if (this.awaitingRoom || this.awaitingRoomError) {
           this.awaitingRoomError?.(
             new Error(
@@ -238,6 +246,7 @@ export class NativeTransport implements Transport {
   // --- send -----------------------------------------------------------------
 
   async send(cmd: Command): Promise<CommandResult> {
+    if (this.gameEnded) return { events: [], error: GAME_ENDED_MESSAGE };
     if (!this.child || !this.pid) {
       throw new Error("native transport: not started; call start() first.");
     }
@@ -302,6 +311,7 @@ export class NativeTransport implements Transport {
   // --- snapshot -------------------------------------------------------------
 
   async snapshot(): Promise<RoomState> {
+    if (this.gameEnded) throw new Error(GAME_ENDED_MESSAGE);
     if (!this.child || !this.pid) {
       throw new Error("native transport: not started; call start() first.");
     }
@@ -485,6 +495,14 @@ export class NativeTransport implements Transport {
 
     p.events.push(event);
 
+    // The last chapter ended: this is the command's settle. The credits run and
+    // the engine exits by itself afterwards (expected, see onChildExit).
+    if (event.type === "gameEnd") {
+      this.gameEnded = true;
+      this.settle({ events: p.events, ended: { said: event.said } });
+      return;
+    }
+
     // A snapshot wait (`state`/`dump`) settles on the fresh room-state line the
     // command emits, resolving the snapshot promise with that RoomState; the
     // trailing changed:false diff is left to be ignored between commands.
@@ -541,11 +559,34 @@ export class NativeTransport implements Transport {
     this.pending = undefined;
     const outcome = result.error
       ? `error (${result.error})`
-      : result.diff
+      : result.ended
+        ? "game end"
+        : result.diff
         ? "diff"
         : "choices";
     this.log(`settled "${p.expected}": ${outcome}`);
     p.resolve(result);
+  }
+
+  /**
+   * The child exited. After `A11Y_GAME_END` that is the expected end of the
+   * credits: just log it and forget the child. Otherwise an exit with a command
+   * in flight would leave it waiting out the quiet cap, so fail it at once.
+   */
+  private onChildExit(code: number | null): void {
+    if (this.gameEnded) {
+      this.log(`engine exited (code ${code ?? "?"}) after the game ended; expected`);
+      this.child = undefined;
+      this.pid = undefined;
+      return;
+    }
+    const p = this.pending;
+    if (p && !p.resolveRoom) {
+      this.settle({
+        events: p.events,
+        error: `native transport: the engine exited (code ${code ?? "?"}) before the command settled.`,
+      });
+    }
   }
 
   /** Resolve an in-flight snapshot wait with the fresh room and clear the slot. */

@@ -111,6 +111,17 @@ export class ReplayAdapter implements EngineAdapter {
       if (!event) continue;
       this.emit(event);
       if (event.type === "diff") return;
+      if (event.type === "gameEnd") {
+        // The ending settles the command; the engine's A11Y_EXIT comes only
+        // after the credits (minutes later). Play any recorded exit line a
+        // moment later so the finish line has time to be read.
+        const next = this.entries[this.cursor]?.event;
+        if (next?.type === "engineExit") {
+          this.cursor++;
+          setTimeout(() => this.emit(next), 2000);
+        }
+        return;
+      }
     }
 
     // Ran off the end without a diff: the recording is incomplete for this

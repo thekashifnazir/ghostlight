@@ -115,6 +115,38 @@
 #     a speech line ends (isTalkFinished() stopSound()), a cutscene aborts (its
 #     `getAction() == kActionSkip` break). Placed after the event-pump `while`
 #     so the injected action is not clobbered the same frame; guarded on _a11y.
+#
+# Game-end hook (animation.cpp):
+#   * in animation_9_6() (the chapter 6 ending), after the last spoken line
+#     `talk(301)` and before the credits FLIs: `if (_a11y) _a11y->onGameEnd();`.
+#     The whole ending and the credits run inside the `use 9 56` command (several
+#     minutes), and run() quits after chapter 6, so there is no next chapter to
+#     carry a diff. onGameEnd() emits one `A11Y_GAME_END` line with the ending's
+#     spoken lines as the credits start. Guarded on _a11y; includes a11y.h.
+diff --git a/engines/drascula/animation.cpp b/engines/drascula/animation.cpp
+index 34526326dc..ef3d2c4238 100644
+--- a/engines/drascula/animation.cpp
++++ b/engines/drascula/animation.cpp
+@@ -20,6 +20,7 @@
+  */
+ 
+ #include "drascula/drascula.h"
++#include "drascula/a11y.h"
+ 
+ #include "common/text-to-speech.h"
+ 
+@@ -1715,6 +1716,11 @@ void DrasculaEngine::animation_9_6() {
+ 	updateRoom();
+ 	updateScreen();
+ 	talk(301);
++	// Ghostlight: the ending's last spoken line is done and the credits come
++	// next (minutes, then the engine quits). Tell the a11y layer now, so the
++	// player hears the game is finished straight away.
++	if (_a11y)
++		_a11y->onGameEnd();
+ 	v_cd = _mixer->getVolumeForSoundType(Audio::Mixer::kMusicSoundType) / 16;
+ 	v_cd += 4;
+ 	playMusic(17);
 diff --git a/engines/drascula/converse.cpp b/engines/drascula/converse.cpp
 index 3e045cb81b..eaafd3494b 100644
 --- a/engines/drascula/converse.cpp

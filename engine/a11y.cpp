@@ -2647,6 +2647,24 @@ bool A11yLayer::poll() {
 			// skip bleeds into chapter 2's first room (skipping its opening line)
 			// or runs as a main-loop `skip` there. Non-`skip` commands are kept.
 			dropSurplusSkips();
+			if (_engine->currentChapter == 6) {
+				// The LAST chapter ended: there is no next chapter to carry a
+				// diff (no stash for a chapter 7). onGameEnd() (hooked in
+				// animation_9_6) has normally
+				// already emitted A11Y_GAME_END before the credits; this is the
+				// fallback so the line is never missing. run() leaves after
+				// chapter 6 and the engine exits on its own.
+				if (!_gameEnded)
+					emitGameEnd(cmd);
+				// The ending (and its credits) ran inside this command, so the
+				// engine is now about to quit. Say so with one bare line: the
+				// web runtime keeps running after the engine quits, so the page
+				// cannot rely on a process exit to know the game stopped.
+				emitLine("A11Y_EXIT");
+				_mainCmdDiffPending = false;
+				_mainCmdOpenedConverse = false;
+				return true;
+			}
 			stashCrossChapterDiff(cmd, before, errCountBefore);
 			// A chapter-crossing walk opens no conversation; its diff is carried
 			// by the next chapter's onStartup(), not by the converse hook, so
@@ -2749,6 +2767,31 @@ bool A11yLayer::poll() {
 	return false;
 }
 
+// The final chapter ended. Emit `A11Y_GAME_END {"cmd":...,"said":[...]}` with
+// the ending's captured spoken lines, then close the said-capture window.
+void A11yLayer::onGameEnd() {
+	if (_gameEnded)
+		return;
+	emitGameEnd(_inRunCommand ? _mainCmd : Common::String());
+}
+void A11yLayer::emitGameEnd(const Common::String &cmd) {
+	_gameEnded = true;
+	Common::String json = "A11Y_GAME_END {\"cmd\":\"" + jsonEscape(cmd.c_str()) + "\",\"said\":[";
+	for (uint i = 0; i < _said.size(); i++) {
+		if (i > 0)
+			json += ",";
+		json += Common::String::format("{\"color\":\"%s\",\"text\":\"%s\"",
+		                               jsonEscape(_said[i].color.c_str()).c_str(),
+		                               jsonEscape(_said[i].text.c_str()).c_str());
+		if (_said[i].voiced)
+			json += ",\"voiced\":true";
+		json += "}";
+	}
+	json += "]}";
+	emitLine(json);
+	_capturingSaid = false;
+	_said.clear();
+}
 // Stash the before-snapshot and captured said lines for a chapter-crossing
 // `walk` into the module-static carrier, so the NEXT chapter's onStartup() can
 // emit the one coherent A11Y_DIFF once its first room is set up. Called from
@@ -3134,6 +3177,10 @@ A11yLayer::WatchdogAction A11yLayer::watchdogDecision(
 }
 
 void A11yLayer::runBusyWatchdog() {
+	// The game has ended: the credits are a minutes-long, legitimate cutscene
+	// and nothing after them will settle. Never escalate (no busy-skip).
+	if (_gameEnded)
+		return;
 	// Liveness: the newer of the last poll() and the last emitted line. Either
 	// counts as the engine being alive this window.
 	uint32 liveness = _lastPollMs > g_lastEngineOutputMs

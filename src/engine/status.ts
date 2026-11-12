@@ -347,6 +347,12 @@ export class StatusTracker {
         this.cancelSettle();
         this.setPhase("error");
         break;
+      case "gameEnd":
+      case "engineExit":
+        // The game is over: no further command settles, so stop the fallback
+        // quiet-period timer. The page announces the ending itself.
+        this.cancelSettle();
+        break;
       case "inv":
       case "cmd":
       case "saved":

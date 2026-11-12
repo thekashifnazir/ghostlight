@@ -25,6 +25,8 @@ const PREFIXES = [
   "A11Y_SAVED ",
   "A11Y_HOVER ",
   "A11Y_SAY ",
+  "A11Y_GAME_END ",
+  "A11Y_EXIT",
   "A11Y ",
 ] as const;
 
@@ -118,6 +120,12 @@ export function parseLine(line: string): A11yLine | null {
         return { kind: "hover", text: rest };
       case "A11Y_SAY ":
         return { kind: "say", text: rest };
+      case "A11Y_EXIT":
+        return { kind: "exit" };
+      case "A11Y_GAME_END ": {
+        const obj = parseJson(prefix, rest) as { cmd?: string; said?: SaidLine[] };
+        return { kind: "gameEnd", cmd: obj.cmd ?? "", said: obj.said ?? [] };
+      }
     }
   }
   return null;

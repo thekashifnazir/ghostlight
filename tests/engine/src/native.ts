@@ -49,9 +49,14 @@ export interface NativeHarnessOptions {
   settleMs?: number;
 }
 
-/** Marker a command has settled: its diff or an error line appeared. */
+/**
+ * Marker a command has settled: its diff or an error line appeared, or the
+ * game ended (`A11Y_GAME_END`, the last chapter's ending: no diff follows).
+ */
 function settled(lines: A11yLine[]): boolean {
-  return lines.some((l) => l.kind === "diff" || l.kind === "err");
+  return lines.some(
+    (l) => l.kind === "diff" || l.kind === "err" || l.kind === "gameEnd",
+  );
 }
 
 export class NativeHarness implements EngineHarness {

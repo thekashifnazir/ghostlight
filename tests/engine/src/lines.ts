@@ -119,6 +119,16 @@ export interface SayLine {
   text: string;
 }
 
+/** `A11Y_GAME_END`: the last chapter ended (no diff follows). */
+export interface GameEndLine {
+  kind: "gameEnd";
+  cmd: string;
+  said: SaidLine[];
+}
+/** `A11Y_EXIT`: the ending and credits are done; the engine is quitting. */
+export interface ExitLine {
+  kind: "exit";
+}
 export type A11yLine =
   | RoomState
   | Diff
@@ -129,4 +139,6 @@ export type A11yLine =
   | InvLine
   | SavedLine
   | HoverLine
-  | SayLine;
+  | SayLine
+  | GameEndLine
+  | ExitLine;

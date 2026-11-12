@@ -35,6 +35,8 @@ const A11Y_PREFIXES = [
   "A11Y_SAVED",
   "A11Y_HOVER",
   "A11Y_SAY",
+  "A11Y_GAME_END",
+  "A11Y_EXIT",
 ] as const;
 
 /**
@@ -185,6 +187,22 @@ export function parseA11yLine(line: string): EngineEvent | null {
       }
       return null;
     }
+
+    case "A11Y_GAME_END": {
+      // The final chapter ended. Payload {"cmd":..,"said":[{color,text}]}.
+      const parsed = parseJson<{ said?: unknown }>(rest);
+      if (!parsed) return null;
+      const said = Array.isArray(parsed.said)
+        ? (parsed.said as { color: string; text: string; voiced?: boolean }[]).filter(
+            (s) => s && typeof s.text === "string",
+          )
+        : [];
+      return { type: "gameEnd", said };
+    }
+
+    case "A11Y_EXIT":
+      // The engine finished the ending and credits and is quitting.
+      return { type: "engineExit" };
 
     case "A11Y_ERR": {
       return rest.length > 0 ? { type: "error", message: rest } : null;

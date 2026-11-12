@@ -169,7 +169,7 @@ import { NativeHarness } from "./native.js";
 import { resolve as resolvePath } from "node:path";
 
 /** Resolve the native engine paths from the repo layout (vendor/ + build). */
-function nativePaths(): {
+export function nativePaths(): {
   binary: string;
   gamePath: string;
   extraPath: string;

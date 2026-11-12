@@ -122,6 +122,10 @@ public:
 	// and only emits when the text changes, so each distinct line appears once
 	// when it is drawn, not once per frame.
 	void onText(const char *message);
+	// Called from animation_9_6() (the chapter 6 ending, after its last spoken
+	// line and before the credits roll). Emits `A11Y_GAME_END` once, with the
+	// ending's spoken lines; the engine runs the credits and quits on its own.
+	void onGameEnd();
 
 	// Called from the DrasculaEngine::converse() loop once per frame, after the
 	// four option lines have been laid out and before the engine tests the
@@ -294,6 +298,11 @@ private:
 	void stashCrossChapterDiff(const Common::String &cmd, const Snapshot &before,
 	                           uint32 errCountBefore);
 	bool emitPendingCrossChapterDiff();
+	// The final chapter ended: emit one A11Y_GAME_END line (no next chapter).
+	void emitGameEnd(const Common::String &cmd);
+	// True once A11Y_GAME_END was emitted: emitted at most once, and the busy
+	// watchdog stands down for the credits (a long, legitimate cutscene).
+	bool _gameEnded = false;
 
 	// Build the JSON object for a single room object (by slot), in the same
 	// shape buildRoomState() uses: {"num":..,"name":..,"rect":[..],"walkTo":

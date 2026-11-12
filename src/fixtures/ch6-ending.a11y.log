@@ -1,0 +1,9 @@
+# Recorded A11Y log: chapter 6, Drascula's lair (room 60), the last command.
+# `use 9 56` (the cross on Drascula) ends the game: the engine emits one
+# A11Y_GAME_END line with the ending's spoken lines instead of a diff, runs the
+# credits, then emits A11Y_EXIT and quits. Hand-shaped from the line format.
+A11Y {"chapter":6,"room":60,"hero":{"x":160,"y":150},"objects":[{"num":56,"name":"DRACULA","rect":[100,40,40,100],"walkTo":[130,150],"visible":true,"door":false}],"inventory":[9],"flags":[0,0,0]}
+A11Y_CMD use 9 56
+A11Y_TEXT THE END.
+A11Y_GAME_END {"cmd":"use 9 56","said":[{"color":"white","text":"THE END."}]}
+A11Y_EXIT

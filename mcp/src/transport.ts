@@ -37,6 +37,13 @@ export interface CommandResult {
   diff?: Diff;
   /** The error message, when the command produced an A11Y_ERR (or timed out) instead. */
   error?: string;
+  /**
+   * Set when the command ended the whole game (`A11Y_GAME_END`): the last
+   * chapter finished. `said` is the ending's spoken lines. The engine runs the
+   * credits and exits on its own afterwards; that exit is expected, not an
+   * error, and no further command will be answered.
+   */
+  ended?: { said: { color: string; text: string; voiced?: boolean }[] };
 }
 
 /**

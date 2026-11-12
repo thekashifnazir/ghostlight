@@ -948,6 +948,28 @@ export async function boot(): Promise<void> {
       case "cmd":
         // Command echo; nothing to announce (the diff carries the result).
         break;
+      case "gameEnd":
+        // The last chapter ended. Say the ending's lines, then plainly that the
+        // game is finished (nothing lives only on the canvas), and make the way
+        // back to the start gate reachable.
+        // The ending's lines go through the narrator's said() path so a line
+        // already streamed as A11Y_TEXT is not read twice; the plain finish
+        // line comes last so it is what R repeats.
+        narrator.said({ cmd: "game end", said: e.said, changed: true } as Diff);
+        say("The game is finished. The credits are playing.");
+        showBackToStart();
+        break;
+      case "engineExit":
+        // The engine stopped (credits done). Only meaningful after the ending,
+        // and only once (A11Y_EXIT and a runtime exit can both arrive).
+        if (gameFinished && !engineStopped) {
+          engineStopped = true;
+          showBackToStart().focus();
+          say(
+            "The credits are over. Press Enter to go back to the start screen.",
+          );
+        }
+        break;
       case "phase":
         // Track engine truth for the controller (Fix B): the live phase gates
         // the list-mode Escape `skip` and the choice-menu R re-read.
@@ -986,6 +1008,25 @@ export async function boot(): Promise<void> {
     narrator.text(line, voiced);
   }
 
+  // End of the game: a button that returns to the start gate (a reload brings
+  // the gate back, with Continue / New game from the saves).
+  let gameFinished = false;
+  let engineStopped = false;
+  let backToStartButton: HTMLButtonElement | undefined;
+  function showBackToStart(): HTMLButtonElement {
+    gameFinished = true;
+    if (backToStartButton) return backToStartButton;
+    const btn = doc.createElement("button");
+    btn.type = "button";
+    btn.id = "back-to-start";
+    btn.textContent = "Back to the start screen";
+    btn.addEventListener("click", () => {
+      window.location.reload();
+    });
+    doc.body.appendChild(btn);
+    backToStartButton = btn;
+    return btn;
+  }
   function applyRoom(s: RoomState): void {
     state.chapter = s.chapter;
     state.room = s.room;
@@ -1228,6 +1269,14 @@ export async function boot(): Promise<void> {
     "keydown",
     (ev) => {
       if (startGate.hidden) {
+        // On the end-of-game button, Enter and Space belong to the button;
+        // every other key (R repeat, H, etc.) still reaches the controller.
+        if (
+          ev.target === backToStartButton &&
+          (ev.key === "Enter" || ev.key === " ")
+        ) {
+          return;
+        }
         if (typingInCommandBox(ev)) {
           // Only Enter/Escape act on the box; every other key types normally.
           if (ev.key !== "Enter" && ev.key !== "Escape") {

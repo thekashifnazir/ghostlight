@@ -119,6 +119,20 @@ export class LiveAdapter implements EngineAdapter {
     // send() reads FS from the global via resolveFS(); the Module reference is
     // still useful (and a test may inject a Module that does carry FS).
     this.module = module as ScummvmModule;
+    // The engine finishing (after the credits) is the Emscripten runtime
+    // exiting. Surface it as an event so the page can offer the way back to the
+    // start gate. Chain any existing handler.
+    const previousOnExit = module.onExit as ((code: number) => void) | undefined;
+    module.onExit = (code: number) => {
+      previousOnExit?.(code);
+      for (const l of this.listeners) {
+        try {
+          l({ type: "engineExit" });
+        } catch (err) {
+          console.error("A11Y listener threw on exit; continuing", err);
+        }
+      }
+    };
     const previous = module.printErr;
     module.printErr = (line: string) => {
       previous?.(line);

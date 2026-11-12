@@ -149,7 +149,9 @@ export class ReplayTransport implements Transport {
 export function toCommandResult(events: EngineEvent[]): CommandResult {
   const diff = events.find((e) => e.type === "diff");
   const error = events.find((e) => e.type === "error");
+  const end = events.find((e) => e.type === "gameEnd");
   const result: CommandResult = { events };
+  if (end && end.type === "gameEnd") result.ended = { said: end.said };
   if (diff && diff.type === "diff") result.diff = diff.diff;
   if (error && error.type === "error") result.error = error.message;
   return result;

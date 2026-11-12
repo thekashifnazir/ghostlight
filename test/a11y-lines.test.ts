@@ -259,3 +259,35 @@ describe("splitA11yLines", () => {
     expect(splitA11yLines(text)).toEqual([text]);
   });
 });
+describe("A11Y_GAME_END", () => {
+  it("parses into a gameEnd event carrying the ending's said lines", () => {
+    const ev = parseA11yLine(
+      'A11Y_GAME_END {"cmd":"use 9 56","said":[{"color":"white","text":"THE END."}]}',
+    );
+    expect(ev).toEqual({
+      type: "gameEnd",
+      said: [{ color: "white", text: "THE END." }],
+    });
+  });
+  it("accepts an empty said list and splits from a glued line", () => {
+    expect(parseA11yLine('A11Y_GAME_END {"cmd":"x","said":[]}')).toEqual({
+      type: "gameEnd",
+      said: [],
+    });
+    expect(
+      splitA11yLines('A11Y_TEXT hi\nA11Y_DIFF {"cmd":"x"}A11Y_GAME_END {"cmd":"x"}'),
+    ).toEqual(["A11Y_TEXT hi", 'A11Y_DIFF {"cmd":"x"}', 'A11Y_GAME_END {"cmd":"x"}']);
+  });
+  it("returns null for malformed JSON", () => {
+    expect(parseA11yLine("A11Y_GAME_END {oops")).toBeNull();
+  });
+});
+describe("A11Y_EXIT", () => {
+  it("parses the bare engine-stop line into an engineExit event", () => {
+    expect(parseA11yLine("A11Y_EXIT")).toEqual({ type: "engineExit" });
+    expect(splitA11yLines('A11Y_GAME_END {"cmd":"x","said":[]}A11Y_EXIT')).toEqual([
+      'A11Y_GAME_END {"cmd":"x","said":[]}',
+      "A11Y_EXIT",
+    ]);
+  });
+});

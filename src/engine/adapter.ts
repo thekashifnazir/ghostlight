@@ -125,7 +125,13 @@ export type EngineEvent =
   | { type: "cmd"; cmd: string }
   | { type: "error"; message: string }
   | { type: "saved"; slot: number }
-  | { type: "phase"; phase: EnginePhase };
+  | { type: "phase"; phase: EnginePhase }
+  // The last chapter ended (`A11Y_GAME_END`): the ending scene's spoken lines.
+  // The engine runs the credits and then exits on its own.
+  | { type: "gameEnd"; said: { color: string; text: string; voiced?: boolean }[] }
+  // The engine stopped after the credits: the bare `A11Y_EXIT` line, or the
+  // Emscripten runtime's onExit (synthesised by the live adapter).
+  | { type: "engineExit" };
 
 /** The engine verbs that target a single hotspot number. */
 export type TargetVerb =
