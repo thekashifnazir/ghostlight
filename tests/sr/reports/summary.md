@@ -35,3 +35,33 @@ Still to do on a responsive VM: a clean full tavern run, and — because the
 Start step read only the focus label — tune the Start step's capture (wait for
 the onboarding line via the page bridge, or raise its `waitMs`) so the onboarding
 assertion is reliable. The VM was left reverted to snapshot 3.
+| 2026-11-09 | https://ghostlight.kashifnazir.com/ | tavern | 1 | 0 | error |
+| 2026-11-09 | https://ghostlight.kashifnazir.com/ | drunk | 1 | 0 | error |
+| 2026-11-09 | https://ghostlight.kashifnazir.com/ | drunk | 12 | 1 | fail |
+| 2026-11-09 | https://ghostlight.kashifnazir.com/ | tavern | 16 | 0 | pass |
+| 2026-11-09 | https://ghostlight.kashifnazir.com/ | tavern | 9 | 7 | fail |
+| 2026-11-09 | https://ghostlight.kashifnazir.com/ | tavern | 16 | 0 | pass |
+| 2026-11-09 | https://ghostlight.kashifnazir.com/ | tavern | 10 | 6 | fail |
+| 2026-11-09 | https://ghostlight.kashifnazir.com/ | tavern | 11 | 5 | fail |
+| 2026-11-09 | https://ghostlight.kashifnazir.com/ | tavern | 11 | 5 | fail |
+| 2026-11-09 | https://ghostlight.kashifnazir.com/ | tavern | 16 | 0 | pass |
+| 2026-11-09 | https://ghostlight.kashifnazir.com/ | tavern | 16 | 0 | pass |
+| 2026-11-09 | https://ghostlight.kashifnazir.com/ | tavern | 16 | 0 | pass |
+| 2026-11-09 | https://ghostlight.kashifnazir.com/ | tavern | 16 | 0 | pass |
+| 2026-11-09 | https://ghostlight.kashifnazir.com/ | drunk | 13 | 0 | pass |
+| 2026-11-09 | https://ghostlight.kashifnazir.com/ | tavern | 16 | 0 | pass |
+| 2026-11-09 | https://ghostlight.kashifnazir.com/ | drunk | 13 | 0 | pass |
+| 2026-11-10 | https://ghostlight.kashifnazir.com/ | tavern | 16 | 0 | pass |
+| 2026-11-10 | https://ghostlight.kashifnazir.com/ | drunk | 13 | 0 | pass |
+| 2026-11-10 | https://ghostlight.kashifnazir.com/ | tavern | 16 | 0 | pass |
+| 2026-11-10 | https://ghostlight.kashifnazir.com/ | drunk | 13 | 0 | pass |
+| 2026-11-10 | https://ghostlight.kashifnazir.com/ | tavern | 16 | 0 | pass |
+| 2026-11-10 | https://ghostlight.kashifnazir.com/ | drunk | 13 | 0 | pass |
+| 2026-11-10 | https://ghostlight.kashifnazir.com/ | tavern | 14 | 2 | fail |
+| 2026-11-10 | https://ghostlight.kashifnazir.com/ | drunk | 3 | 10 | fail |
+| 2026-11-10 | https://ghostlight.kashifnazir.com/ | tavern | 14 | 2 | fail |
+| 2026-11-10 | https://ghostlight.kashifnazir.com/ | drunk | 3 | 10 | fail |
+| 2026-11-10 | https://ghostlight.kashifnazir.com/ | drunk | 3 | 10 | fail |
+| 2026-11-10 | https://ghostlight.kashifnazir.com/ | drunk | 3 | 10 | fail |
+| 2026-11-11 | https://ghostlight.kashifnazir.com/ | tavern | 16 | 0 | pass |
+| 2026-11-11 | https://ghostlight.kashifnazir.com/ | drunk | 13 | 0 | pass |
