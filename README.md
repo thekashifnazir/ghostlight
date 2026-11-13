@@ -144,7 +144,7 @@ The player and pack suites use property-based tests (fast-check) alongside examp
 
 ## Known limits
 
-- The pack covers **chapters 1 to 3**. Chapters 4 to 6 can be played to the final ending, but their room descriptions are still being drafted, so players hear the engine's plainer names there.
+- The pack covers **chapters 1 to 3** and 7 of chapter 4's 21 rooms (13 Nov). Chapters 4 to 6 can be played to the final ending, but the rest of their room descriptions are still being drafted, so players hear the engine's plainer names there.
 - Music is **made quieter** under the ghost's voice and the narration, but it is not ducked out of the way with proper sidechaining yet.
 - The hosted engine build will be **rebuilt after the engine spec closes**, so the live link can lag behind the engine patch in this repository.
 

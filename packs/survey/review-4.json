@@ -1,0 +1,1435 @@
+{
+  "chapter": 4,
+  "generated": "2026-11-13",
+  "units": [
+    {
+      "key": "room:21",
+      "kind": "room",
+      "room": 21,
+      "status": "accepted",
+      "provenance": "drafted by Kiro from game text only",
+      "alreadyCovered": false,
+      "proposed": {
+        "name": "Castle grounds",
+        "short": "Outside the castle. A small tree stands left of centre, a tower rises on the right, and a door is set low on the left.",
+        "long": "The ground in front of the castle. On the far left, a door is set in the wall. A second door sits just to its right, closer to the middle. A small tree stands left of centre, with a gap behind it. A tall tower rises at the far right.",
+        "seen": false,
+        "chapters": [
+          4
+        ]
+      }
+    },
+    {
+      "key": "exit:21:100",
+      "kind": "exit",
+      "room": 21,
+      "hotspot": 100,
+      "status": "accepted",
+      "provenance": "drafted by Kiro from game text only",
+      "alreadyCovered": false,
+      "proposed": {
+        "label": "small tree, leads behind it",
+        "to": 22,
+        "direction": "ahead",
+        "note": "Engine name is ARBOLITO (Spanish, small tree). Look gives no line. Please confirm the tree really is the way through."
+      }
+    },
+    {
+      "key": "exit:21:101",
+      "kind": "exit",
+      "room": 21,
+      "hotspot": 101,
+      "status": "accepted",
+      "provenance": "drafted by Kiro from game text only",
+      "alreadyCovered": false,
+      "proposed": {
+        "label": "castle door",
+        "to": 23,
+        "direction": "left",
+        "note": "Left of centre, x 82 to 100. Look gave no line."
+      }
+    },
+    {
+      "key": "object:21:141",
+      "kind": "object",
+      "room": 21,
+      "hotspot": 141,
+      "status": "accepted",
+      "provenance": "drafted by Kiro from game text only",
+      "alreadyCovered": false,
+      "proposed": {
+        "name": "rope",
+        "type": "object",
+        "description": "A rope on the ground at the far right, below the tower.",
+        "note": "Hotspot is not visible in the dump (visible 0) and the hero already held the rope. Look gave only filler. Description is a guess from the name and position; reviewer to confirm or drop."
+      }
+    },
+    {
+      "key": "object:21:173",
+      "kind": "object",
+      "room": 21,
+      "hotspot": 173,
+      "status": "accepted",
+      "provenance": "drafted by Kiro from game text only",
+      "alreadyCovered": false,
+      "proposed": {
+        "name": "far left door",
+        "type": "object",
+        "description": "A door set in the castle wall at the far left.",
+        "note": "Not an engine exit (door 0). Look line: I CAN'T SEE ANYTHING IN PARTICULAR. The coverage report calls it a fake door. Kept as object, not exit."
+      }
+    },
+    {
+      "key": "object:21:179",
+      "kind": "object",
+      "room": 21,
+      "hotspot": 179,
+      "status": "accepted",
+      "provenance": "drafted by Kiro from game text only",
+      "alreadyCovered": false,
+      "proposed": {
+        "name": "tower",
+        "type": "object",
+        "description": "A tall tower at the far right of the castle.",
+        "note": "Look line: IT'S NOT UNUSUAL. Nothing more was said, so nothing more is claimed."
+      }
+    },
+    {
+      "key": "room:22",
+      "kind": "room",
+      "room": 22,
+      "status": "accepted",
+      "provenance": "drafted by Kiro from game text only",
+      "alreadyCovered": false,
+      "proposed": {
+        "name": "Behind the tree",
+        "short": "A small space behind the tree. A branch runs across the middle, and the way out is along the bottom of the screen.",
+        "long": "The space behind the small tree outside the castle. A branch spans the middle of the scene, left of centre. A magpie perches near it, and a small key lies to the right. The way back to the castle grounds runs along the whole bottom edge.",
+        "seen": false,
+        "chapters": [
+          4
+        ]
+      }
+    },
+    {
+      "key": "exit:22:102",
+      "kind": "exit",
+      "room": 22,
+      "hotspot": 102,
+      "status": "accepted",
+      "provenance": "drafted by Kiro from game text only",
+      "alreadyCovered": false,
+      "proposed": {
+        "label": "back to the castle grounds",
+        "to": 21,
+        "direction": "down",
+        "note": "Engine name SALIDA (Spanish, exit). Hotspot is a thin strip along the whole bottom edge, so the player leaves by walking off the bottom. Look gave no line."
+      }
+    },
+    {
+      "key": "object:22:52",
+      "kind": "object",
+      "room": 22,
+      "hotspot": 52,
+      "status": "accepted",
+      "provenance": "drafted by Kiro from game text only",
+      "alreadyCovered": false,
+      "proposed": {
+        "name": "magpie",
+        "type": "npc",
+        "description": "A magpie perched left of centre. The game says it looks evil-minded.",
+        "note": "Hidden (visible 0) in the survey dump. Look line: IT LOOKS LIKE THIS MAGPIE IS EVIL-MINDED. Typed npc as it is a creature the player deals with; reviewer may prefer object."
+      }
+    },
+    {
+      "key": "object:22:140",
+      "kind": "object",
+      "room": 22,
+      "hotspot": 140,
+      "status": "accepted",
+      "provenance": "drafted by Kiro from game text only",
+      "alreadyCovered": false,
+      "proposed": {
+        "name": "branch",
+        "type": "object",
+        "description": "A branch across the middle of the scene, left of centre.",
+        "note": "Look line is only filler (THERE IS NOTHING SPECIAL ABOUT IT), so nothing more is claimed."
+      }
+    },
+    {
+      "key": "object:22:180",
+      "kind": "object",
+      "room": 22,
+      "hotspot": 180,
+      "status": "accepted",
+      "provenance": "drafted by Kiro from game text only",
+      "alreadyCovered": false,
+      "proposed": {
+        "name": "key",
+        "type": "object",
+        "description": "A small key on the right side, above the middle.",
+        "note": "Hidden (visible 0) in the survey dump. The game gave no look line, only filler. Description is from name and position only."
+      }
+    },
+    {
+      "key": "room:23",
+      "kind": "room",
+      "room": 23,
+      "status": "accepted",
+      "provenance": "drafted by Kiro from game text only",
+      "alreadyCovered": false,
+      "proposed": {
+        "name": "Entrance hall",
+        "short": "The castle hall. A door on the right leads outside and a door on the far left leads further in. Two speakers stand in the middle.",
+        "long": "The hall just inside the castle. A door on the far left leads further in. A speaker stands left of centre and another right of centre. A picture hangs on the back wall at the right, with a small table below it. A door at the far right leads back outside.",
+        "seen": false,
+        "chapters": [
+          4
+        ]
+      }
+    },
+    {
+      "key": "exit:23:103",
+      "kind": "exit",
+      "room": 23,
+      "hotspot": 103,
+      "status": "accepted",
+      "provenance": "drafted by Kiro from game text only",
+      "alreadyCovered": false,
+      "proposed": {
+        "label": "door on the far right, back outside",
+        "to": 21,
+        "direction": "right",
+        "note": "Look gave only filler. Destination from meta.json."
+      }
+    },
+    {
+      "key": "exit:23:104",
+      "kind": "exit",
+      "room": 23,
+      "hotspot": 104,
+      "status": "accepted",
+      "provenance": "drafted by Kiro from game text only",
+      "alreadyCovered": false,
+      "proposed": {
+        "label": "door on the far left, to the corridor",
+        "to": 24,
+        "direction": "left",
+        "note": "Look gave only filler. Destination from meta.json. Room 24 has no name from the game, so 'corridor' is my wording; reviewer to confirm."
+      }
+    },
+    {
+      "key": "object:23:142",
+      "kind": "object",
+      "room": 23,
+      "hotspot": 142,
+      "status": "accepted",
+      "provenance": "drafted by Kiro from game text only",
+      "alreadyCovered": false,
+      "proposed": {
+        "name": "draskis",
+        "type": "object",
+        "description": "Something the game calls draskis, on the right near the table.",
+        "textFixSuggestion": {
+          "from": "DRASKIS",
+          "to": "draskis",
+          "reason": "spelling"
+        },
+        "note": "Hidden (visible 0) when surveyed. Look line is only filler. Coverage report says DRASKIS is covered or harmless, so I kept the name and made no change. Reviewer: confirm the spelling and whether to drop the textFixSuggestion."
+      }
+    },
+    {
+      "key": "object:23:170",
+      "kind": "object",
+      "room": 23,
+      "hotspot": 170,
+      "status": "accepted",
+      "provenance": "drafted by Kiro from game text only",
+      "alreadyCovered": false,
+      "proposed": {
+        "name": "speaker",
+        "type": "object",
+        "description": "A speaker on a stand. There are two: one left of centre and one right of centre.",
+        "note": "Two hotspots share number 170 (rects at x 87 and x 186). Look lines are only filler, so nothing is claimed about what they do."
+      }
+    },
+    {
+      "key": "object:23:171",
+      "kind": "object",
+      "room": 23,
+      "hotspot": 171,
+      "status": "accepted",
+      "provenance": "drafted by Kiro from game text only",
+      "alreadyCovered": false,
+      "proposed": {
+        "name": "table",
+        "type": "object",
+        "description": "A small table at the right, below the picture.",
+        "note": "Look line is only filler."
+      }
+    },
+    {
+      "key": "object:23:174",
+      "kind": "object",
+      "room": 23,
+      "hotspot": 174,
+      "status": "accepted",
+      "provenance": "drafted by Kiro from game text only",
+      "alreadyCovered": false,
+      "proposed": {
+        "name": "picture",
+        "type": "object",
+        "description": "A picture on the back wall at the right.",
+        "note": "Look line is only filler, so the subject is unknown. Reviewer: check a screenshot."
+      }
+    },
+    {
+      "key": "room:24",
+      "kind": "room",
+      "room": 24,
+      "status": "accepted",
+      "provenance": "drafted by Kiro from game text only",
+      "alreadyCovered": false,
+      "proposed": {
+        "name": "Tapestry corridor",
+        "short": "A corridor with a wide staircase in the middle. Doors are on the far left and on the right, and a tapestry hangs by each.",
+        "long": "A corridor inside the castle. A wide staircase rises in the middle. A door on the far left has a tapestry hanging beside it. A second tapestry hangs on the right, next to a door that leads back to the entrance hall.",
+        "seen": false,
+        "chapters": [
+          4
+        ]
+      }
+    },
+    {
+      "key": "exit:24:105",
+      "kind": "exit",
+      "room": 24,
+      "hotspot": 105,
+      "status": "accepted",
+      "provenance": "drafted by Kiro from game text only",
+      "alreadyCovered": false,
+      "proposed": {
+        "label": "door on the right, back to the entrance hall",
+        "to": 23,
+        "direction": "right",
+        "note": "Look gave only filler. Destination from meta.json."
+      }
+    },
+    {
+      "key": "exit:24:106",
+      "kind": "exit",
+      "room": 24,
+      "hotspot": 106,
+      "status": "accepted",
+      "provenance": "drafted by Kiro from game text only",
+      "alreadyCovered": false,
+      "proposed": {
+        "label": "door on the far left, to Igor's room",
+        "to": 26,
+        "direction": "left",
+        "note": "Look gave only filler. Destination from meta.json. 'Igor's room' comes from the coverage report, not from the game; reviewer to confirm a blind player should hear it before meeting him."
+      }
+    },
+    {
+      "key": "exit:24:108",
+      "kind": "exit",
+      "room": 24,
+      "hotspot": 108,
+      "status": "accepted",
+      "provenance": "drafted by Kiro from game text only",
+      "alreadyCovered": false,
+      "proposed": {
+        "label": "staircase in the middle, going up",
+        "to": 27,
+        "direction": "up",
+        "note": "Engine name ESCALERAS (Spanish, stairs). Look was silent."
+      }
+    },
+    {
+      "key": "object:24:151",
+      "kind": "object",
+      "room": 24,
+      "hotspot": 151,
+      "status": "accepted",
+      "provenance": "drafted by Kiro from game text only",
+      "alreadyCovered": false,
+      "proposed": {
+        "name": "tapestry",
+        "type": "object",
+        "description": "A tapestry hanging on the wall. There are two: one at the left and one at the right. The game says she has nice Transylvanian features.",
+        "textFixSuggestion": {
+          "from": "TAPESTRIE",
+          "to": "tapestry",
+          "reason": "spelling"
+        },
+        "note": "Two hotspots share number 151 (x 23 and x 226). The look line speaks of 'she', so the tapestries probably show a woman; reviewer to check a screenshot. The coverage report says TAPESTRIE already has a pack fix."
+      }
+    },
+    {
+      "key": "room:26",
+      "kind": "room",
+      "room": 26,
+      "status": "accepted",
+      "provenance": "drafted by Kiro from game text only",
+      "alreadyCovered": false,
+      "proposed": {
+        "name": "Igor's room",
+        "short": "A small bedroom with a door at the back. A shelf and drawers stand in the middle, a calendar hangs on the right, and a window is at the far right.",
+        "long": "A small room inside the castle. The door back to the corridor is in the back wall, left of centre. A portrait hangs on the far left. A shelf with drawers below it stands in the middle. A calendar hangs on the wall right of centre, with a person standing below it. A window is at the far right. A book lies on the right, and a wig is at the far right, low down.",
+        "seen": false,
+        "chapters": [
+          4
+        ]
+      }
+    },
+    {
+      "key": "exit:26:107",
+      "kind": "exit",
+      "room": 26,
+      "hotspot": 107,
+      "status": "accepted",
+      "provenance": "drafted by Kiro from game text only",
+      "alreadyCovered": false,
+      "proposed": {
+        "label": "door in the back wall, to the corridor",
+        "to": 24,
+        "direction": "back",
+        "note": "Engine name DOOR. Look was silent. Destination from meta.json. Rect x 93 to 133, left of centre."
+      }
+    },
+    {
+      "key": "object:26:51",
+      "kind": "object",
+      "room": 26,
+      "hotspot": 51,
+      "status": "accepted",
+      "provenance": "drafted by Kiro from game text only",
+      "alreadyCovered": false,
+      "proposed": {
+        "name": "Igor",
+        "type": "npc",
+        "description": "A person standing right of centre, below the calendar.",
+        "note": "Engine name IGOR. Look line is only filler (IT'S NOT UNUSUAL). The coverage report says the name is blank until you talk to him; I used the report's name, so a first-time player may hear it before the game gives it. Reviewer: decide whether to keep the name or use 'man'. Typed npc; reviewer may prefer object."
+      }
+    },
+    {
+      "key": "object:26:143",
+      "kind": "object",
+      "room": 26,
+      "hotspot": 143,
+      "status": "accepted",
+      "provenance": "drafted by Kiro from game text only",
+      "alreadyCovered": false,
+      "proposed": {
+        "name": "wig",
+        "type": "object",
+        "description": "A wig at the far right, low down.",
+        "note": "Look line is only filler. Description is from name and position only."
+      }
+    },
+    {
+      "key": "object:26:163",
+      "kind": "object",
+      "room": 26,
+      "hotspot": 163,
+      "status": "accepted",
+      "provenance": "drafted by Kiro from game text only",
+      "alreadyCovered": false,
+      "proposed": {
+        "name": "calendar",
+        "type": "object",
+        "description": "A calendar on the wall, right of centre. The game says it shows Elvis.",
+        "note": "Look line: IT'S ELVIS THE KING. YOU DIDN'T IMAGINE THAT WOULD BE HERE, DID YOU! Paraphrased to the picture only."
+      }
+    },
+    {
+      "key": "object:26:164",
+      "kind": "object",
+      "room": 26,
+      "hotspot": 164,
+      "status": "accepted",
+      "provenance": "drafted by Kiro from game text only",
+      "alreadyCovered": false,
+      "proposed": {
+        "name": "window",
+        "type": "object",
+        "description": "A window at the far right. It is night outside.",
+        "note": "Look line says the night is falling and calls it scary. I kept only the night."
+      }
+    },
+    {
+      "key": "object:26:165",
+      "kind": "object",
+      "room": 26,
+      "hotspot": 165,
+      "status": "accepted",
+      "provenance": "drafted by Kiro from game text only",
+      "alreadyCovered": false,
+      "proposed": {
+        "name": "shelf",
+        "type": "object",
+        "description": "A shelf in the middle of the room, holding books and other small things.",
+        "note": "Look line: A SHELF WITH BOOKS AND SOME OTHER THINGS."
+      }
+    },
+    {
+      "key": "object:26:167",
+      "kind": "object",
+      "room": 26,
+      "hotspot": 167,
+      "status": "accepted",
+      "provenance": "drafted by Kiro from game text only",
+      "alreadyCovered": false,
+      "proposed": {
+        "name": "drawers",
+        "type": "object",
+        "description": "A set of drawers in the middle, just below the shelf.",
+        "note": "Look line is only filler. Description is from name and position only."
+      }
+    },
+    {
+      "key": "object:26:168",
+      "kind": "object",
+      "room": 26,
+      "hotspot": 168,
+      "status": "accepted",
+      "provenance": "drafted by Kiro from game text only",
+      "alreadyCovered": false,
+      "proposed": {
+        "name": "book",
+        "type": "object",
+        "description": "A book on the right. Its title is a guide to filling in tax return forms.",
+        "note": "Look line quotes the title: HOW TO FILL IN TAX RETURN FORMS. The game calls it interesting, as a joke; left out."
+      }
+    },
+    {
+      "key": "object:26:169",
+      "kind": "object",
+      "room": 26,
+      "hotspot": 169,
+      "status": "accepted",
+      "provenance": "drafted by Kiro from game text only",
+      "alreadyCovered": false,
+      "proposed": {
+        "name": "portrait",
+        "type": "object",
+        "description": "A portrait on the wall at the far left.",
+        "note": "Look line is only filler, so the subject is unknown. Reviewer: check a screenshot."
+      }
+    },
+    {
+      "key": "room:27",
+      "kind": "room",
+      "room": 27,
+      "status": "accepted",
+      "provenance": "drafted by Kiro from game text only",
+      "alreadyCovered": false,
+      "proposed": {
+        "name": "Upstairs landing",
+        "short": "A landing with a row of doors along the back wall. A staircase goes down at the far left, and a passage leads off at the far right.",
+        "long": "The upper floor of the castle. A staircase goes down at the bottom left. Along the back wall, from left to right, is a row of doors, with a large picture hanging above them in the middle. Another door stands right of centre, and a last one is high on the right. At the far right edge, a passage leads to the west wing.",
+        "seen": false,
+        "chapters": [
+          4
+        ]
+      }
+    },
+    {
+      "key": "exit:27:109",
+      "kind": "exit",
+      "room": 27,
+      "hotspot": 109,
+      "status": "accepted",
+      "provenance": "drafted by Kiro from game text only",
+      "alreadyCovered": false,
+      "proposed": {
+        "label": "staircase at the far left, down to the corridor",
+        "to": 24,
+        "direction": "down",
+        "note": "Engine name ESCALERAS (Spanish, stairs). Look was silent. Destination from meta.json."
+      }
+    },
+    {
+      "key": "exit:27:110",
+      "kind": "exit",
+      "room": 27,
+      "hotspot": 110,
+      "status": "accepted",
+      "provenance": "drafted by Kiro from game text only",
+      "alreadyCovered": false,
+      "proposed": {
+        "label": "door in the middle, to a dark room",
+        "to": 28,
+        "direction": "ahead",
+        "note": "Look was silent. Destination from meta.json. 'Dark room' comes from the room 28 look line; reviewer to confirm a blind player should hear it."
+      }
+    },
+    {
+      "key": "exit:27:112",
+      "kind": "exit",
+      "room": 27,
+      "hotspot": 112,
+      "status": "accepted",
+      "provenance": "drafted by Kiro from game text only",
+      "alreadyCovered": false,
+      "proposed": {
+        "label": "door left of centre, to the kitchen",
+        "to": 29,
+        "direction": "left",
+        "note": "Look was silent. Destination from meta.json. 'Kitchen' comes from the coverage report, not the game; reviewer to confirm."
+      }
+    },
+    {
+      "key": "exit:27:118",
+      "kind": "exit",
+      "room": 27,
+      "hotspot": 118,
+      "status": "accepted",
+      "provenance": "drafted by Kiro from game text only",
+      "alreadyCovered": false,
+      "proposed": {
+        "label": "door on the right, to the torch room",
+        "to": 34,
+        "direction": "right",
+        "note": "Look was silent. Destination from meta.json. 'Torch room' comes from the coverage report, not the game; reviewer to confirm."
+      }
+    },
+    {
+      "key": "object:27:116",
+      "kind": "object",
+      "room": 27,
+      "hotspot": 116,
+      "status": "accepted",
+      "provenance": "drafted by Kiro from game text only",
+      "alreadyCovered": false,
+      "proposed": {
+        "name": "door at the far left of the row",
+        "type": "object",
+        "description": "A door at the left end of the row along the back wall. It is not a way through.",
+        "note": "Not an engine exit (door 0 in the dump). Look line: I CAN'T SEE ANYTHING IN PARTICULAR. The coverage report lists it as an exit to room 31 (the living room), but the dump gives no destination. Reviewer: decide if this is an exit; if so it needs moving to exits."
+      }
+    },
+    {
+      "key": "object:27:150",
+      "kind": "object",
+      "room": 27,
+      "hotspot": 150,
+      "status": "accepted",
+      "provenance": "drafted by Kiro from game text only",
+      "alreadyCovered": false,
+      "proposed": {
+        "name": "west wing",
+        "type": "object",
+        "description": "The way to the west wing, at the far right edge. The game says that nobody knows what you will find there.",
+        "note": "Not an engine exit (door 0). Look line: TO THE WEST WING? NO WAY! NOBODY KNOWS WHAT YOU WILL FIND THERE!! Paraphrased. Reviewer: a blind player may try to go there; confirm it is blocked."
+      }
+    },
+    {
+      "key": "object:27:166",
+      "kind": "object",
+      "room": 27,
+      "hotspot": 166,
+      "status": "accepted",
+      "provenance": "drafted by Kiro from game text only",
+      "alreadyCovered": false,
+      "proposed": {
+        "name": "other door",
+        "type": "object",
+        "description": "A plain door along the back wall. There are four: two left of the middle, one right of the middle and one on the far right.",
+        "note": "Four hotspots share number 166 (x 103, 137, 184, 280). None is an exit. Look lines are only filler, so nothing is claimed about them."
+      }
+    },
+    {
+      "key": "object:27:175",
+      "kind": "object",
+      "room": 27,
+      "hotspot": 175,
+      "status": "accepted",
+      "provenance": "drafted by Kiro from game text only",
+      "alreadyCovered": false,
+      "proposed": {
+        "name": "picture",
+        "type": "object",
+        "description": "A large picture on the back wall, in the middle, above the doors. It shows a pale man with fangs and a toupee. The game says he is Drascula.",
+        "note": "Look line: ...HE IS PALE, HE HAS FANGS AND WEARS A TOUPE(garbled byte)  HE SURE IS DRASCULA! The word toupee is cut off by a bad character in the dump. Reviewer: check the spelling."
+      }
+    },
+    {
+      "key": "room:28",
+      "kind": "room",
+      "room": 28,
+      "status": "accepted",
+      "provenance": "drafted by Kiro from game text only",
+      "alreadyCovered": false,
+      "proposed": {
+        "name": "Dark storeroom",
+        "short": "A dark storeroom full of boxes, barrels, drawers and trunks. The way out is along the right edge.",
+        "long": "A storeroom that is too dark to see well. Boxes, drawers, trunks and a barrel are stacked across the room, from the far left to the middle. The way out runs down the whole right edge.",
+        "seen": false,
+        "chapters": [
+          4
+        ]
+      }
+    },
+    {
+      "key": "exit:28:111",
+      "kind": "exit",
+      "room": 28,
+      "hotspot": 111,
+      "status": "accepted",
+      "provenance": "drafted by Kiro from game text only",
+      "alreadyCovered": false,
+      "proposed": {
+        "label": "the way out, along the right edge, to the landing",
+        "to": 27,
+        "direction": "right",
+        "note": "Engine name SALIDA (Spanish, exit). Hotspot is a tall strip along the right edge. Look gave the 'too dark' line. Destination from meta.json."
+      }
+    },
+    {
+      "key": "object:28:200",
+      "kind": "object",
+      "room": 28,
+      "hotspot": 200,
+      "status": "accepted",
+      "provenance": "drafted by Kiro from game text only",
+      "alreadyCovered": false,
+      "proposed": {
+        "name": "box",
+        "type": "object",
+        "description": "A box at the far left, low down.",
+        "note": "Look was silent, unlike its neighbours. That may mean something is special about it; I claim nothing. Reviewer: check what it is."
+      }
+    },
+    {
+      "key": "object:28:999",
+      "kind": "object",
+      "room": 28,
+      "hotspot": 999,
+      "status": "accepted",
+      "provenance": "drafted by Kiro from game text only",
+      "alreadyCovered": false,
+      "proposed": {
+        "name": "storage clutter",
+        "type": "object",
+        "description": "Boxes, drawers, trunks and a barrel, piled across the left and middle of the room.",
+        "note": "Eight hotspots share number 999 (3 boxes, 2 drawers, 2 trunks, 1 barrel), apart from box 200. Every look gave the 'too dark' line, so nothing more is claimed. A blind player cannot tell them apart."
+      }
+    },
+    {
+      "key": "room:29",
+      "kind": "room",
+      "room": 29,
+      "status": "pending",
+      "provenance": "drafted by Kiro from game text only",
+      "alreadyCovered": false,
+      "proposed": {
+        "name": "",
+        "short": "",
+        "long": "",
+        "seen": false,
+        "chapters": [
+          4
+        ]
+      }
+    },
+    {
+      "key": "exit:29:113",
+      "kind": "exit",
+      "room": 29,
+      "hotspot": 113,
+      "status": "pending",
+      "provenance": "drafted by Kiro from game text only",
+      "alreadyCovered": false,
+      "proposed": {
+        "label": "",
+        "to": 27
+      }
+    },
+    {
+      "key": "exit:29:114",
+      "kind": "exit",
+      "room": 29,
+      "hotspot": 114,
+      "status": "pending",
+      "provenance": "drafted by Kiro from game text only",
+      "alreadyCovered": false,
+      "proposed": {
+        "label": "",
+        "to": 30
+      }
+    },
+    {
+      "key": "object:29:152",
+      "kind": "object",
+      "room": 29,
+      "hotspot": 152,
+      "status": "pending",
+      "provenance": "drafted by Kiro from game text only",
+      "alreadyCovered": false,
+      "proposed": {
+        "name": "",
+        "type": "object"
+      }
+    },
+    {
+      "key": "object:29:153",
+      "kind": "object",
+      "room": 29,
+      "hotspot": 153,
+      "status": "pending",
+      "provenance": "drafted by Kiro from game text only",
+      "alreadyCovered": false,
+      "proposed": {
+        "name": "",
+        "type": "object"
+      }
+    },
+    {
+      "key": "object:29:154",
+      "kind": "object",
+      "room": 29,
+      "hotspot": 154,
+      "status": "pending",
+      "provenance": "drafted by Kiro from game text only",
+      "alreadyCovered": false,
+      "proposed": {
+        "name": "",
+        "type": "object"
+      }
+    },
+    {
+      "key": "object:29:155",
+      "kind": "object",
+      "room": 29,
+      "hotspot": 155,
+      "status": "pending",
+      "provenance": "drafted by Kiro from game text only",
+      "alreadyCovered": false,
+      "proposed": {
+        "name": "",
+        "type": "object"
+      }
+    },
+    {
+      "key": "object:29:156",
+      "kind": "object",
+      "room": 29,
+      "hotspot": 156,
+      "status": "pending",
+      "provenance": "drafted by Kiro from game text only",
+      "alreadyCovered": false,
+      "proposed": {
+        "name": "",
+        "type": "object"
+      }
+    },
+    {
+      "key": "room:30",
+      "kind": "room",
+      "room": 30,
+      "status": "pending",
+      "provenance": "drafted by Kiro from game text only",
+      "alreadyCovered": false,
+      "proposed": {
+        "name": "",
+        "short": "",
+        "long": "",
+        "seen": false,
+        "chapters": [
+          4
+        ]
+      }
+    },
+    {
+      "key": "exit:30:115",
+      "kind": "exit",
+      "room": 30,
+      "hotspot": 115,
+      "status": "pending",
+      "provenance": "drafted by Kiro from game text only",
+      "alreadyCovered": false,
+      "proposed": {
+        "label": "",
+        "to": 29
+      }
+    },
+    {
+      "key": "object:30:144",
+      "kind": "object",
+      "room": 30,
+      "hotspot": 144,
+      "status": "pending",
+      "provenance": "drafted by Kiro from game text only",
+      "alreadyCovered": false,
+      "proposed": {
+        "name": "",
+        "type": "object"
+      }
+    },
+    {
+      "key": "object:30:157",
+      "kind": "object",
+      "room": 30,
+      "hotspot": 157,
+      "status": "pending",
+      "provenance": "drafted by Kiro from game text only",
+      "alreadyCovered": false,
+      "proposed": {
+        "name": "",
+        "type": "object"
+      }
+    },
+    {
+      "key": "object:30:158",
+      "kind": "object",
+      "room": 30,
+      "hotspot": 158,
+      "status": "pending",
+      "provenance": "drafted by Kiro from game text only",
+      "alreadyCovered": false,
+      "proposed": {
+        "name": "",
+        "type": "object"
+      }
+    },
+    {
+      "key": "object:30:159",
+      "kind": "object",
+      "room": 30,
+      "hotspot": 159,
+      "status": "pending",
+      "provenance": "drafted by Kiro from game text only",
+      "alreadyCovered": false,
+      "proposed": {
+        "name": "",
+        "type": "object"
+      }
+    },
+    {
+      "key": "room:34",
+      "kind": "room",
+      "room": 34,
+      "status": "pending",
+      "provenance": "drafted by Kiro from game text only",
+      "alreadyCovered": false,
+      "proposed": {
+        "name": "",
+        "short": "",
+        "long": "",
+        "seen": false,
+        "chapters": [
+          4
+        ]
+      }
+    },
+    {
+      "key": "exit:34:119",
+      "kind": "exit",
+      "room": 34,
+      "hotspot": 119,
+      "status": "pending",
+      "provenance": "drafted by Kiro from game text only",
+      "alreadyCovered": false,
+      "proposed": {
+        "label": "",
+        "to": 27
+      }
+    },
+    {
+      "key": "object:34:120",
+      "kind": "object",
+      "room": 34,
+      "hotspot": 120,
+      "status": "pending",
+      "provenance": "drafted by Kiro from game text only",
+      "alreadyCovered": false,
+      "proposed": {
+        "name": "",
+        "type": "object"
+      }
+    },
+    {
+      "key": "object:34:122",
+      "kind": "object",
+      "room": 34,
+      "hotspot": 122,
+      "status": "pending",
+      "provenance": "drafted by Kiro from game text only",
+      "alreadyCovered": false,
+      "proposed": {
+        "name": "",
+        "type": "object"
+      }
+    },
+    {
+      "key": "object:34:146",
+      "kind": "object",
+      "room": 34,
+      "hotspot": 146,
+      "status": "pending",
+      "provenance": "drafted by Kiro from game text only",
+      "alreadyCovered": false,
+      "proposed": {
+        "name": "",
+        "type": "object"
+      }
+    },
+    {
+      "key": "room:35",
+      "kind": "room",
+      "room": 35,
+      "status": "pending",
+      "provenance": "drafted by Kiro from game text only",
+      "alreadyCovered": false,
+      "proposed": {
+        "name": "",
+        "short": "",
+        "long": "",
+        "seen": false,
+        "chapters": [
+          4
+        ]
+      }
+    },
+    {
+      "key": "exit:35:121",
+      "kind": "exit",
+      "room": 35,
+      "hotspot": 121,
+      "status": "pending",
+      "provenance": "drafted by Kiro from game text only",
+      "alreadyCovered": false,
+      "proposed": {
+        "label": "",
+        "to": 34
+      }
+    },
+    {
+      "key": "object:35:147",
+      "kind": "object",
+      "room": 35,
+      "hotspot": 147,
+      "status": "pending",
+      "provenance": "drafted by Kiro from game text only",
+      "alreadyCovered": false,
+      "proposed": {
+        "name": "",
+        "type": "object"
+      }
+    },
+    {
+      "key": "object:35:148",
+      "kind": "object",
+      "room": 35,
+      "hotspot": 148,
+      "status": "pending",
+      "provenance": "drafted by Kiro from game text only",
+      "alreadyCovered": false,
+      "proposed": {
+        "name": "",
+        "type": "object"
+      }
+    },
+    {
+      "key": "object:35:149",
+      "kind": "object",
+      "room": 35,
+      "hotspot": 149,
+      "status": "pending",
+      "provenance": "drafted by Kiro from game text only",
+      "alreadyCovered": false,
+      "proposed": {
+        "name": "",
+        "type": "object"
+      }
+    },
+    {
+      "key": "room:36",
+      "kind": "room",
+      "room": 36,
+      "status": "pending",
+      "provenance": "drafted by Kiro from game text only",
+      "alreadyCovered": false,
+      "proposed": {
+        "name": "",
+        "short": "",
+        "long": "",
+        "seen": false,
+        "chapters": [
+          4
+        ]
+      }
+    },
+    {
+      "key": "exit:36:123",
+      "kind": "exit",
+      "room": 36,
+      "hotspot": 123,
+      "status": "pending",
+      "provenance": "drafted by Kiro from game text only",
+      "alreadyCovered": false,
+      "proposed": {
+        "label": "",
+        "to": 34
+      }
+    },
+    {
+      "key": "exit:36:124",
+      "kind": "exit",
+      "room": 36,
+      "hotspot": 124,
+      "status": "pending",
+      "provenance": "drafted by Kiro from game text only",
+      "alreadyCovered": false,
+      "proposed": {
+        "label": "",
+        "to": 37
+      }
+    },
+    {
+      "key": "room:37",
+      "kind": "room",
+      "room": 37,
+      "status": "pending",
+      "provenance": "drafted by Kiro from game text only",
+      "alreadyCovered": false,
+      "proposed": {
+        "name": "",
+        "short": "",
+        "long": "",
+        "seen": false,
+        "chapters": [
+          4
+        ]
+      }
+    },
+    {
+      "key": "exit:37:125",
+      "kind": "exit",
+      "room": 37,
+      "hotspot": 125,
+      "status": "pending",
+      "provenance": "drafted by Kiro from game text only",
+      "alreadyCovered": false,
+      "proposed": {
+        "label": "",
+        "to": 36
+      }
+    },
+    {
+      "key": "exit:37:126",
+      "kind": "exit",
+      "room": 37,
+      "hotspot": 126,
+      "status": "pending",
+      "provenance": "drafted by Kiro from game text only",
+      "alreadyCovered": false,
+      "proposed": {
+        "label": "",
+        "to": 38
+      }
+    },
+    {
+      "key": "room:38",
+      "kind": "room",
+      "room": 38,
+      "status": "pending",
+      "provenance": "drafted by Kiro from game text only",
+      "alreadyCovered": false,
+      "proposed": {
+        "name": "",
+        "short": "",
+        "long": "",
+        "seen": false,
+        "chapters": [
+          4
+        ]
+      }
+    },
+    {
+      "key": "exit:38:127",
+      "kind": "exit",
+      "room": 38,
+      "hotspot": 127,
+      "status": "pending",
+      "provenance": "drafted by Kiro from game text only",
+      "alreadyCovered": false,
+      "proposed": {
+        "label": "",
+        "to": 37
+      }
+    },
+    {
+      "key": "exit:38:128",
+      "kind": "exit",
+      "room": 38,
+      "hotspot": 128,
+      "status": "pending",
+      "provenance": "drafted by Kiro from game text only",
+      "alreadyCovered": false,
+      "proposed": {
+        "label": "",
+        "to": 39
+      }
+    },
+    {
+      "key": "room:39",
+      "kind": "room",
+      "room": 39,
+      "status": "pending",
+      "provenance": "drafted by Kiro from game text only",
+      "alreadyCovered": false,
+      "proposed": {
+        "name": "",
+        "short": "",
+        "long": "",
+        "seen": false,
+        "chapters": [
+          4
+        ]
+      }
+    },
+    {
+      "key": "exit:39:129",
+      "kind": "exit",
+      "room": 39,
+      "hotspot": 129,
+      "status": "pending",
+      "provenance": "drafted by Kiro from game text only",
+      "alreadyCovered": false,
+      "proposed": {
+        "label": "",
+        "to": 38
+      }
+    },
+    {
+      "key": "exit:39:130",
+      "kind": "exit",
+      "room": 39,
+      "hotspot": 130,
+      "status": "pending",
+      "provenance": "drafted by Kiro from game text only",
+      "alreadyCovered": false,
+      "proposed": {
+        "label": "",
+        "to": 40
+      }
+    },
+    {
+      "key": "room:40",
+      "kind": "room",
+      "room": 40,
+      "status": "pending",
+      "provenance": "drafted by Kiro from game text only",
+      "alreadyCovered": false,
+      "proposed": {
+        "name": "",
+        "short": "",
+        "long": "",
+        "seen": false,
+        "chapters": [
+          4
+        ]
+      }
+    },
+    {
+      "key": "exit:40:131",
+      "kind": "exit",
+      "room": 40,
+      "hotspot": 131,
+      "status": "pending",
+      "provenance": "drafted by Kiro from game text only",
+      "alreadyCovered": false,
+      "proposed": {
+        "label": "",
+        "to": 39
+      }
+    },
+    {
+      "key": "exit:40:132",
+      "kind": "exit",
+      "room": 40,
+      "hotspot": 132,
+      "status": "pending",
+      "provenance": "drafted by Kiro from game text only",
+      "alreadyCovered": false,
+      "proposed": {
+        "label": "",
+        "to": 41
+      }
+    },
+    {
+      "key": "room:41",
+      "kind": "room",
+      "room": 41,
+      "status": "pending",
+      "provenance": "drafted by Kiro from game text only",
+      "alreadyCovered": false,
+      "proposed": {
+        "name": "",
+        "short": "",
+        "long": "",
+        "seen": false,
+        "chapters": [
+          4
+        ]
+      }
+    },
+    {
+      "key": "exit:41:133",
+      "kind": "exit",
+      "room": 41,
+      "hotspot": 133,
+      "status": "pending",
+      "provenance": "drafted by Kiro from game text only",
+      "alreadyCovered": false,
+      "proposed": {
+        "label": "",
+        "to": 40
+      }
+    },
+    {
+      "key": "exit:41:134",
+      "kind": "exit",
+      "room": 41,
+      "hotspot": 134,
+      "status": "pending",
+      "provenance": "drafted by Kiro from game text only",
+      "alreadyCovered": false,
+      "proposed": {
+        "label": "",
+        "to": 42
+      }
+    },
+    {
+      "key": "room:42",
+      "kind": "room",
+      "room": 42,
+      "status": "pending",
+      "provenance": "drafted by Kiro from game text only",
+      "alreadyCovered": false,
+      "proposed": {
+        "name": "",
+        "short": "",
+        "long": "",
+        "seen": false,
+        "chapters": [
+          4
+        ]
+      }
+    },
+    {
+      "key": "exit:42:135",
+      "kind": "exit",
+      "room": 42,
+      "hotspot": 135,
+      "status": "pending",
+      "provenance": "drafted by Kiro from game text only",
+      "alreadyCovered": false,
+      "proposed": {
+        "label": "",
+        "to": 41
+      }
+    },
+    {
+      "key": "exit:42:136",
+      "kind": "exit",
+      "room": 42,
+      "hotspot": 136,
+      "status": "pending",
+      "provenance": "drafted by Kiro from game text only",
+      "alreadyCovered": false,
+      "proposed": {
+        "label": "",
+        "to": 43
+      }
+    },
+    {
+      "key": "room:43",
+      "kind": "room",
+      "room": 43,
+      "status": "pending",
+      "provenance": "drafted by Kiro from game text only",
+      "alreadyCovered": false,
+      "proposed": {
+        "name": "",
+        "short": "",
+        "long": "",
+        "seen": false,
+        "chapters": [
+          4
+        ]
+      }
+    },
+    {
+      "key": "exit:43:137",
+      "kind": "exit",
+      "room": 43,
+      "hotspot": 137,
+      "status": "pending",
+      "provenance": "drafted by Kiro from game text only",
+      "alreadyCovered": false,
+      "proposed": {
+        "label": "",
+        "to": 42
+      }
+    },
+    {
+      "key": "exit:43:138",
+      "kind": "exit",
+      "room": 43,
+      "hotspot": 138,
+      "status": "pending",
+      "provenance": "drafted by Kiro from game text only",
+      "alreadyCovered": false,
+      "proposed": {
+        "label": "",
+        "to": 44
+      }
+    },
+    {
+      "key": "room:44",
+      "kind": "room",
+      "room": 44,
+      "status": "pending",
+      "provenance": "drafted by Kiro from game text only",
+      "alreadyCovered": false,
+      "proposed": {
+        "name": "",
+        "short": "",
+        "long": "",
+        "seen": false,
+        "chapters": [
+          4
+        ]
+      }
+    },
+    {
+      "key": "exit:44:139",
+      "kind": "exit",
+      "room": 44,
+      "hotspot": 139,
+      "status": "pending",
+      "provenance": "drafted by Kiro from game text only",
+      "alreadyCovered": false,
+      "proposed": {
+        "label": "",
+        "to": 34
+      }
+    },
+    {
+      "key": "object:44:172",
+      "kind": "object",
+      "room": 44,
+      "hotspot": 172,
+      "status": "pending",
+      "provenance": "drafted by Kiro from game text only",
+      "alreadyCovered": false,
+      "proposed": {
+        "name": "",
+        "type": "object"
+      }
+    }
+  ]
+}

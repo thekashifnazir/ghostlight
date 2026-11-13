@@ -60,8 +60,12 @@ describe("pack-coverage: claimed chapters are fully described", () => {
 
   it("fails a chapter claimed before its rooms are described", () => {
     // Claim chapter 4 (rooms 21, 22, ...) without describing them: the report
-    // must flag them as missing, i.e. the guard rail trips.
+    // must flag them as missing, i.e. the guard rail trips. The real pack now
+    // describes some chapter 4 rooms, so drop them here to keep the test
+    // independent of how far the drafting has got.
     const pack = freshPack();
+    delete pack.rooms["21"];
+    delete pack.rooms["22"];
     pack.pack.coverage.chapters = [1, 2, 3, 4];
     const report = buildCoverageReport(pack, census);
     const ch4 = report.chapters.find((c) => c.chapter === 4)!;
