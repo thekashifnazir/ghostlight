@@ -10,7 +10,7 @@ Live: [ghostlight.kashifnazir.com/?live](https://ghostlight.kashifnazir.com/?liv
 
 Built with Kiro · ScummVM Drascula engine · TypeScript · Web Audio · ElevenLabs voice · Cloudflare + R2 hosting
 
-> Ghostlight is a work in progress. All six chapters can be played to the final ending; room descriptions cover every room of chapters 1 to 3, and chapters 4 to 6 are being drafted.
+> Ghostlight is a work in progress. All six chapters can be played to the final ending; room descriptions cover every room of chapters 1, 2, 3 and 5, and the rest of chapters 4 and 6 are being drafted.
 
 ## Try it in 60 seconds
 
@@ -52,7 +52,7 @@ Typing plain English (`look`, `use the coins on the machine`, `go through the ba
 
 **The player.** The page in `src/` is HTML and TypeScript with no framework. It runs list mode over the engine's state, parses typed commands into the same engine commands, and writes every functional line into an ARIA live region so the player's own screen reader speaks it. The game canvas is hidden from assistive technology; nothing a player needs exists only as pixels.
 
-**The pack.** An accessibility pack (in `packs/`) is a per-game JSON file that supplies what the engine cannot: names and descriptions for rooms and exits, spoken names for hotspots, item names, fixes for leftover engine strings, cutscene descriptions, and progress milestones. The format is documented in `packs/FORMAT.md` with a JSON Schema and a cross-reference validator. `drascula-en.json` is the first pack and covers every room of chapters 1 to 3 (chapter 1: rooms 62 and 63; chapter 2: 17 rooms; chapter 3: rooms 13 and 20).
+**The pack.** An accessibility pack (in `packs/`) is a per-game JSON file that supplies what the engine cannot: names and descriptions for rooms and exits, spoken names for hotspots, item names, fixes for leftover engine strings, cutscene descriptions, and progress milestones. The format is documented in `packs/FORMAT.md` with a JSON Schema and a cross-reference validator. `drascula-en.json` is the first pack and covers every room of chapters 1, 2, 3 and 5 (chapter 1: rooms 62 and 63; chapter 2: 17 rooms; chapter 3: rooms 13 and 20; chapter 5: 10 rooms), plus 7 of chapter 4's 21 rooms and 3 of chapter 6's 5 rooms.
 
 **Hints and the ghost voice.** Each milestone in the pack carries three hint tiers: a nudge that points at the area, a clue that names the place and the thing, and an answer that gives the exact action in game verbs. A hint is only offered once its prerequisites are reached and the milestone is not yet done, so it never reveals a puzzle the player has not got to. The hints are also voiced as an interruptible whisper, generated with the ElevenLabs API (the Alice voice on the `eleven_v4` model), layered on top of the text, which already works on its own.
 
