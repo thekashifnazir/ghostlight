@@ -1,0 +1,729 @@
+{
+  "chapter": 5,
+  "generated": "2026-11-13",
+  "units": [
+    {
+      "key": "room:45",
+      "kind": "room",
+      "room": 45,
+      "status": "accepted",
+      "provenance": "drafted by Claude Code by hand from the 10 Nov engine survey and a screenshot of the room",
+      "alreadyCovered": false,
+      "proposed": {
+        "name": "Castle towers",
+        "short": "Outside the castle at night, under a full moon. Towers stand in front of you, each with its own way in.",
+        "long": "Outside the castle at night, with a full moon behind it. From left to right: a small tower low on the left, a tall tower left of centre, a tower right of centre, and a tower on the right. Spiral stairs and rope bridges run between them.",
+        "seen": true,
+        "chapters": [
+          5
+        ]
+      }
+    },
+    {
+      "key": "exit:45:100",
+      "kind": "exit",
+      "room": 45,
+      "hotspot": 100,
+      "status": "accepted",
+      "provenance": "drafted by Claude Code by hand from the 10 Nov engine survey and a screenshot of the room",
+      "alreadyCovered": false,
+      "proposed": {
+        "label": "small tower on the left",
+        "to": 50,
+        "direction": "left"
+      }
+    },
+    {
+      "key": "exit:45:101",
+      "kind": "exit",
+      "room": 45,
+      "hotspot": 101,
+      "status": "accepted",
+      "provenance": "drafted by Claude Code by hand from the 10 Nov engine survey and a screenshot of the room",
+      "alreadyCovered": false,
+      "proposed": {
+        "label": "tower on the right",
+        "to": 51,
+        "direction": "right"
+      }
+    },
+    {
+      "key": "exit:45:102",
+      "kind": "exit",
+      "room": 45,
+      "hotspot": 102,
+      "status": "accepted",
+      "provenance": "drafted by Claude Code by hand from the 10 Nov engine survey and a screenshot of the room",
+      "alreadyCovered": false,
+      "proposed": {
+        "label": "tall tower left of centre",
+        "to": 49,
+        "direction": "ahead"
+      }
+    },
+    {
+      "key": "exit:45:103",
+      "kind": "exit",
+      "room": 45,
+      "hotspot": 103,
+      "status": "accepted",
+      "provenance": "drafted by Claude Code by hand from the 10 Nov engine survey and a screenshot of the room",
+      "alreadyCovered": false,
+      "proposed": {
+        "label": "tower right of centre",
+        "to": 52,
+        "direction": "ahead",
+        "note": "Hidden at the chapter start; the engine only lists it once it is visible."
+      }
+    },
+    {
+      "key": "room:49",
+      "kind": "room",
+      "room": 49,
+      "status": "accepted",
+      "provenance": "drafted by Claude Code by hand from the 10 Nov engine survey and a screenshot of the room",
+      "alreadyCovered": false,
+      "proposed": {
+        "name": "Werewolf's study",
+        "short": "A round study in a tower. The werewolf sits at a desk in the middle, and there are doorways on both sides.",
+        "long": "A round study in a tower. A tall shelf of books stands on the left. In the middle, the werewolf sits at a desk with a typewriter on it. A dark arched window is in the back wall, with a framed diploma and then a poster to its right. A red rug covers the floor. Dark doorways lead out on the left and on the right.",
+        "seen": true,
+        "chapters": [
+          5
+        ]
+      }
+    },
+    {
+      "key": "exit:49:109",
+      "kind": "exit",
+      "room": 49,
+      "hotspot": 109,
+      "status": "accepted",
+      "provenance": "drafted by Claude Code by hand from the 10 Nov engine survey and a screenshot of the room",
+      "alreadyCovered": false,
+      "proposed": {
+        "label": "doorway on the left, back outside",
+        "to": 45,
+        "direction": "left"
+      }
+    },
+    {
+      "key": "exit:49:110",
+      "kind": "exit",
+      "room": 49,
+      "hotspot": 110,
+      "status": "accepted",
+      "provenance": "drafted by Claude Code by hand from the 10 Nov engine survey and a screenshot of the room",
+      "alreadyCovered": false,
+      "proposed": {
+        "label": "doorway on the right, back outside",
+        "to": 45,
+        "direction": "right"
+      }
+    },
+    {
+      "key": "object:49:51",
+      "kind": "object",
+      "room": 49,
+      "hotspot": 51,
+      "status": "accepted",
+      "provenance": "drafted by Claude Code by hand from the 10 Nov engine survey and a screenshot of the room",
+      "alreadyCovered": false,
+      "proposed": {
+        "name": "werewolf",
+        "type": "npc",
+        "description": "The werewolf, sitting at his desk. He seems quite rational."
+      }
+    },
+    {
+      "key": "object:49:200",
+      "kind": "object",
+      "room": 49,
+      "hotspot": 200,
+      "status": "accepted",
+      "provenance": "drafted by Claude Code by hand from the 10 Nov engine survey and a screenshot of the room",
+      "alreadyCovered": false,
+      "proposed": {
+        "name": "poster",
+        "type": "object",
+        "description": "A picture of Plato writing his lost dialogue."
+      }
+    },
+    {
+      "key": "object:49:201",
+      "kind": "object",
+      "room": 49,
+      "hotspot": 201,
+      "status": "accepted",
+      "provenance": "drafted by Claude Code by hand from the 10 Nov engine survey and a screenshot of the room",
+      "alreadyCovered": false,
+      "proposed": {
+        "name": "desk",
+        "type": "object",
+        "description": "A very cute desk, with a typewriter on it."
+      }
+    },
+    {
+      "key": "object:49:202",
+      "kind": "object",
+      "room": 49,
+      "hotspot": 202,
+      "status": "accepted",
+      "provenance": "drafted by Claude Code by hand from the 10 Nov engine survey and a screenshot of the room",
+      "alreadyCovered": false,
+      "proposed": {
+        "name": "diploma",
+        "type": "object",
+        "description": "A framed diploma on the back wall.",
+        "note": "The engine gives only a stock filler line on look. Description from the picture."
+      }
+    },
+    {
+      "key": "object:49:203",
+      "kind": "object",
+      "room": 49,
+      "hotspot": 203,
+      "status": "accepted",
+      "provenance": "drafted by Claude Code by hand from the 10 Nov engine survey and a screenshot of the room",
+      "alreadyCovered": false,
+      "proposed": {
+        "name": "window",
+        "type": "object",
+        "description": "A window onto a dark night with a full moon."
+      }
+    },
+    {
+      "key": "room:50",
+      "kind": "room",
+      "room": 50,
+      "status": "accepted",
+      "provenance": "drafted by Claude Code by hand from the 10 Nov engine survey and a screenshot of the room",
+      "alreadyCovered": false,
+      "proposed": {
+        "name": "Inside the small tower",
+        "short": "A crumbling tower room with wooden floorboards. There are doorways on both sides and an opening in the floor.",
+        "long": "A crumbling tower room with wooden floorboards and a small window high on the back wall. Dark doorways lead out on the left and on the right. In the middle of the floor there is an opening that leads down.",
+        "seen": true,
+        "chapters": [
+          5
+        ]
+      }
+    },
+    {
+      "key": "exit:50:106",
+      "kind": "exit",
+      "room": 50,
+      "hotspot": 106,
+      "status": "accepted",
+      "provenance": "drafted by Claude Code by hand from the 10 Nov engine survey and a screenshot of the room",
+      "alreadyCovered": false,
+      "proposed": {
+        "label": "doorway on the left, back outside",
+        "to": 45,
+        "direction": "left"
+      }
+    },
+    {
+      "key": "exit:50:107",
+      "kind": "exit",
+      "room": 50,
+      "hotspot": 107,
+      "status": "accepted",
+      "provenance": "drafted by Claude Code by hand from the 10 Nov engine survey and a screenshot of the room",
+      "alreadyCovered": false,
+      "proposed": {
+        "label": "doorway on the right, back outside",
+        "to": 45,
+        "direction": "right"
+      }
+    },
+    {
+      "key": "exit:50:112",
+      "kind": "exit",
+      "room": 50,
+      "hotspot": 112,
+      "status": "accepted",
+      "provenance": "drafted by Claude Code by hand from the 10 Nov engine survey and a screenshot of the room",
+      "alreadyCovered": false,
+      "proposed": {
+        "label": "opening in the floor, down to the laboratory",
+        "to": 53,
+        "direction": "down"
+      }
+    },
+    {
+      "key": "room:51",
+      "kind": "room",
+      "room": 51,
+      "status": "accepted",
+      "provenance": "drafted by Claude Code by hand from the 10 Nov engine survey and a screenshot of the room",
+      "alreadyCovered": false,
+      "proposed": {
+        "name": "Inside the tower on the right",
+        "short": "A crumbling tower room with wooden floorboards. A doorway on the left leads out, and an opening in the floor leads down.",
+        "long": "A crumbling tower room with wooden floorboards and a small window high on the back wall. The right-hand wall is cracked. A dark doorway on the left leads back outside, and a wide opening in the middle of the floor leads down.",
+        "seen": true,
+        "chapters": [
+          5
+        ]
+      }
+    },
+    {
+      "key": "exit:51:108",
+      "kind": "exit",
+      "room": 51,
+      "hotspot": 108,
+      "status": "accepted",
+      "provenance": "drafted by Claude Code by hand from the 10 Nov engine survey and a screenshot of the room",
+      "alreadyCovered": false,
+      "proposed": {
+        "label": "doorway on the left, back outside",
+        "to": 45,
+        "direction": "left"
+      }
+    },
+    {
+      "key": "exit:51:113",
+      "kind": "exit",
+      "room": 51,
+      "hotspot": 113,
+      "status": "accepted",
+      "provenance": "drafted by Claude Code by hand from the 10 Nov engine survey and a screenshot of the room",
+      "alreadyCovered": false,
+      "proposed": {
+        "label": "opening in the floor, down to the dungeon",
+        "to": 54,
+        "direction": "down"
+      }
+    },
+    {
+      "key": "room:52",
+      "kind": "room",
+      "room": 52,
+      "status": "accepted",
+      "provenance": "drafted by Claude Code by hand from the 10 Nov engine survey and a screenshot of the room",
+      "alreadyCovered": false,
+      "proposed": {
+        "name": "Inside the tower right of centre",
+        "short": "A crumbling tower room with wooden floorboards. A doorway on the right leads out, and an opening in the floor leads down.",
+        "long": "A crumbling tower room with wooden floorboards and a small window high on the back wall. A dark doorway on the right leads back outside, and there is an opening in the floor in the middle.",
+        "seen": true,
+        "chapters": [
+          5
+        ]
+      }
+    },
+    {
+      "key": "exit:52:111",
+      "kind": "exit",
+      "room": 52,
+      "hotspot": 111,
+      "status": "accepted",
+      "provenance": "drafted by Claude Code by hand from the 10 Nov engine survey and a screenshot of the room",
+      "alreadyCovered": false,
+      "proposed": {
+        "label": "doorway on the right, back outside",
+        "to": 45,
+        "direction": "right"
+      }
+    },
+    {
+      "key": "exit:52:114",
+      "kind": "exit",
+      "room": 52,
+      "hotspot": 114,
+      "status": "accepted",
+      "provenance": "drafted by Claude Code by hand from the 10 Nov engine survey and a screenshot of the room",
+      "alreadyCovered": false,
+      "proposed": {
+        "label": "opening in the floor, down to the corridor",
+        "to": 55,
+        "direction": "down"
+      }
+    },
+    {
+      "key": "room:53",
+      "kind": "room",
+      "room": 53,
+      "status": "accepted",
+      "provenance": "drafted by Claude Code by hand from the 10 Nov engine survey and a screenshot of the room",
+      "alreadyCovered": false,
+      "proposed": {
+        "name": "Laboratory",
+        "short": "A laboratory full of machines. A big creature sits strapped into a chair on the right.",
+        "long": "A laboratory full of machines. On the left stands a tall machine with dials and a switch, with a socket low on the wall beside it and a plug on the floor nearby. Above it, a big contraption with metal globes and a drill hangs from the ceiling. In the middle at the back, an archway leads out. On the right, a big creature sits strapped into a metal chair.",
+        "seen": true,
+        "chapters": [
+          5
+        ]
+      }
+    },
+    {
+      "key": "exit:53:116",
+      "kind": "exit",
+      "room": 53,
+      "hotspot": 116,
+      "status": "accepted",
+      "provenance": "drafted by Claude Code by hand from the 10 Nov engine survey and a screenshot of the room",
+      "alreadyCovered": false,
+      "proposed": {
+        "label": "archway at the back, up to the tower",
+        "to": 50,
+        "direction": "back"
+      }
+    },
+    {
+      "key": "object:53:52",
+      "kind": "object",
+      "room": 53,
+      "hotspot": 52,
+      "status": "accepted",
+      "provenance": "drafted by Claude Code by hand from the 10 Nov engine survey and a screenshot of the room",
+      "alreadyCovered": false,
+      "proposed": {
+        "name": "creature in the chair",
+        "type": "npc",
+        "description": "A big creature strapped into a metal chair. Looking at him, you say he looks like Miguel Bosé.",
+        "note": "Engine name FRUSKYNSTEIN, the game's Frankenstein joke. Kept neutral so the name isn't a spoiler; could be named Frankenstein if the pack prefers."
+      }
+    },
+    {
+      "key": "object:53:120",
+      "kind": "object",
+      "room": 53,
+      "hotspot": 120,
+      "status": "accepted",
+      "provenance": "drafted by Claude Code by hand from the 10 Nov engine survey and a screenshot of the room",
+      "alreadyCovered": false,
+      "proposed": {
+        "name": "plug",
+        "type": "object",
+        "description": "A plug on a cable, on the floor on the left.",
+        "note": "Engine gives a stock filler line on look. Puzzle object; description names it only."
+      }
+    },
+    {
+      "key": "object:53:121",
+      "kind": "object",
+      "room": 53,
+      "hotspot": 121,
+      "status": "accepted",
+      "provenance": "drafted by Claude Code by hand from the 10 Nov engine survey and a screenshot of the room",
+      "alreadyCovered": false,
+      "proposed": {
+        "name": "wall socket",
+        "type": "object",
+        "description": "A socket low on the wall, for powering the machines."
+      }
+    },
+    {
+      "key": "object:53:123",
+      "kind": "object",
+      "room": 53,
+      "hotspot": 123,
+      "status": "accepted",
+      "provenance": "drafted by Claude Code by hand from the 10 Nov engine survey and a screenshot of the room",
+      "alreadyCovered": false,
+      "proposed": {
+        "name": "on and off switch",
+        "type": "object",
+        "description": "A switch on the machine on the left.",
+        "note": "Engine name ON/OFF; stock filler on look. Before the power is on it says there's no power."
+      }
+    },
+    {
+      "key": "object:53:209",
+      "kind": "object",
+      "room": 53,
+      "hotspot": 209,
+      "status": "accepted",
+      "provenance": "drafted by Claude Code by hand from the 10 Nov engine survey and a screenshot of the room",
+      "alreadyCovered": false,
+      "proposed": {
+        "name": "indifibulator",
+        "type": "object",
+        "description": "A big hand-made contraption hanging over the machines on the left. The game says the Japanese make them pocket size."
+      }
+    },
+    {
+      "key": "room:54",
+      "kind": "room",
+      "room": 54,
+      "status": "accepted",
+      "provenance": "drafted by Claude Code by hand from the 10 Nov engine survey and a screenshot of the room",
+      "alreadyCovered": false,
+      "proposed": {
+        "name": "Dungeon",
+        "short": "A green stone dungeon. A cell door with a barred window is in the middle, and a skeleton hangs on the right.",
+        "long": "A green stone dungeon hung with cobwebs. On the left, a doorway with steps leads back up. In the middle is a heavy wooden cell door with a barred window and a lock. A skeleton hangs on the wall right of the door, and a skull lies on the floor on the right.",
+        "seen": true,
+        "chapters": [
+          5
+        ]
+      }
+    },
+    {
+      "key": "exit:54:115",
+      "kind": "exit",
+      "room": 54,
+      "hotspot": 115,
+      "status": "accepted",
+      "provenance": "drafted by Claude Code by hand from the 10 Nov engine survey and a screenshot of the room",
+      "alreadyCovered": false,
+      "proposed": {
+        "label": "doorway on the left, up the stairs",
+        "to": 51,
+        "direction": "left"
+      }
+    },
+    {
+      "key": "object:54:53",
+      "kind": "object",
+      "room": 54,
+      "hotspot": 53,
+      "status": "accepted",
+      "provenance": "drafted by Claude Code by hand from the 10 Nov engine survey and a screenshot of the room",
+      "alreadyCovered": false,
+      "proposed": {
+        "name": "skeleton",
+        "type": "object",
+        "description": "The typical skeleton you find in the dungeons of all the games."
+      }
+    },
+    {
+      "key": "object:54:118",
+      "kind": "object",
+      "room": 54,
+      "hotspot": 118,
+      "status": "accepted",
+      "provenance": "drafted by Claude Code by hand from the 10 Nov engine survey and a screenshot of the room",
+      "alreadyCovered": false,
+      "proposed": {
+        "name": "cell door",
+        "type": "object",
+        "description": "A heavy wooden cell door with a small barred window."
+      }
+    },
+    {
+      "key": "object:54:119",
+      "kind": "object",
+      "room": 54,
+      "hotspot": 119,
+      "status": "accepted",
+      "provenance": "drafted by Claude Code by hand from the 10 Nov engine survey and a screenshot of the room",
+      "alreadyCovered": false,
+      "proposed": {
+        "name": "lock",
+        "type": "object",
+        "description": "The lock on the cell door. It says Safe Away Locks Ltd."
+      }
+    },
+    {
+      "key": "object:54:9999",
+      "kind": "object",
+      "room": 54,
+      "hotspot": 9999,
+      "status": "accepted",
+      "provenance": "drafted by Claude Code by hand from the 10 Nov engine survey and a screenshot of the room",
+      "alreadyCovered": false,
+      "proposed": {
+        "name": "bone",
+        "type": "object",
+        "description": "A bone.",
+        "note": "Hidden at the start (visible false). Engine gives only a stock filler line on look. Number 9999 is the engine's own."
+      }
+    },
+    {
+      "key": "room:55",
+      "kind": "room",
+      "room": 55,
+      "status": "accepted",
+      "provenance": "drafted by Claude Code by hand from the 10 Nov engine survey and a screenshot of the room",
+      "alreadyCovered": false,
+      "proposed": {
+        "name": "Corridor with the sign",
+        "short": "A stone corridor. A sign in Spanish over a barred gate says that Drascula doesn't sleep here.",
+        "long": "A stone corridor. On the left, steps lead back up. A camera is fixed high on the wall, and below it a machine with an orange light stands by the wall. In the middle, a barred gate fills an archway. Over the arch, a sign painted in Spanish says that Drascula doesn't sleep here, with two yellow arrows pointing at the gate.",
+        "seen": true,
+        "chapters": [
+          5
+        ]
+      }
+    },
+    {
+      "key": "exit:55:117",
+      "kind": "exit",
+      "room": 55,
+      "hotspot": 117,
+      "status": "accepted",
+      "provenance": "drafted by Claude Code by hand from the 10 Nov engine survey and a screenshot of the room",
+      "alreadyCovered": false,
+      "proposed": {
+        "label": "steps on the left, back up the tower",
+        "to": 52,
+        "direction": "left"
+      }
+    },
+    {
+      "key": "object:55:122",
+      "kind": "object",
+      "room": 55,
+      "hotspot": 122,
+      "status": "accepted",
+      "provenance": "drafted by Claude Code by hand from the 10 Nov engine survey and a screenshot of the room",
+      "alreadyCovered": false,
+      "proposed": {
+        "name": "screws",
+        "type": "object",
+        "description": "Screws that don't seem to be tightened properly."
+      }
+    },
+    {
+      "key": "object:55:204",
+      "kind": "object",
+      "room": 55,
+      "hotspot": 204,
+      "status": "accepted",
+      "provenance": "drafted by Claude Code by hand from the 10 Nov engine survey and a screenshot of the room",
+      "alreadyCovered": false,
+      "proposed": {
+        "name": "camera",
+        "type": "object",
+        "description": "A hidden camera high on the wall, pointing at you."
+      }
+    },
+    {
+      "key": "object:55:205",
+      "kind": "object",
+      "room": 55,
+      "hotspot": 205,
+      "status": "accepted",
+      "provenance": "drafted by Claude Code by hand from the 10 Nov engine survey and a screenshot of the room",
+      "alreadyCovered": false,
+      "proposed": {
+        "name": "stake detector",
+        "type": "object",
+        "description": "A very modern stake detector, with an orange light, by the wall."
+      }
+    },
+    {
+      "key": "object:55:206",
+      "kind": "object",
+      "room": 55,
+      "hotspot": 206,
+      "status": "accepted",
+      "provenance": "drafted by Claude Code by hand from the 10 Nov engine survey and a screenshot of the room",
+      "alreadyCovered": false,
+      "proposed": {
+        "name": "barred gate",
+        "type": "exit",
+        "description": "A barred gate in the archway under the sign."
+      }
+    },
+    {
+      "key": "room:57",
+      "kind": "room",
+      "room": 57,
+      "status": "accepted",
+      "provenance": "drafted by Claude Code by hand from the 10 Nov engine survey and a screenshot of the room",
+      "alreadyCovered": false,
+      "proposed": {
+        "name": "Behind the barred gate",
+        "short": "The corridor with the sign, seen from behind the barred gate. A door leads on to a bedroom.",
+        "long": "The same corridor with the Spanish sign, but you are now behind the barred gate, under the arch. The door through the gate leads on to a bedroom.",
+        "seen": true,
+        "chapters": [
+          5
+        ]
+      }
+    },
+    {
+      "key": "exit:57:104",
+      "kind": "exit",
+      "room": 57,
+      "hotspot": 104,
+      "status": "accepted",
+      "provenance": "drafted by Claude Code by hand from the 10 Nov engine survey and a screenshot of the room",
+      "alreadyCovered": false,
+      "proposed": {
+        "label": "door through the gate, to the bedroom",
+        "to": 56,
+        "direction": "ahead"
+      }
+    },
+    {
+      "key": "room:56",
+      "kind": "room",
+      "room": 56,
+      "status": "accepted",
+      "provenance": "drafted by Claude Code by hand from the 10 Nov engine survey and a screenshot of the room",
+      "alreadyCovered": false,
+      "proposed": {
+        "name": "Drascula's bedroom",
+        "short": "A bedroom with a coffin on a draped table in the middle. A door is on the left.",
+        "long": "A stone bedroom under wooden beams. On the left is the door you came in by, and a tall grandfather clock stands beside it. In the middle, a black coffin rests on a table draped in purple cloth. On the right is a small bedside table with bottles on it.",
+        "seen": true,
+        "chapters": [
+          5
+        ]
+      }
+    },
+    {
+      "key": "exit:56:105",
+      "kind": "exit",
+      "room": 56,
+      "hotspot": 105,
+      "status": "accepted",
+      "provenance": "drafted by Claude Code by hand from the 10 Nov engine survey and a screenshot of the room",
+      "alreadyCovered": false,
+      "proposed": {
+        "label": "door on the left, back to the landing",
+        "to": 57,
+        "direction": "left"
+      }
+    },
+    {
+      "key": "object:56:124",
+      "kind": "object",
+      "room": 56,
+      "hotspot": 124,
+      "status": "accepted",
+      "provenance": "drafted by Claude Code by hand from the 10 Nov engine survey and a screenshot of the room",
+      "alreadyCovered": false,
+      "proposed": {
+        "name": "coffin",
+        "type": "object",
+        "description": "A pine wood coffin on a table draped in purple cloth."
+      }
+    },
+    {
+      "key": "object:56:207",
+      "kind": "object",
+      "room": 56,
+      "hotspot": 207,
+      "status": "accepted",
+      "provenance": "drafted by Claude Code by hand from the 10 Nov engine survey and a screenshot of the room",
+      "alreadyCovered": false,
+      "proposed": {
+        "name": "grandfather clock",
+        "type": "object",
+        "description": "A tall grandfather clock left of the coffin.",
+        "note": "Engine gives only a stock filler line on look. Description from the picture."
+      }
+    },
+    {
+      "key": "object:56:208",
+      "kind": "object",
+      "room": 56,
+      "hotspot": 208,
+      "status": "accepted",
+      "provenance": "drafted by Claude Code by hand from the 10 Nov engine survey and a screenshot of the room",
+      "alreadyCovered": false,
+      "proposed": {
+        "name": "bedside table",
+        "type": "object",
+        "description": "A nice bedside table with bottles on it."
+      }
+    }
+  ]
+}

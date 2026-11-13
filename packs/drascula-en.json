@@ -13,7 +13,7 @@
   "pack": {
     "version": "1.1.0",
     "updated": "2026-11-13",
-    "coverage": { "chapters": [1, 2, 3] },
+    "coverage": { "chapters": [1, 2, 3, 5] },
     "speechLocale": "en-GB",
     "authors": ["Ghostlight"],
     "licence": "CC-BY-4.0",
@@ -755,6 +755,245 @@
         }
       }
     },
+    "45": {
+      "chapters": [5],
+      "name": "Castle towers",
+      "short": "Outside the castle at night, under a full moon. Towers stand in front of you, each with its own way in.",
+      "long": "Outside the castle at night, with a full moon behind it. From left to right: a small tower low on the left, a tall tower left of centre, a tower right of centre, and a tower on the right. Spiral stairs and rope bridges run between them.",
+      "seen": true,
+      "exits": {
+        "100": { "label": "small tower on the left", "to": 50, "direction": "left" },
+        "101": { "label": "tower on the right", "to": 51, "direction": "right" },
+        "102": { "label": "tall tower left of centre", "to": 49, "direction": "ahead" },
+        "103": {
+          "label": "tower right of centre",
+          "to": 52,
+          "direction": "ahead",
+          "note": "Hidden at the chapter start; the engine only lists it once it is visible."
+        }
+      },
+      "objects": {}
+    },
+    "49": {
+      "chapters": [5],
+      "name": "Werewolf's study",
+      "short": "A round study in a tower. The werewolf sits at a desk in the middle, and there are doorways on both sides.",
+      "long": "A round study in a tower. A tall shelf of books stands on the left. In the middle, the werewolf sits at a desk with a typewriter on it. A dark arched window is in the back wall, with a framed diploma and then a poster to its right. A red rug covers the floor. Dark doorways lead out on the left and on the right.",
+      "seen": true,
+      "exits": {
+        "109": { "label": "doorway on the left, back outside", "to": 45, "direction": "left" },
+        "110": { "label": "doorway on the right, back outside", "to": 45, "direction": "right" }
+      },
+      "objects": {
+        "51": { "name": "werewolf", "type": "npc", "description": "The werewolf, sitting at his desk. He seems quite rational." },
+        "200": { "name": "poster", "type": "object", "description": "A picture of Plato writing his lost dialogue." },
+        "201": { "name": "desk", "type": "object", "description": "A very cute desk, with a typewriter on it." },
+        "202": {
+          "name": "diploma",
+          "type": "object",
+          "description": "A framed diploma on the back wall.",
+          "note": "The engine gives only a stock filler line on look. Description from the picture."
+        },
+        "203": { "name": "window", "type": "object", "description": "A window onto a dark night with a full moon." }
+      }
+    },
+    "50": {
+      "chapters": [5],
+      "name": "Inside the small tower",
+      "short": "A crumbling tower room with wooden floorboards. There are doorways on both sides and an opening in the floor.",
+      "long": "A crumbling tower room with wooden floorboards and a small window high on the back wall. Dark doorways lead out on the left and on the right. In the middle of the floor there is an opening that leads down.",
+      "seen": true,
+      "exits": {
+        "106": { "label": "doorway on the left, back outside", "to": 45, "direction": "left" },
+        "107": { "label": "doorway on the right, back outside", "to": 45, "direction": "right" },
+        "112": { "label": "opening in the floor, down to the laboratory", "to": 53, "direction": "down" }
+      },
+      "objects": {}
+    },
+    "51": {
+      "chapters": [5],
+      "name": "Inside the tower on the right",
+      "short": "A crumbling tower room with wooden floorboards. A doorway on the left leads out, and an opening in the floor leads down.",
+      "long": "A crumbling tower room with wooden floorboards and a small window high on the back wall. The right-hand wall is cracked. A dark doorway on the left leads back outside, and a wide opening in the middle of the floor leads down.",
+      "seen": true,
+      "exits": {
+        "108": { "label": "doorway on the left, back outside", "to": 45, "direction": "left" },
+        "113": { "label": "opening in the floor, down to the dungeon", "to": 54, "direction": "down" }
+      },
+      "objects": {}
+    },
+    "52": {
+      "chapters": [5],
+      "name": "Inside the tower right of centre",
+      "short": "A crumbling tower room with wooden floorboards. A doorway on the right leads out, and an opening in the floor leads down.",
+      "long": "A crumbling tower room with wooden floorboards and a small window high on the back wall. A dark doorway on the right leads back outside, and there is an opening in the floor in the middle.",
+      "seen": true,
+      "exits": {
+        "111": { "label": "doorway on the right, back outside", "to": 45, "direction": "right" },
+        "114": { "label": "opening in the floor, down to the corridor", "to": 55, "direction": "down" }
+      },
+      "objects": {}
+    },
+    "53": {
+      "chapters": [5],
+      "name": "Laboratory",
+      "short": "A laboratory full of machines. A big creature sits strapped into a chair on the right.",
+      "long": "A laboratory full of machines. On the left stands a tall machine with dials and a switch, with a socket low on the wall beside it and a plug on the floor nearby. Above it, a big contraption with metal globes and a drill hangs from the ceiling. In the middle at the back, an archway leads out. On the right, a big creature sits strapped into a metal chair.",
+      "seen": true,
+      "exits": { "116": { "label": "archway at the back, up to the tower", "to": 50, "direction": "back" } },
+      "objects": {
+        "52": {
+          "name": "creature in the chair",
+          "type": "npc",
+          "description": "A big creature strapped into a metal chair. Looking at him, you say he looks like Miguel Bosé.",
+          "note": "Engine name FRUSKYNSTEIN, the game's Frankenstein joke. Kept neutral so the name isn't a spoiler; could be named Frankenstein if the pack prefers."
+        },
+        "120": {
+          "name": "plug",
+          "type": "object",
+          "description": "A plug on a cable, on the floor on the left.",
+          "note": "Engine gives a stock filler line on look. Puzzle object; description names it only."
+        },
+        "121": { "name": "wall socket", "type": "object", "description": "A socket low on the wall, for powering the machines." },
+        "123": {
+          "name": "on and off switch",
+          "type": "object",
+          "description": "A switch on the machine on the left.",
+          "note": "Engine name ON/OFF; stock filler on look. Before the power is on it says there's no power."
+        },
+        "209": {
+          "name": "indifibulator",
+          "type": "object",
+          "description": "A big hand-made contraption hanging over the machines on the left. The game says the Japanese make them pocket size."
+        }
+      }
+    },
+    "54": {
+      "chapters": [5],
+      "name": "Dungeon",
+      "short": "A green stone dungeon. A cell door with a barred window is in the middle, and a skeleton hangs on the right.",
+      "long": "A green stone dungeon hung with cobwebs. On the left, a doorway with steps leads back up. In the middle is a heavy wooden cell door with a barred window and a lock. A skeleton hangs on the wall right of the door, and a skull lies on the floor on the right.",
+      "seen": true,
+      "exits": { "115": { "label": "doorway on the left, up the stairs", "to": 51, "direction": "left" } },
+      "objects": {
+        "53": {
+          "name": "skeleton",
+          "type": "object",
+          "description": "The typical skeleton you find in the dungeons of all the games."
+        },
+        "118": { "name": "cell door", "type": "object", "description": "A heavy wooden cell door with a small barred window." },
+        "119": { "name": "lock", "type": "object", "description": "The lock on the cell door. It says Safe Away Locks Ltd." },
+        "9999": {
+          "name": "bone",
+          "type": "object",
+          "description": "A bone.",
+          "note": "Hidden at the start (visible false). Engine gives only a stock filler line on look. Number 9999 is the engine's own."
+        }
+      }
+    },
+    "55": {
+      "chapters": [5],
+      "name": "Corridor with the sign",
+      "short": "A stone corridor. A sign in Spanish over a barred gate says that Drascula doesn't sleep here.",
+      "long": "A stone corridor. On the left, steps lead back up. A camera is fixed high on the wall, and below it a machine with an orange light stands by the wall. In the middle, a barred gate fills an archway. Over the arch, a sign painted in Spanish says that Drascula doesn't sleep here, with two yellow arrows pointing at the gate.",
+      "seen": true,
+      "exits": { "117": { "label": "steps on the left, back up the tower", "to": 52, "direction": "left" } },
+      "objects": {
+        "122": { "name": "screws", "type": "object", "description": "Screws that don't seem to be tightened properly." },
+        "204": { "name": "camera", "type": "object", "description": "A hidden camera high on the wall, pointing at you." },
+        "205": {
+          "name": "stake detector",
+          "type": "object",
+          "description": "A very modern stake detector, with an orange light, by the wall."
+        },
+        "206": { "name": "barred gate", "type": "exit", "description": "A barred gate in the archway under the sign." }
+      }
+    },
+    "56": {
+      "chapters": [5],
+      "name": "Drascula's bedroom",
+      "short": "A bedroom with a coffin on a draped table in the middle. A door is on the left.",
+      "long": "A stone bedroom under wooden beams. On the left is the door you came in by, and a tall grandfather clock stands beside it. In the middle, a black coffin rests on a table draped in purple cloth. On the right is a small bedside table with bottles on it.",
+      "seen": true,
+      "exits": { "105": { "label": "door on the left, back to the landing", "to": 57, "direction": "left" } },
+      "objects": {
+        "124": { "name": "coffin", "type": "object", "description": "A pine wood coffin on a table draped in purple cloth." },
+        "207": {
+          "name": "grandfather clock",
+          "type": "object",
+          "description": "A tall grandfather clock left of the coffin.",
+          "note": "Engine gives only a stock filler line on look. Description from the picture."
+        },
+        "208": { "name": "bedside table", "type": "object", "description": "A nice bedside table with bottles on it." }
+      }
+    },
+    "57": {
+      "chapters": [5],
+      "name": "Behind the barred gate",
+      "short": "The corridor with the sign, seen from behind the barred gate. A door leads on to a bedroom.",
+      "long": "The same corridor with the Spanish sign, but you are now behind the barred gate, under the arch. The door through the gate leads on to a bedroom.",
+      "seen": true,
+      "exits": { "104": { "label": "door through the gate, to the bedroom", "to": 56, "direction": "ahead" } },
+      "objects": {}
+    },
+    "59": {
+      "chapters": [6],
+      "name": "B.J.'s bedroom",
+      "short": "A bedroom where B.J. lies on a bed on the left. A wardrobe stands at the back and a trunk on the right.",
+      "long": "A bedroom with a green rug. On the far left is a door, with a lamp on the wall beside it. B.J. lies on a bed on the left, under an oval mirror on the wall. At the back, right of centre, stands a tall wooden wardrobe. A window is on the right wall, with a wooden trunk below it.",
+      "seen": true,
+      "exits": { "108": { "label": "door on the far left, to the bar", "to": 60, "direction": "left" } },
+      "objects": {
+        "51": { "name": "B.J.", "type": "npc", "description": "B.J., lying on the bed." },
+        "105": { "name": "wardrobe", "type": "exit", "description": "A tall wooden wardrobe at the back, right of centre." },
+        "106": {
+          "name": "trunk",
+          "type": "object",
+          "description": "A wooden trunk under the window on the right.",
+          "note": "Stock filler on look. Description from the picture."
+        },
+        "107": {
+          "name": "mirror",
+          "type": "object",
+          "description": "An oval mirror on the wall above the bed.",
+          "note": "Stock filler on look. Description from the picture."
+        }
+      }
+    },
+    "60": {
+      "chapters": [6],
+      "name": "Bar",
+      "short": "A crowded bar. Drascula stands in the middle, and a piano is on the right.",
+      "long": "A bar with a wooden floor. On the left is an exit sign by some stairs, and a crowd of fans stands near it. The bartender is at the back in the middle, under a poster for burgers. Drascula, in his cape, stands in the middle of the room. On the right, behind a red curtain at the back, is a doorway, and another door is on the far right. A piano with a skull on it stands on the right. Barrels fill the foreground.",
+      "seen": true,
+      "exits": {
+        "109": { "label": "doorway at the back, to B.J.'s bedroom", "to": 59, "direction": "back" },
+        "110": { "label": "door on the far right, to the back room", "to": 61, "direction": "right" }
+      },
+      "objects": {
+        "52": {
+          "name": "bartender",
+          "type": "npc",
+          "description": "The bartender, at the back in the middle.",
+          "note": "Stock filler on look. Description from the picture."
+        },
+        "56": {
+          "name": "Drascula",
+          "type": "npc",
+          "description": "Drascula, in his cape, in the middle of the bar.",
+          "note": "Stock filler on look. Description from the picture."
+        },
+        "112": { "name": "piano", "type": "object", "description": "A piano on the right. The pianist is not here." },
+        "113": { "name": "skull", "type": "object", "description": "A skull on top of the piano, with a very penetrating look." },
+        "114": { "name": "poster", "type": "object", "description": "A poster: best burgers on this side of the Danube, only 325." },
+        "115": {
+          "name": "crowd of fans",
+          "type": "npc",
+          "description": "A crowd of fans on the left of the bar.",
+          "note": "Engine name FANS; stock filler on look."
+        }
+      }
+    },
     "62": {
       "chapters": [1],
       "name": "Inn bar",
@@ -799,10 +1038,48 @@
         "109": { "name": "red curtain", "type": "object", "description": "A red curtain on the back wall." },
         "110": { "name": "papers", "type": "object", "description": "A sheet of paper pinned to the wall." }
       }
+    },
+    "102": {
+      "chapters": [6],
+      "name": "Pendulum room",
+      "short": "You are strapped to a stone slab. A huge pendulum blade swings above you.",
+      "long": "A dim cellar. You lie strapped to a stone slab in the middle, and a huge pendulum blade swings down from above. Barrels stand against the back wall on the left, and there are shackles on the right of the slab.",
+      "seen": true,
+      "exits": {},
+      "objects": {
+        "50": {
+          "name": "yourself",
+          "type": "object",
+          "description": "You, strapped to the slab.",
+          "note": "Inferred from the rect covering the hero and the look line."
+        },
+        "100": {
+          "name": "pendulum",
+          "type": "object",
+          "description": "A huge pendulum blade swinging above you. You'd prefer artichokes."
+        },
+        "101": {
+          "name": "your hand",
+          "type": "object",
+          "description": "Your hand, strapped down. Looking at it, you say you have to cut your nails.",
+          "note": "Inferred from the position by the hand and the nails line; the engine name HACKER is a leftover."
+        },
+        "102": {
+          "name": "shackles",
+          "type": "object",
+          "description": "Shackles on the right of the slab.",
+          "note": "Engine name GRILLETES (Spanish); stock filler on look. The pack's text fixes already translate the word."
+        }
+      }
     }
   },
   "items": [
-    { "id": 28, "chapters": [1, 2, 3], "name": "mobile phone", "description": "Your mobile phone, a Christmas present." },
+    {
+      "id": 28,
+      "chapters": [1, 2, 3, 4, 5],
+      "name": "mobile phone",
+      "description": "Your mobile phone, a Christmas present."
+    },
     { "id": 7, "chapters": [2, 3], "name": "money", "description": "A large banknote." },
     { "id": 8, "chapters": [2, 3], "name": "leaves", "description": "A handful of strange leaves." },
     { "id": 9, "chapters": [2, 3], "name": "crucifix", "description": "A carved wooden crucifix." },
@@ -823,7 +1100,7 @@
     { "id": 19, "chapters": [2, 3], "name": "one coin", "description": "A single shiny coin." },
     {
       "id": 20,
-      "chapters": [2, 3],
+      "chapters": [2, 3, 4, 5],
       "name": "Von Braun's brew",
       "description": "A hand-rolled cigarette of Von Braun's brew. He says it protects against vampire bites."
     },
@@ -853,7 +1130,7 @@
     { "id": 15, "chapters": [5], "name": "brains", "description": "A set of brains." },
     { "id": 16, "chapters": [5], "name": "plug", "description": "A plug." },
     { "id": 17, "chapters": [5], "name": "keys", "description": "A bunch of keys." },
-    { "id": 9, "chapters": [6], "name": "crucifix", "description": "A crucifix." },
+    { "id": 9, "chapters": [4, 5, 6], "name": "crucifix", "description": "A crucifix." },
     {
       "id": 20,
       "chapters": [6],

@@ -1,0 +1,421 @@
+{
+  "chapter": 6,
+  "generated": "2026-11-13",
+  "units": [
+    {
+      "key": "room:102",
+      "kind": "room",
+      "room": 102,
+      "status": "accepted",
+      "provenance": "drafted by Claude Code by hand from the 10 Nov engine survey and a screenshot of the room",
+      "alreadyCovered": false,
+      "proposed": {
+        "name": "Pendulum room",
+        "short": "You are strapped to a stone slab. A huge pendulum blade swings above you.",
+        "long": "A dim cellar. You lie strapped to a stone slab in the middle, and a huge pendulum blade swings down from above. Barrels stand against the back wall on the left, and there are shackles on the right of the slab.",
+        "seen": true,
+        "chapters": [
+          6
+        ]
+      }
+    },
+    {
+      "key": "object:102:50",
+      "kind": "object",
+      "room": 102,
+      "hotspot": 50,
+      "status": "accepted",
+      "provenance": "drafted by Claude Code by hand from the 10 Nov engine survey and a screenshot of the room",
+      "alreadyCovered": false,
+      "proposed": {
+        "name": "yourself",
+        "type": "object",
+        "description": "You, strapped to the slab.",
+        "note": "Inferred from the rect covering the hero and the look line."
+      }
+    },
+    {
+      "key": "object:102:100",
+      "kind": "object",
+      "room": 102,
+      "hotspot": 100,
+      "status": "accepted",
+      "provenance": "drafted by Claude Code by hand from the 10 Nov engine survey and a screenshot of the room",
+      "alreadyCovered": false,
+      "proposed": {
+        "name": "pendulum",
+        "type": "object",
+        "description": "A huge pendulum blade swinging above you. You'd prefer artichokes."
+      }
+    },
+    {
+      "key": "object:102:101",
+      "kind": "object",
+      "room": 102,
+      "hotspot": 101,
+      "status": "accepted",
+      "provenance": "drafted by Claude Code by hand from the 10 Nov engine survey and a screenshot of the room",
+      "alreadyCovered": false,
+      "proposed": {
+        "name": "your hand",
+        "type": "object",
+        "description": "Your hand, strapped down. Looking at it, you say you have to cut your nails.",
+        "note": "Inferred from the position by the hand and the nails line; the engine name HACKER is a leftover."
+      }
+    },
+    {
+      "key": "object:102:102",
+      "kind": "object",
+      "room": 102,
+      "hotspot": 102,
+      "status": "accepted",
+      "provenance": "drafted by Claude Code by hand from the 10 Nov engine survey and a screenshot of the room",
+      "alreadyCovered": false,
+      "proposed": {
+        "name": "shackles",
+        "type": "object",
+        "description": "Shackles on the right of the slab.",
+        "note": "Engine name GRILLETES (Spanish); stock filler on look. The pack's text fixes already translate the word."
+      }
+    },
+    {
+      "key": "room:58",
+      "kind": "room",
+      "room": 58,
+      "status": "pending",
+      "provenance": "drafted by Claude Code by hand from the 10 Nov engine survey only (no screenshot: the room couldn't be reached from the saves on 12 Nov)",
+      "alreadyCovered": false,
+      "proposed": {
+        "name": "Cell with the torch",
+        "short": "A cell with a torch on the wall and a door.",
+        "long": "A cell with a torch on the wall. There is a door that the game calls obviously a secret door.",
+        "seen": false,
+        "chapters": [
+          6
+        ]
+      }
+    },
+    {
+      "key": "exit:58:104",
+      "kind": "exit",
+      "room": 58,
+      "hotspot": 104,
+      "status": "pending",
+      "provenance": "drafted by Claude Code by hand from the 10 Nov engine survey only (no screenshot: the room couldn't be reached from the saves on 12 Nov)",
+      "alreadyCovered": false,
+      "proposed": {
+        "label": "secret door, to B.J.'s bedroom",
+        "to": 59
+      }
+    },
+    {
+      "key": "object:58:103",
+      "kind": "object",
+      "room": 58,
+      "hotspot": 103,
+      "status": "pending",
+      "provenance": "drafted by Claude Code by hand from the 10 Nov engine survey only (no screenshot: the room couldn't be reached from the saves on 12 Nov)",
+      "alreadyCovered": false,
+      "proposed": {
+        "name": "torch",
+        "type": "object",
+        "description": "A torch on the wall.",
+        "note": "Engine gives only a stock filler line on look. Puzzle object; description names it only."
+      }
+    },
+    {
+      "key": "room:59",
+      "kind": "room",
+      "room": 59,
+      "status": "accepted",
+      "provenance": "drafted by Claude Code by hand from the 10 Nov engine survey and a screenshot of the room",
+      "alreadyCovered": false,
+      "proposed": {
+        "name": "B.J.'s bedroom",
+        "short": "A bedroom where B.J. lies on a bed on the left. A wardrobe stands at the back and a trunk on the right.",
+        "long": "A bedroom with a green rug. On the far left is a door, with a lamp on the wall beside it. B.J. lies on a bed on the left, under an oval mirror on the wall. At the back, right of centre, stands a tall wooden wardrobe. A window is on the right wall, with a wooden trunk below it.",
+        "seen": true,
+        "chapters": [
+          6
+        ]
+      }
+    },
+    {
+      "key": "exit:59:108",
+      "kind": "exit",
+      "room": 59,
+      "hotspot": 108,
+      "status": "accepted",
+      "provenance": "drafted by Claude Code by hand from the 10 Nov engine survey and a screenshot of the room",
+      "alreadyCovered": false,
+      "proposed": {
+        "label": "door on the far left, to the bar",
+        "to": 60,
+        "direction": "left"
+      }
+    },
+    {
+      "key": "object:59:51",
+      "kind": "object",
+      "room": 59,
+      "hotspot": 51,
+      "status": "accepted",
+      "provenance": "drafted by Claude Code by hand from the 10 Nov engine survey and a screenshot of the room",
+      "alreadyCovered": false,
+      "proposed": {
+        "name": "B.J.",
+        "type": "npc",
+        "description": "B.J., lying on the bed."
+      }
+    },
+    {
+      "key": "object:59:105",
+      "kind": "object",
+      "room": 59,
+      "hotspot": 105,
+      "status": "accepted",
+      "provenance": "drafted by Claude Code by hand from the 10 Nov engine survey and a screenshot of the room",
+      "alreadyCovered": false,
+      "proposed": {
+        "name": "wardrobe",
+        "type": "exit",
+        "description": "A tall wooden wardrobe at the back, right of centre."
+      }
+    },
+    {
+      "key": "object:59:106",
+      "kind": "object",
+      "room": 59,
+      "hotspot": 106,
+      "status": "accepted",
+      "provenance": "drafted by Claude Code by hand from the 10 Nov engine survey and a screenshot of the room",
+      "alreadyCovered": false,
+      "proposed": {
+        "name": "trunk",
+        "type": "object",
+        "description": "A wooden trunk under the window on the right.",
+        "note": "Stock filler on look. Description from the picture."
+      }
+    },
+    {
+      "key": "object:59:107",
+      "kind": "object",
+      "room": 59,
+      "hotspot": 107,
+      "status": "accepted",
+      "provenance": "drafted by Claude Code by hand from the 10 Nov engine survey and a screenshot of the room",
+      "alreadyCovered": false,
+      "proposed": {
+        "name": "mirror",
+        "type": "object",
+        "description": "An oval mirror on the wall above the bed.",
+        "note": "Stock filler on look. Description from the picture."
+      }
+    },
+    {
+      "key": "room:60",
+      "kind": "room",
+      "room": 60,
+      "status": "accepted",
+      "provenance": "drafted by Claude Code by hand from the 10 Nov engine survey and a screenshot of the room",
+      "alreadyCovered": false,
+      "proposed": {
+        "name": "Bar",
+        "short": "A crowded bar. Drascula stands in the middle, and a piano is on the right.",
+        "long": "A bar with a wooden floor. On the left is an exit sign by some stairs, and a crowd of fans stands near it. The bartender is at the back in the middle, under a poster for burgers. Drascula, in his cape, stands in the middle of the room. On the right, behind a red curtain at the back, is a doorway, and another door is on the far right. A piano with a skull on it stands on the right. Barrels fill the foreground.",
+        "seen": true,
+        "chapters": [
+          6
+        ]
+      }
+    },
+    {
+      "key": "exit:60:109",
+      "kind": "exit",
+      "room": 60,
+      "hotspot": 109,
+      "status": "accepted",
+      "provenance": "drafted by Claude Code by hand from the 10 Nov engine survey and a screenshot of the room",
+      "alreadyCovered": false,
+      "proposed": {
+        "label": "doorway at the back, to B.J.'s bedroom",
+        "to": 59,
+        "direction": "back"
+      }
+    },
+    {
+      "key": "exit:60:110",
+      "kind": "exit",
+      "room": 60,
+      "hotspot": 110,
+      "status": "accepted",
+      "provenance": "drafted by Claude Code by hand from the 10 Nov engine survey and a screenshot of the room",
+      "alreadyCovered": false,
+      "proposed": {
+        "label": "door on the far right, to the back room",
+        "to": 61,
+        "direction": "right"
+      }
+    },
+    {
+      "key": "object:60:52",
+      "kind": "object",
+      "room": 60,
+      "hotspot": 52,
+      "status": "accepted",
+      "provenance": "drafted by Claude Code by hand from the 10 Nov engine survey and a screenshot of the room",
+      "alreadyCovered": false,
+      "proposed": {
+        "name": "bartender",
+        "type": "npc",
+        "description": "The bartender, at the back in the middle.",
+        "note": "Stock filler on look. Description from the picture."
+      }
+    },
+    {
+      "key": "object:60:56",
+      "kind": "object",
+      "room": 60,
+      "hotspot": 56,
+      "status": "accepted",
+      "provenance": "drafted by Claude Code by hand from the 10 Nov engine survey and a screenshot of the room",
+      "alreadyCovered": false,
+      "proposed": {
+        "name": "Drascula",
+        "type": "npc",
+        "description": "Drascula, in his cape, in the middle of the bar.",
+        "note": "Stock filler on look. Description from the picture."
+      }
+    },
+    {
+      "key": "object:60:112",
+      "kind": "object",
+      "room": 60,
+      "hotspot": 112,
+      "status": "accepted",
+      "provenance": "drafted by Claude Code by hand from the 10 Nov engine survey and a screenshot of the room",
+      "alreadyCovered": false,
+      "proposed": {
+        "name": "piano",
+        "type": "object",
+        "description": "A piano on the right. The pianist is not here."
+      }
+    },
+    {
+      "key": "object:60:113",
+      "kind": "object",
+      "room": 60,
+      "hotspot": 113,
+      "status": "accepted",
+      "provenance": "drafted by Claude Code by hand from the 10 Nov engine survey and a screenshot of the room",
+      "alreadyCovered": false,
+      "proposed": {
+        "name": "skull",
+        "type": "object",
+        "description": "A skull on top of the piano, with a very penetrating look."
+      }
+    },
+    {
+      "key": "object:60:114",
+      "kind": "object",
+      "room": 60,
+      "hotspot": 114,
+      "status": "accepted",
+      "provenance": "drafted by Claude Code by hand from the 10 Nov engine survey and a screenshot of the room",
+      "alreadyCovered": false,
+      "proposed": {
+        "name": "poster",
+        "type": "object",
+        "description": "A poster: best burgers on this side of the Danube, only 325."
+      }
+    },
+    {
+      "key": "object:60:115",
+      "kind": "object",
+      "room": 60,
+      "hotspot": 115,
+      "status": "accepted",
+      "provenance": "drafted by Claude Code by hand from the 10 Nov engine survey and a screenshot of the room",
+      "alreadyCovered": false,
+      "proposed": {
+        "name": "crowd of fans",
+        "type": "npc",
+        "description": "A crowd of fans on the left of the bar.",
+        "note": "Engine name FANS; stock filler on look."
+      }
+    },
+    {
+      "key": "room:61",
+      "kind": "room",
+      "room": 61,
+      "status": "pending",
+      "provenance": "drafted by Claude Code by hand from the 10 Nov engine survey only (no screenshot: walking through door 110 from slot 43 didn't reach the room on 12 Nov)",
+      "alreadyCovered": false,
+      "proposed": {
+        "name": "Back room",
+        "short": "A back room with papers, a curtain and a machine.",
+        "long": "A back room behind the bar. There are papers, a curtain and a machine, and a door leads back to the bar.",
+        "seen": false,
+        "chapters": [
+          6
+        ]
+      }
+    },
+    {
+      "key": "exit:61:111",
+      "kind": "exit",
+      "room": 61,
+      "hotspot": 111,
+      "status": "pending",
+      "provenance": "drafted by Claude Code by hand from the 10 Nov engine survey only (no screenshot: walking through door 110 from slot 43 didn't reach the room on 12 Nov)",
+      "alreadyCovered": false,
+      "proposed": {
+        "label": "door back to the bar",
+        "to": 60
+      }
+    },
+    {
+      "key": "object:61:116",
+      "kind": "object",
+      "room": 61,
+      "hotspot": 116,
+      "status": "pending",
+      "provenance": "drafted by Claude Code by hand from the 10 Nov engine survey only (no screenshot: walking through door 110 from slot 43 didn't reach the room on 12 Nov)",
+      "alreadyCovered": false,
+      "proposed": {
+        "name": "papers",
+        "type": "object",
+        "description": "Papers. It's a bet for tonight's game."
+      }
+    },
+    {
+      "key": "object:61:117",
+      "kind": "object",
+      "room": 61,
+      "hotspot": 117,
+      "status": "pending",
+      "provenance": "drafted by Claude Code by hand from the 10 Nov engine survey only (no screenshot: walking through door 110 from slot 43 didn't reach the room on 12 Nov)",
+      "alreadyCovered": false,
+      "proposed": {
+        "name": "curtain",
+        "type": "object",
+        "description": "A curtain. You wonder what's behind it."
+      }
+    },
+    {
+      "key": "object:61:118",
+      "kind": "object",
+      "room": 61,
+      "hotspot": 118,
+      "status": "pending",
+      "provenance": "drafted by Claude Code by hand from the 10 Nov engine survey only (no screenshot: walking through door 110 from slot 43 didn't reach the room on 12 Nov)",
+      "alreadyCovered": false,
+      "proposed": {
+        "name": "machine",
+        "type": "object",
+        "description": "A machine.",
+        "note": "Stock filler on look. Nothing confirms what kind of machine."
+      }
+    }
+  ]
+}

@@ -38,9 +38,9 @@ describe("pack-coverage: claimed chapters are fully described", () => {
     expect(offenders, `hotspots without names: ${offenders.join("; ")}`).toEqual([]);
   });
 
-  it("reports the report as ok for the current pack (chapters 1 to 3)", () => {
+  it("reports the report as ok for the current pack (chapters 1, 2, 3 and 5)", () => {
     const report = buildCoverageReport(freshPack(), census);
-    expect(report.claimedChapters).toEqual([1, 2, 3]);
+    expect(report.claimedChapters).toEqual([1, 2, 3, 5]);
     expect(report.ok).toBe(true);
   });
 
