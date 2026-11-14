@@ -2,7 +2,7 @@
   "name": "@ghostlight/pack-tools",
   "version": "1.0.0",
   "description": "Validator, coverage checker and tests for ScummVM accessibility packs (format v1).",
-  "license": "Apache-2.0",
+  "license": "GPL-3.0-or-later",
   "type": "module",
   "bin": {
     "pack-validate": "./dist/cli.js"

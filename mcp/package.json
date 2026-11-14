@@ -2,7 +2,7 @@
   "name": "drascula-mcp",
   "version": "0.1.0",
   "description": "Drascula MCP server — plays the game through the engine's command set as MCP tools (native + replay transports).",
-  "license": "Apache-2.0",
+  "license": "GPL-3.0-or-later",
   "type": "module",
   "private": true,
   "bin": {

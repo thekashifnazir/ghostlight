@@ -2,7 +2,7 @@
   "name": "ghostlight-player",
   "version": "0.1.0",
   "description": "Ghostlight — the accessible web player for Drascula. Keyboard + screen reader, no framework.",
-  "license": "Apache-2.0",
+  "license": "GPL-3.0-or-later",
   "type": "module",
   "private": true,
   "scripts": {

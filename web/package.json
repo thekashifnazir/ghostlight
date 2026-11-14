@@ -2,7 +2,7 @@
   "name": "ghostlight-web",
   "version": "0.1.0",
   "description": "Ghostlight hosting — a Cloudflare Worker serving the ScummVM wasm build with Packet.001 from R2.",
-  "license": "Apache-2.0",
+  "license": "GPL-3.0-or-later",
   "private": true,
   "type": "module",
   "scripts": {

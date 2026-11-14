@@ -4,8 +4,8 @@ The pack data path: turn the engine's own room state into accepted entries in
 `packs/drascula-en.json`. Four stages plus a coverage report, all human-gated at
 stage 3. See `.kiro/specs/pack-coverage/` for the full spec.
 
-This tooling is Apache-2.0, like the rest of `packs/tools/`. The pack *data*
-(`drascula-en.json`) is CC BY 4.0. Room screenshots are game art and are **not
+This tooling is GPL-3.0-or-later, like the rest of `packs/tools/`. The pack *data*
+(`drascula-en.json`) is CC BY-SA 4.0. Room screenshots are game art and are **not
 committed** (`packs/survey/**/screenshot.png` is gitignored); the repo never
 holds game data.
 

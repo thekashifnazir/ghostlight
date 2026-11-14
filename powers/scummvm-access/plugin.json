@@ -7,6 +7,6 @@
     "name": "Ghostlight"
   },
   "keywords": ["scummvm", "accessibility", "a11y", "adventure game", "pack format", "screen reader", "hotspot", "milestone", "hints", "survey", "mcp"],
-  "license": "Apache-2.0",
+  "license": "GPL-3.0-or-later",
   "repository": "https://github.com/thekashifnazir/ghostlight"
 }

@@ -1,6 +1,6 @@
 # Pack tools
 
-Validator, coverage checker and property-based tests for ScummVM accessibility packs (format v1). This tooling is Apache-2.0 licensed, like the rest of the repo's code; the pack *data* (the `<gameId>-<lang>.json` files) is CC BY 4.0 (see `packs/LICENSE`), and the engine patch in `engine/` stays GPL-3.0-or-later. The tools read packs, the schema and the census as local files only; they make no network calls and never touch `engine/`, `scripts/` or `vendor/`.
+Validator, coverage checker and property-based tests for ScummVM accessibility packs (format v1). This tooling is GPL-3.0-or-later, like the rest of the repo's code; the pack *data* (the `<gameId>-<lang>.json` files) is CC BY-SA 4.0 (see `packs/LICENSE`), and the engine patch in `engine/` stays GPL-3.0-or-later. The tools read packs, the schema and the census as local files only; they make no network calls and never touch `engine/`, `scripts/` or `vendor/`.
 
 ## Install
 

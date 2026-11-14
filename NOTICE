@@ -1,1 +1,3 @@
-Ghostlight. Copyright 2026 Kashif Nazir. https://github.com/thekashifnazir/ghostlight. Includes a modified ScummVM engine in engine/ (GPL-3.0-or-later) and accessibility packs in packs/ (CC BY 4.0).
+Ghostlight. Copyright 2026 Kashif Nazir. https://github.com/thekashifnazir/ghostlight.
+Code (including the modified ScummVM engine in engine/): GPL-3.0-or-later, see LICENSE.
+Accessibility packs in packs/: CC BY-SA 4.0, see packs/LICENSE.

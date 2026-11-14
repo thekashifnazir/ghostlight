@@ -150,13 +150,12 @@ The player and pack suites use property-based tests (fast-check) alongside examp
 
 ## Credits and licences
 
-This repository carries three licences, one per kind of thing in it.
+This repository carries two licences: one for code, one for the pack text.
 
-- **Apache License 2.0** (see [`LICENSE`](LICENSE)) covers the code: the player, the parser, the pack format, the tools, the MCP server and the scummvm-access power. It is a permissive licence with an explicit patent grant, so these parts stay reusable.
-- **CC BY 4.0** (see [`packs/LICENSE`](packs/LICENSE)) covers the accessibility pack *data* in `packs/` (the `<gameId>-<lang>.json` files): the room and object descriptions, exit labels, hints and other authored text. Reuse it with attribution.
-- **GPL-3.0-or-later** (see [`engine/COPYING`](engine/COPYING)) covers the engine patch in `engine/`, which modifies GPL ScummVM code, as does any wasm built from it. The live site serves the corresponding source for the hosted engine at [`/source/`](https://ghostlight.kashifnazir.com/source/): the `engine/` files, `hooks.patch`, the pinned ScummVM commit, the build script and the GPL text.
+- **GPL-3.0-or-later** (see [`LICENSE`](LICENSE)) covers all the code: the player, the parser, the pack format, the tools, the MCP server, the scummvm-access power, and the engine patch in `engine/` (see [`engine/COPYING`](engine/COPYING)), which modifies GPL ScummVM code, as does any wasm built from it. Use it, change it and share it; if you share or host a changed version, publish your changes under the same licence. It's the licence ScummVM uses.
+- **CC BY-SA 4.0** (see [`packs/LICENSE`](packs/LICENSE)) covers the accessibility pack *data* in `packs/` (the `<gameId>-<lang>.json` files): the room and object descriptions, exit labels, hints and other authored text. Reuse and improve it with credit, and share your version under the same licence. The live site serves the corresponding source for the hosted engine at [`/source/`](https://ghostlight.kashifnazir.com/source/): the `engine/` files, `hooks.patch`, the pinned ScummVM commit, the build script and the GPL text.
 
-A root [`NOTICE`](NOTICE) file records these, as the Apache licence expects.
+A root [`NOTICE`](NOTICE) file records these.
 
 The game data is not in this repository. *Drascula: The Vampire Strikes Back* is distributed as freeware through [ScummVM's official downloads](https://www.scummvm.org/games/#games-drascula), and a script fetches it with checksums; the hosted copy keeps the game's readme and a notice that it is modified. Ghostlight builds on ScummVM and does not claim ScummVM's own work as its own.
 

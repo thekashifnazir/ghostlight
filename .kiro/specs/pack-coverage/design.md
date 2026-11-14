@@ -57,7 +57,7 @@ Because an unattended, checkpoint-to-room survey issues many commands per room w
 
 ### Transport and tools
 
-The survey script is a Node script in `packs/survey/` (tooling, Apache-2.0) that launches `drascula-mcp` with `DRASCULA_MCP_TRANSPORT=native` and its own save path, then calls the MCP tools. It uses only the documented tools; it never touches the command file, the serialiser (`src/engine/adapter.ts`) or the parser (`src/engine/a11y-lines.ts`) directly. This keeps the one-contract rule: the player, the tests, the MCP server and this script all go through the same seam.
+The survey script is a Node script in `packs/survey/` (tooling, GPL-3.0-or-later) that launches `drascula-mcp` with `DRASCULA_MCP_TRANSPORT=native` and its own save path, then calls the MCP tools. It uses only the documented tools; it never touches the command file, the serialiser (`src/engine/adapter.ts`) or the parser (`src/engine/a11y-lines.ts`) directly. This keeps the one-contract rule: the player, the tests, the MCP server and this script all go through the same seam.
 
 It uses its own save path `/tmp/ghostlight-pack-coverage`, distinct from the engine chat (`/tmp/ghostlight-engine`), the player chat, the MCP server (`/tmp/ghostlight-mcp`) and Crew (`ghostlight-crew/.saves/`), per the parallel-chats rule and the native transport's own save-path isolation. It copies a Crew checkpoint into its own save path before loading, so it reads Crew's saves but never writes them.
 

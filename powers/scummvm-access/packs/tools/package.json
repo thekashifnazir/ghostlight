@@ -2,7 +2,7 @@
   "name": "@scummvm-access/pack-tools",
   "version": "1.0.0",
   "description": "Validator and coverage checker for ScummVM accessibility packs (format v1). Bundled in the scummvm-access power.",
-  "license": "Apache-2.0",
+  "license": "GPL-3.0-or-later",
   "type": "module",
   "bin": {
     "pack-validate": "./dist/cli.js"

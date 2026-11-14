@@ -1,7 +1,7 @@
 ---
 name: "pack-writing"
 description: "Write and review the text in a ScummVM accessibility pack: room names and descriptions, exit labels, spoken object and item names, text fixes, cutscene descriptions, recaps, and graded hints. Use when authoring or reviewing any line of text a player will hear."
-license: "Apache-2.0"
+license: "GPL-3.0-or-later"
 compatibility: "Writing or reviewing accessibility-pack text (packs/<gameId>-<lang>.json). Pairs with the scummvm-access pack schema and validator."
 metadata:
   author: "Ghostlight"
