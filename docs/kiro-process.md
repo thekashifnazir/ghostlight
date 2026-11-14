@@ -2121,3 +2121,13 @@ What was asked: apply an approved patch, as written, after Kash's NVDA test on 1
 What Kiro did: applied the patch to 8 files in one headless kiro-cli run (fs_read and fs_write only, no exploring). The room readout now says the nudge straight after the room name; the S summary line and the "Loaded: <room>" line end with it; the first room folds the hint state before its first announcement, so the readout sees current progress and H starts at the clue once the nudge has been heard.
 Verification: Kiro's files are byte-identical to the patch; tsc clean; unit 542/542 (5 new); local Chromium live 15/15 including the new test/live/nudge-live.spec.ts.
 Credits: 1.48 (cap 1.5).
+
+## 159 · trim · 2026-11-14 · Trim phase 3b: Queen leftovers and the "any" text fix
+What was asked: apply the verified phase 3 run-2 patch as written: drop Queen's unused lastOutputMs(), fix stale comments in the Queen layer and the player's engine adapter and status code, and fix a real bug where a pack text fix with context "any" never applied in the player, with a test.
+What Kiro did: applied the patch to 6 files in one headless run, reading only the patch and its files.
+Verification: files byte-identical to the patch; tsc and unit tests run after (see the merge).
+
+## 160 · engine · 2026-11-14 · Engine comments cut to what a ScummVM reviewer needs
+What was asked: shorten the comments in the engine layer (both games) and in the Drascula hooks, following ScummVM's AI guidelines (no lengthy LLM-oriented explanations) and its formatting conventions: keep the comments that explain a non-obvious engine fact, cut narration, restated code, requirement and task references, and history.
+What Kiro did: applied the verified comments-only patch with git apply. No code changed.
+Verification: comments stripped by clang give identical code before and after for all four source files; the rebuilt scummvm.wasm differs from the baseline only in the embedded build timestamp; the hooks patch was regenerated with git diff against the pinned ScummVM and applies to it cleanly.

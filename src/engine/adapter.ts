@@ -41,9 +41,9 @@ export interface RoomState {
   /** Hero foot/centre point, in the objects' coordinate space. */
   hero: { x: number; y: number };
   objects: RoomObject[];
-  /** Real item ids carried (7+; verb slots excluded by the engine). */
+  /** Item ids carried (in Drascula 7+, verb slots excluded by the engine). */
   inventory: number[];
-  /** All 50 engine flags, reported faithfully (flag 12 noise included). */
+  /** The game's progress flags, reported faithfully (50 in Drascula, 211 in Queen). */
   flags: number[];
 }
 
@@ -109,8 +109,8 @@ export interface InvItem {
 /**
  * The engine's own control phase (the `A11Y_PHASE` line). Emitted by the engine
  * a11y layer straight from engine truth, not inferred by the player:
- *   - `control` — the engine is idle and able to take a command this frame
- *     (`canSaveGameStateCurrently()` is true and no command is running).
+ *   - `control` — the engine is idle in free play and able to take a command
+ *     this frame, judged per game (not `canSaveGameStateCurrently()`).
  *   - `busy`    — a command is running / the engine is not ready.
  *   - `choice`  — a conversation choice menu is open and waiting.
  * The player maps these onto its readiness phase (see src/engine/status.ts).

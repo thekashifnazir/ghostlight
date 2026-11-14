@@ -44,7 +44,7 @@ interface PackItem {
   description?: string;
 }
 
-type TextFixContext = "hotspot" | "dialogue" | "item";
+type TextFixContext = "hotspot" | "dialogue" | "item" | "any";
 
 interface TextFix {
   from: string;
@@ -86,7 +86,7 @@ export interface PackData {
 }
 
 /** Context a text fix applies in, passed to applyTextFixes. */
-export type FixContext = TextFixContext;
+export type FixContext = Exclude<TextFixContext, "any">;
 
 export class Pack {
   private readonly data: PackData;
@@ -270,7 +270,7 @@ export class Pack {
     const fixes = this.data.textFixes ?? [];
     let out = raw;
     for (const fix of fixes) {
-      if (fix.context && fix.context !== context) continue;
+      if (fix.context && fix.context !== "any" && fix.context !== context) continue;
       if (fix.rooms && (room == null || !fix.rooms.includes(room))) continue;
       if (fix.match === "substring") {
         out = out.split(fix.from).join(fix.to);
