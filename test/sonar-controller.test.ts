@@ -237,3 +237,31 @@ describe("Sonar without an audio context", () => {
     expect(live.last).toBe("thing-1, person, left, mid, 1 of 3");
   });
 });
+
+describe("Sonar scan with the worth-a-look nudge", () => {
+  it("speaks the nudge straight after the short summary line", () => {
+    const live = new FakeLive();
+    const { ctx } = makeFakeCtx();
+    const sonar = new Sonar({
+      live: live as unknown as LiveRegion,
+      getContext: () => ctx,
+      nudge: () => "Worth a look: It's late, and you'll need somewhere to sleep.",
+    });
+    const { state, list } = room(threeThings);
+    sonar.setRoom(state, list);
+    sonar.scan();
+    expect(live.last).toBe(
+      "3 things, left to right: 1 person, 1 object, 1 exit. Worth a look: It's late, and you'll need somewhere to sleep.",
+    );
+  });
+
+  it("keeps the plain summary when there is no nudge", () => {
+    const live = new FakeLive();
+    const { ctx } = makeFakeCtx();
+    const sonar = new Sonar({ live: live as unknown as LiveRegion, getContext: () => ctx, nudge: () => undefined });
+    const { state, list } = room(threeThings);
+    sonar.setRoom(state, list);
+    sonar.scan();
+    expect(live.last).toBe("3 things, left to right: 1 person, 1 object, 1 exit.");
+  });
+});

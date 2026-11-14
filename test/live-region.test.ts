@@ -210,6 +210,18 @@ describe("LiveRegion", () => {
     expect(text).toContain("Exits: stone arch to the back room.");
   });
 
+  it("speaks the worth-a-look nudge straight after the room name", () => {
+    const text = LiveRegion.roomAnnouncement({
+      name: "Inn bar",
+      nudge: "Worth a look: It's late, and you'll need somewhere to sleep.",
+      short: "A stone tavern.",
+      hotspots: [hs({ name: "bartender", kind: "npc" }), hs({ name: "stairs", kind: "exit" })],
+    });
+    expect(text).toBe(
+      "Inn bar. Worth a look: It's late, and you'll need somewhere to sleep. A stone tavern. Here: bartender. Exits: stairs.",
+    );
+  });
+
   it("falls back when the room has no pack name or description", () => {
     const text = LiveRegion.roomAnnouncement({
       name: undefined,

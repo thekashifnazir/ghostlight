@@ -445,11 +445,19 @@ export class LiveRegion {
     name: string | undefined;
     short: string | undefined;
     hotspots: Hotspot[];
+    /** The "worth a look" line, spoken straight after the name. */
+    nudge?: string;
   }): string {
-    const { name, short, hotspots } = args;
+    const { name, short, hotspots, nudge } = args;
     const parts: string[] = [];
 
-    parts.push(name && name.length > 0 ? name : "A room");
+    const title = name && name.length > 0 ? name : "A room";
+    if (nudge && nudge.length > 0) {
+      parts.push(/[.!?]$/.test(title) ? title : `${title}.`);
+      parts.push(nudge);
+    } else {
+      parts.push(title);
+    }
     if (short && short.length > 0) parts.push(short);
 
     const things = hotspots.filter((h) => h.kind !== "exit").map((h) => h.name);

@@ -209,9 +209,10 @@ export class SaveManager {
    * a slot and the first room is read. Falls back to a bare "Loaded." when the
    * pack has no name for the room (R2.4).
    */
-  announceLoaded(room: number): void {
+  announceLoaded(room: number, nudge?: string): void {
     const name = this.d.roomName(room);
-    this.d.announce(name ? `Loaded: ${name}` : "Loaded.");
+    const line = name ? `Loaded: ${name}.` : "Loaded.";
+    this.d.announce(nudge ? `${line} ${nudge}` : name ? `Loaded: ${name}` : line);
   }
 
   /** Announce a failed load (a continue boot that never reached a room). */

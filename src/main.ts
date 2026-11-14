@@ -489,6 +489,8 @@ export async function boot(): Promise<void> {
   const sonar = new Sonar({
     live,
     getContext: () => audioContext,
+    // The nudge follows the short scan summary (tester feedback, 14 Nov).
+    nudge: () => hintEngine.worthALook(state.room, (r) => pack.roomName(r)),
   });
 
   const showHighlight = (h: Hotspot | undefined): void => {
@@ -811,8 +813,14 @@ export async function boot(): Promise<void> {
   // `prefix`, when given, is spoken first on the same line (used for the
   // "Chapter 2: …" line on a chapter crossing), for the same reason.
   const readRoom = (suffix?: string, prefix?: string): void => {
+    // The always-on "worth a look" nudge is spoken straight after the room
+    // name, before the long description and list, so it is heard within the
+    // first couple of seconds rather than lost at the end (tester feedback,
+    // 14 Nov). Speaking it also marks the nudge as given, so H starts at the clue.
+    const nudge = hintEngine.worthALook(state.room, (r) => pack.roomName(r));
     const room = LiveRegion.roomAnnouncement({
       name: pack.roomName(state.room),
+      nudge,
       // Resolve the short against the running complete state and the reached
       // set, so a variant (e.g. a passage opening) is spoken once its
       // condition holds (description-variants R3.1, R3.5).
@@ -820,17 +828,9 @@ export async function boot(): Promise<void> {
       hotspots: currentList,
     });
     // Keep the room part and the appended suffix as separate sentences so they
-    // never run together in one breath: the onboarding suffix begins with
-    // "That's the room." and the exits part must end on a full stop before it
-    // (screen-reader-output: controls clearly apart from the room). The room
-    // reading already ends on a full stop today; this guards it so a future
-    // change to roomAnnouncement cannot merge the two into one run-on line.
+    // never run together in one breath (screen-reader-output).
     const roomEnded = /[.!?]$/.test(room) ? room : `${room}.`;
-    // The always-on "worth a look" nudge ends the same readout as its own
-    // sentence (one key press, one line); it also marks the nudge as given.
-    const nudge = hintEngine.worthALook(state.room, (r) => pack.roomName(r));
-    const body = nudge ? `${roomEnded} ${nudge}` : room;
-    const withSuffix = suffix ? `${nudge ? body : roomEnded} ${suffix}` : body;
+    const withSuffix = suffix ? `${roomEnded} ${suffix}` : room;
     live.announce(prefix ? `${prefix} ${withSuffix}` : withSuffix);
   };
 
@@ -1095,11 +1095,24 @@ export async function boot(): Promise<void> {
     // update is instead "Loaded: <room>" (save-progress R2.4): the player asked
     // to resume and the confirmation names where they landed. The full room can
     // be re-read with L. A fresh start keeps the normal room + onboarding line.
+    // Re-sync (before any announcement, so the first readout and the nudge
+    // see this room's real progress, e.g. after loading a save). Re-sync the running hint state to this room's full flags and inventory
+    // (hints-and-ghost R11.6), then let the tracker latch any reached milestone.
+    hintState = {
+      chapter: s.chapter,
+      room: s.room,
+      flags: s.flags.slice(),
+      inventory: s.inventory.slice(),
+    };
+    hintEngine.onEngineState(hintState);
     if (!onboardingDone) {
       onboardingDone = true;
       if (bootedIntoSlot) {
         bootedIntoSlot = false;
-        saveManager.announceLoaded(s.room);
+        saveManager.announceLoaded(
+          s.room,
+          hintEngine.worthALook(s.room, (r) => pack.roomName(r)),
+        );
       } else {
         readRoom(ONBOARDING_TEXT);
       }
@@ -1114,15 +1127,6 @@ export async function boot(): Promise<void> {
     // Feed sonar the full room (with the real hero) and reset its step cursor.
     sonar.setRoom(s, currentList);
 
-    // Re-sync the running hint state to this room's full flags and inventory
-    // (hints-and-ghost R11.6), then let the tracker latch any reached milestone.
-    hintState = {
-      chapter: s.chapter,
-      room: s.room,
-      flags: s.flags.slice(),
-      inventory: s.inventory.slice(),
-    };
-    hintEngine.onEngineState(hintState);
   }
 
   function applyDiff(diff: Diff): void {

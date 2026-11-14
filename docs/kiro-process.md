@@ -2116,3 +2116,8 @@ Not committed (edit-only session, no shell): needs the native build, `npm --pref
 **Time taken:** a few minutes.
 **What went wrong or surprised you:** one find-and-replace on a comment block failed on the first try and was redone against the file's actual text. This session had no shell, so it could not build the engine or run any tests. The dry run, the native and web rebuilds and the before/after A11Y output check were all done by Claude Code; nothing here is verified by this session beyond re-reading the changed regions against the diff.
 **What was learned:** with a diff that was already applied and checked elsewhere, the failure to watch for in a hand transcription is a merged line or a lost label, so each changed region gets re-read against the diff's + lines.
+## 158 · player · 2026-11-14 · "Worth a look" nudge moved next to the room name
+What was asked: apply an approved patch, as written, after Kash's NVDA test on 14 Nov found the "Worth a look" nudge was lost at the end of the long room readout, and after Continue or a load, H gave the nudge first because "Loaded: <room>" never spoke it.
+What Kiro did: applied the patch to 8 files in one headless kiro-cli run (fs_read and fs_write only, no exploring). The room readout now says the nudge straight after the room name; the S summary line and the "Loaded: <room>" line end with it; the first room folds the hint state before its first announcement, so the readout sees current progress and H starts at the clue once the nudge has been heard.
+Verification: Kiro's files are byte-identical to the patch; tsc clean; unit 542/542 (5 new); local Chromium live 15/15 including the new test/live/nudge-live.spec.ts.
+Credits: 1.48 (cap 1.5).

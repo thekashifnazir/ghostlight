@@ -237,3 +237,17 @@ describe("SaveManager loaded announcement", () => {
     expect(m.announced).toEqual([LOAD_FAILED_LINE]);
   });
 });
+
+describe("SaveManager.announceLoaded with the worth-a-look nudge", () => {
+  it("adds the nudge after the loaded room", () => {
+    const m = makeManager();
+    m.manager.announceLoaded(62, "Worth a look: You've got a room. Time for bed.");
+    expect(m.announced).toEqual(["Loaded: tavern. Worth a look: You've got a room. Time for bed."]);
+  });
+
+  it("is unchanged without a nudge", () => {
+    const m = makeManager();
+    m.manager.announceLoaded(62);
+    expect(m.announced).toEqual(["Loaded: tavern"]);
+  });
+});

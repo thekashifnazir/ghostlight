@@ -28,11 +28,14 @@ export interface SonarDeps {
   live: LiveRegion;
   /** The start-gate AudioContext, or undefined until/if one exists (R5.5). */
   getContext: () => AudioContext | undefined;
+  /** The "worth a look" line, spoken after the scan summary, or undefined. */
+  nudge?: () => string | undefined;
 }
 
 export class Sonar {
   private readonly live: LiveRegion;
   private readonly getContext: () => AudioContext | undefined;
+  private readonly nudge: (() => string | undefined) | undefined;
 
   private state: RoomState | undefined;
   private list: Hotspot[] = [];
@@ -44,6 +47,7 @@ export class Sonar {
   constructor(deps: SonarDeps) {
     this.live = deps.live;
     this.getContext = deps.getContext;
+    this.nudge = deps.nudge;
   }
 
   /**
@@ -72,7 +76,8 @@ export class Sonar {
     // Announce the summary immediately, before any ping, so the text is already
     // out when the pings start. stop() can silence the pings afterwards but has
     // nothing pending to swallow.
-    this.live.announce(summaryLine(pings));
+    const nudge = this.nudge?.();
+    this.live.announce(nudge ? `${summaryLine(pings)} ${nudge}` : summaryLine(pings));
     this.audioLayer()?.play(pings);
   }
 
