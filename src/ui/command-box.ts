@@ -12,6 +12,7 @@
 
 import type { Command, InvItem } from "../engine/adapter.js";
 import type { Hotspot } from "../model/hotspot-list.js";
+import { HERO_TARGET } from "../model/hero.js";
 import { type FixedAction, type Match, parsePhrase } from "../model/parser.js";
 
 export interface CommandBoxCallbacks {
@@ -194,6 +195,8 @@ export class CommandBox {
         const target = "num" in match.target ? match.target.num : match.target.id;
         return { verb: "use", item: match.item.id, target };
       }
+      case "useSelf":
+        return { verb: "use", item: match.item.id, target: HERO_TARGET };
       case "choice":
         return { verb: "choose", n: match.n };
       default:

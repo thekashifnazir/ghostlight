@@ -2025,3 +2025,16 @@ Not committed (edit-only session, no shell): needs the native build, `npm --pref
 **Time taken:** about 20 minutes.
 **What went wrong or surprised you:** Nothing run, so typecheck and tests are unverified. Two things to watch: any existing test that matches the exact `HELP_TEXT` wording around "L reads the whole room" or an exact room readout in a room with an offered milestone will now see the extra sentence. The in-room nudge is spoken on every L, not only the first time; the tier mark is idempotent so repeats are harmless.
 **What was learned:** The two-level help needed almost no new machinery, because the pack already had graded tiers and a never-ahead selector; the only new state is "the nudge counts as given", which fits the existing tier map.
+
+## 140 · player · 2026-11-14 · Use an item on yourself (the chapter 2 earplugs)
+**What was asked:** A blind tester got stuck in chapter 2: the earplugs (item 11) must be used on yourself in Von Braun's den (room 18), engine command `use 11 50`. The engine and MCP already support it, but the browser player could not send it. Edit-only session (no shell), no tests.
+**What Kiro did:**
+- `src/model/hero.ts` (new): `HERO_TARGET = 50` with a comment, the single place the number lives.
+- `src/model/parser.ts`: new match kind `useSelf`. `parseSelfUse` recognises "use X on me/myself/yourself/self/hero", "wear X", "put on X", "put X in my ears" and "put X on me", resolving X against carried items only. It runs before the verb split, so a self phrase never reaches the hotspot path.
+- `src/ui/command-box.ts`: `useSelf` maps to `{ verb: "use", item, target: HERO_TARGET }`.
+- `src/ui/inventory.ts`: while an item is active, the list gets a final "Yourself" entry (placeholder id -1, never sent). Choosing it announces "Using <item> on yourself." and calls the new `useOnSelf(item)` callback. The list re-renders when an item becomes active or is cleared, so the entry appears and goes away at once; position counts include it.
+- `src/main.ts` (three lines): import `HERO_TARGET`, wire `useOnSelf` next to `useOnItem`, and one help sentence in `HELP_TEXT`: "You can use an item on yourself: type use earplugs on yourself."
+**Files changed:** `src/model/hero.ts`, `src/model/parser.ts`, `src/ui/command-box.ts`, `src/ui/inventory.ts`, `src/main.ts`, `docs/kiro-process.md`.
+**Time taken:** about 15 minutes.
+**What went wrong or surprised you:** nothing run, so nothing typechecked or tested here. A bare no-op edit on the inventory import line was made by mistake and changes nothing. Existing tests that build an `Inventory` with a callbacks object will need `useOnSelf` added to compile.
+**What was learned:** the list-mode and typed paths both only knew hotspots and items as targets; the hero needed its own target kind rather than a fake hotspot.
