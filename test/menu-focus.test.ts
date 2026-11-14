@@ -28,6 +28,7 @@ function inventory() {
   const inv = new Inventory(el, pack, {
     announce,
     useOnItem: vi.fn(),
+    useOnSelf: vi.fn(),
     returnToList: vi.fn(),
     chapter: () => 2,
   });

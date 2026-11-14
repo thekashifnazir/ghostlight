@@ -201,3 +201,33 @@ describe("CommandBox", () => {
     });
   });
 });
+
+// Tester feedback 14 Nov: the earplugs puzzle is solved by using them on
+// yourself (engine `use 11 50`), which the command box could not send.
+describe("CommandBox: use an item on yourself", () => {
+  const EARPLUGS: InvItem = { id: 11, name: "earplugs" };
+  const TISSUES: InvItem = { id: 15, name: "tissues" };
+  for (const phrase of [
+    "use earplugs on yourself",
+    "use earplugs on me",
+    "use the earplugs on myself",
+    "wear earplugs",
+    "wear the earplugs",
+    "put on earplugs",
+    "put earplugs in my ears",
+  ]) {
+    it(`'${phrase}' sends use 11 50`, () => {
+      const { input, box, send } = setup([MACHINE], [EARPLUGS, TISSUES]);
+      box.openBox();
+      type(input, box, phrase);
+      expect(send).toHaveBeenCalledWith({ verb: "use", item: 11, target: 50 });
+    });
+  }
+
+  it("item on item still works next to it", () => {
+    const { input, box, send } = setup([MACHINE], [EARPLUGS, TISSUES]);
+    box.openBox();
+    type(input, box, "use tissues on earplugs");
+    expect(send).toHaveBeenCalledWith({ verb: "use", item: 15, target: 11 });
+  });
+});

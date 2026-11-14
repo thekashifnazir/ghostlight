@@ -19,15 +19,17 @@ function setup(ids: number[] = [13, 9, 28]) {
   const el = document.getElementById("i")!;
   const announce = vi.fn();
   const useOnItem = vi.fn();
+  const useOnSelf = vi.fn();
   const returnToList = vi.fn();
   const inv = new Inventory(el, pack, {
     announce,
     useOnItem,
+    useOnSelf,
     returnToList,
     chapter: () => 2,
   });
   inv.setItems(ids);
-  return { el, inv, announce, useOnItem, returnToList };
+  return { el, inv, announce, useOnItem, useOnSelf, returnToList };
 }
 
 describe("Inventory", () => {
@@ -100,5 +102,30 @@ describe("Inventory", () => {
     expect(announce).toHaveBeenLastCalledWith(
       "You no longer have the bubble gum.",
     );
+  });
+
+  // Tester feedback 14 Nov: the earplugs puzzle needs "use earplugs on yourself"
+  // (engine `use 11 50`), which the inventory could not send.
+  it("an active item adds a final 'Yourself' entry that uses it on the hero", () => {
+    const { el, inv, announce, useOnSelf, useOnItem, returnToList } = setup();
+    inv.openMenu();
+    inv.chooseCurrent(); // bubble gum (13) active
+    const items = el.querySelectorAll('[role="menuitem"]');
+    expect(items).toHaveLength(4);
+    expect(items[3].textContent).toBe("Yourself");
+    inv.next();
+    inv.next();
+    inv.next(); // onto Yourself
+    inv.chooseCurrent();
+    expect(useOnSelf).toHaveBeenCalledWith(13);
+    expect(useOnItem).not.toHaveBeenCalled();
+    expect(announce).toHaveBeenCalledWith("Using bubble gum on yourself.");
+    expect(returnToList).toHaveBeenCalled();
+  });
+
+  it("no 'Yourself' entry while no item is active", () => {
+    const { el, inv } = setup();
+    inv.openMenu();
+    expect(el.querySelectorAll('[role="menuitem"]')).toHaveLength(3);
   });
 });
