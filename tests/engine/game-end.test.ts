@@ -26,7 +26,6 @@ describe("A11Y_GAME_END line contract", () => {
       'A11Y_GAME_END {"cmd":"use 9 56","said":[{"color":"white","text":"THE END."}]}';
     expect(parseLine(line)).toEqual({
       kind: "gameEnd",
-      cmd: "use 9 56",
       said: [{ color: "white", text: "THE END." }],
     });
   });

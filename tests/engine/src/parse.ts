@@ -1,140 +1,84 @@
-// Parse raw engine output lines into the typed model in lines.ts.
+// Parse raw engine output into the test model in lines.ts.
 //
-// The engine emits everything through debug()/printErr, so in practice the
-// stream is interleaved with ordinary ScummVM log noise. We key off the a11y
-// prefixes and ignore anything else, which is exactly what a line-by-line reader
-// on the web side does (design.md, "One line in, one line out").
+// The parsing itself is the player's own: splitA11yLines and parseA11yLine in
+// src/engine/a11y-lines.ts, the functions the live and replay adapters and the
+// MCP server use, so the engine tests read exactly what the player reads. This
+// file only maps the player's events onto the `kind`-tagged model the engine
+// tests are written against, and keeps one stricter rule: a line with an A11Y
+// prefix that does not parse is an error here, so a fixture that breaks the
+// line contract fails to load instead of being skipped.
 
-import type {
-  A11yLine,
-  Choice,
-  Diff,
-  InvEntry,
-  RoomState,
-  SaidLine,
-} from "./lines.js";
-
-/** Prefixes we recognise, longest first so `A11Y_DIFF` wins over `A11Y`. */
-const PREFIXES = [
-  "A11Y_DIFF ",
-  "A11Y_CHOICES ",
-  "A11Y_CMD ",
-  "A11Y_ERR ",
-  "A11Y_TEXT ",
-  "A11Y_INV ",
-  "A11Y_SAVED ",
-  "A11Y_HOVER ",
-  "A11Y_SAY ",
-  "A11Y_GAME_END ",
-  "A11Y_EXIT",
-  "A11Y ",
-] as const;
+import { parseA11yLine, splitA11yLines } from "../../../src/engine/a11y-lines.js";
+import type { EngineEvent } from "../../../src/engine/adapter.js";
+import type { A11yLine, Choice, Diff, RoomState } from "./lines.js";
 
 export class ParseError extends Error {}
 
-function parseJson(prefix: string, rest: string): unknown {
-  try {
-    return JSON.parse(rest);
-  } catch (e) {
-    throw new ParseError(
-      `${prefix.trim()} payload is not valid JSON: ${rest}`,
-    );
+function toLine(e: EngineEvent): A11yLine {
+  switch (e.type) {
+    case "room": {
+      const s = e.state;
+      const room: RoomState = {
+        kind: "room",
+        chapter: Number(s.chapter),
+        room: Number(s.room),
+        hero: s.hero,
+        objects: s.objects ?? [],
+        inventory: s.inventory ?? [],
+        flags: s.flags ?? [],
+      };
+      return room;
+    }
+    case "diff": {
+      const d = { ...e.diff, kind: "diff" } as Diff;
+      d.cmd = String(d.cmd ?? "");
+      return d;
+    }
+    case "text":
+      return e.voiced
+        ? { kind: "text", text: e.line, voiced: true }
+        : { kind: "text", text: e.line };
+    case "choices":
+      return { kind: "choices", choices: e.choices as Choice[] };
+    case "inv":
+      return { kind: "inv", items: e.items };
+    case "cmd":
+      return { kind: "cmd", text: e.cmd };
+    case "error":
+      return { kind: "err", text: e.message };
+    case "saved":
+      return { kind: "saved", slot: String(e.slot) };
+    case "phase":
+      return { kind: "phase", phase: e.phase };
+    case "gameEnd":
+      return { kind: "gameEnd", said: e.said };
+    case "engineExit":
+      return { kind: "exit" };
+    case "voiceEnd":
+      return { kind: "voiceEnd" };
+    case "voiceHold":
+      return { kind: "voiceHold", ms: e.ms };
   }
-}
-
-function toRoomState(raw: Record<string, unknown>): RoomState {
-  return {
-    kind: "room",
-    chapter: Number(raw.chapter),
-    room: Number(raw.room),
-    hero: raw.hero as { x: number; y: number },
-    objects: (raw.objects as RoomState["objects"]) ?? [],
-    inventory: (raw.inventory as number[]) ?? [],
-    flags: (raw.flags as number[]) ?? [],
-  };
-}
-
-function toDiff(raw: Record<string, unknown>): Diff {
-  const d: Diff = { kind: "diff", cmd: String(raw.cmd ?? "") };
-  if (raw.chapter !== undefined) d.chapter = raw.chapter as [number, number];
-  if (raw.room !== undefined) d.room = raw.room as [number, number];
-  if (raw.objects !== undefined) d.objects = raw.objects as Diff["objects"];
-  if (raw.appeared !== undefined) d.appeared = raw.appeared as Diff["appeared"];
-  if (raw.disappeared !== undefined)
-    d.disappeared = raw.disappeared as Diff["disappeared"];
-  if (raw.doors !== undefined) d.doors = raw.doors as Diff["doors"];
-  if (raw.hero !== undefined) d.hero = raw.hero as { x: number; y: number };
-  if (raw.invAdded !== undefined) d.invAdded = raw.invAdded as InvEntry[];
-  if (raw.invRemoved !== undefined) d.invRemoved = raw.invRemoved as InvEntry[];
-  if (raw.flags !== undefined)
-    d.flags = raw.flags as Record<string, [number, number]>;
-  if (raw.said !== undefined) d.said = raw.said as SaidLine[];
-  if (raw.changed !== undefined) d.changed = Boolean(raw.changed);
-  return d;
 }
 
 /**
  * Parse a single raw output line. Returns null for lines that carry no a11y
- * prefix (ordinary engine log noise), so callers can filter them out.
+ * prefix (ordinary engine log noise).
  */
 export function parseLine(line: string): A11yLine | null {
-  for (const prefix of PREFIXES) {
-    if (!line.startsWith(prefix)) continue;
-    const rest = line.slice(prefix.length);
-    switch (prefix) {
-      case "A11Y ": {
-        return toRoomState(parseJson(prefix, rest) as Record<string, unknown>);
-      }
-      case "A11Y_DIFF ": {
-        return toDiff(parseJson(prefix, rest) as Record<string, unknown>);
-      }
-      case "A11Y_CHOICES ": {
-        const obj = parseJson(prefix, rest) as { choices: Choice[] };
-        return { kind: "choices", choices: obj.choices ?? [] };
-      }
-      case "A11Y_INV ": {
-        const obj = parseJson(prefix, rest) as {
-          items: { id: number; name: string; look?: string }[];
-        };
-        return { kind: "inv", items: obj.items ?? [] };
-      }
-      case "A11Y_CMD ":
-        return { kind: "cmd", text: rest };
-      case "A11Y_ERR ":
-        return { kind: "err", text: rest };
-      case "A11Y_TEXT ":
-        return { kind: "text", text: rest };
-      case "A11Y_SAVED ": {
-        // The engine emits `A11Y_SAVED {"slot":N,"chapter":..,"room":..}`
-        // (engine/a11y.cpp dispatchSave). Pull the slot out of the JSON; fall
-        // back to the raw text for any older bare-number form so the parser
-        // stays tolerant of both shapes.
-        const trimmed = rest.trim();
-        if (trimmed.startsWith("{")) {
-          const obj = parseJson(prefix, trimmed) as { slot?: number | string };
-          return { kind: "saved", slot: String(obj.slot ?? trimmed) };
-        }
-        return { kind: "saved", slot: trimmed };
-      }
-      case "A11Y_HOVER ":
-        return { kind: "hover", text: rest };
-      case "A11Y_SAY ":
-        return { kind: "say", text: rest };
-      case "A11Y_EXIT":
-        return { kind: "exit" };
-      case "A11Y_GAME_END ": {
-        const obj = parseJson(prefix, rest) as { cmd?: string; said?: SaidLine[] };
-        return { kind: "gameEnd", cmd: obj.cmd ?? "", said: obj.said ?? [] };
-      }
-    }
+  const event = parseA11yLine(line);
+  if (event) return toLine(event);
+  const s = line.trim();
+  if (/^A11Y(_[A-Z_]+)?( |$)/.test(s)) {
+    throw new ParseError(`A11Y line does not parse: ${s}`);
   }
   return null;
 }
 
-/** Parse a whole stream, dropping non-a11y lines. */
+/** Parse a whole stream, dropping non-a11y lines and undoing glued lines. */
 export function parseStream(raw: string): A11yLine[] {
   const out: A11yLine[] = [];
-  for (const line of raw.split(/\r?\n/)) {
+  for (const line of splitA11yLines(raw)) {
     if (line.length === 0) continue;
     const parsed = parseLine(line);
     if (parsed) out.push(parsed);

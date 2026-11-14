@@ -47,24 +47,16 @@
 #
 set -uo pipefail
 
-ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-VENDOR="$ROOT/vendor"
-SCUMMVM="$VENDOR/scummvm/scummvm"
-GAME_DIR="$VENDOR/game/drascula"
-ENGINE_DATA="$VENDOR/scummvm/dists/engine-data"
-
 SAVEPATH="${1:-/tmp/ghostlight-engine}"
 SLOT="${2:-8}"
 CH2SLOT="${3:-9}"
 
-log() { printf '[make-gated-door-save] %s\n' "$*" >&2; }
-die() { printf '[make-gated-door-save] ERROR: %s\n' "$*" >&2; exit 1; }
+TAG=make-gated-door-save
+. "$(dirname "${BASH_SOURCE[0]}")/engine-lib.sh"
 
-[ -x "$SCUMMVM" ] || die "native binary missing: $SCUMMVM (run scripts/build-engine.sh)"
-[ -f "$GAME_DIR/Packet.001" ] || die "game data missing in $GAME_DIR (run scripts/fetch.sh)"
-[ -f "$ENGINE_DATA/drascula.dat" ] || die "drascula.dat missing in $ENGINE_DATA"
-case "$SLOT" in ''|*[!0-9]*) die "slot must be a whole number, got: $SLOT" ;; esac
-case "$CH2SLOT" in ''|*[!0-9]*) die "ch2slot must be a whole number, got: $CH2SLOT" ;; esac
+need_engine
+need_number slot "$SLOT"
+need_number ch2slot "$CH2SLOT"
 
 mkdir -p "$SAVEPATH"
 
@@ -83,33 +75,9 @@ LOG="$SAVEPATH/make-gated-door.log"
 
 # Hard cap so a stuck run can never hang a setup step.
 CAP=180
-DEADLINE=$(( $(date +%s) + CAP ))
-
-ENGINE_PID=""
-cleanup() {
-  [ -n "$ENGINE_PID" ] || return 0
-  kill -0 "$ENGINE_PID" 2>/dev/null || return 0
-  kill -9 "$ENGINE_PID" 2>/dev/null || true   # ScummVM ignores SIGTERM (gotcha 12)
-  wait "$ENGINE_PID" 2>/dev/null || true
-}
-trap cleanup EXIT INT TERM
 
 # Launch loading the chapter-2 start slot (R9.2).
-"$SCUMMVM" --path="$GAME_DIR" --extrapath="$ENGINE_DATA" --savepath="$SAVEPATH" \
-  --subtitles --save-slot="$CH2SLOT" drascula >"$LOG" 2>&1 &
-ENGINE_PID=$!
-
-app() { printf '%s\n' "$1" >> "$CMD"; }
-
-waitfor() {
-  local marker="$1"
-  while :; do
-    grep -qF "$marker" "$LOG" 2>/dev/null && return 0
-    kill -0 "$ENGINE_PID" 2>/dev/null || return 1
-    [ "$(date +%s)" -ge "$DEADLINE" ] && return 1
-    sleep 0.3
-  done
-}
+start_engine --save-slot="$CH2SLOT"
 
 # Drive a door walk and wait until its diff shows the expected room change. The
 # doors on this route are ungated, so each settles on its own A11Y_DIFF with a
@@ -175,8 +143,7 @@ log "saving room-5 (spike held, flag 8 = 0) state to slot $SLOT"
 app "save $SLOT"
 waitfor 'A11Y_SAVED' || die "save $SLOT never produced A11Y_SAVED"
 sleep 1
-cleanup
-ENGINE_PID=""
+stop_engine
 
 SAVE_FILE="$SAVEPATH/$(printf 'drascula.%03d' "$SLOT")"
 [ -f "$SAVE_FILE" ] || die "save file not found at $SAVE_FILE after A11Y_SAVED"
