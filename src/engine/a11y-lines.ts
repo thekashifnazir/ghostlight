@@ -27,6 +27,8 @@ const A11Y_PREFIXES = [
   "A11Y",
   "A11Y_DIFF",
   "A11Y_TEXT",
+  "A11Y_VTEXT",
+  "A11Y_VEND",
   "A11Y_CHOICES",
   "A11Y_INV",
   "A11Y_CMD",
@@ -203,6 +205,10 @@ export function parseA11yLine(line: string): EngineEvent | null {
     case "A11Y_EXIT":
       // The engine finished the ending and credits and is quitting.
       return { type: "engineExit" };
+
+    case "A11Y_VEND":
+      // The actor's recorded line ended (or a skip stopped it).
+      return { type: "voiceEnd" };
 
     case "A11Y_ERR": {
       return rest.length > 0 ? { type: "error", message: rest } : null;

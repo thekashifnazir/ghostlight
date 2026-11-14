@@ -131,7 +131,10 @@ export type EngineEvent =
   | { type: "gameEnd"; said: { color: string; text: string; voiced?: boolean }[] }
   // The engine stopped after the credits: the bare `A11Y_EXIT` line, or the
   // Emscripten runtime's onExit (synthesised by the live adapter).
-  | { type: "engineExit" };
+  | { type: "engineExit" }
+  // An actor's recorded line has ended (`A11Y_VEND`): the voice sample stopped
+  // or a skip cut it short. One per voiced clip.
+  | { type: "voiceEnd" };
 
 /** The engine verbs that target a single hotspot number. */
 export type TargetVerb =

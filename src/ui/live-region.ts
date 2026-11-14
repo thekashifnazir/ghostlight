@@ -11,6 +11,9 @@ import type { Hotspot } from "../model/hotspot-list.js";
 /** How many earlier lines Shift+R can step back through. */
 const HISTORY_LIMIT = 20;
 
+/** If no voiceEnd arrives this long after the last voiced start, release the hold. */
+const VOICE_HOLD_TIMEOUT_MS = 15000;
+
 /**
  * Silent cut payloads, built from U+034F COMBINING GRAPHEME JOINER (CGJ).
  * Chromium drops a live-region change whose text is only whitespace or format
@@ -80,11 +83,27 @@ export class LiveRegion {
   private interruptToggle = false;
 
   /**
+   * Voice timing. True from the moment an actor's recorded line starts until
+   * its end is signalled (voiceEnd), a key press releases the hold, or the
+   * safety timer fires. While true, announce() and announceDialogue() do all
+   * their bookkeeping at once but HOLD the region write in `heldLines`.
+   */
+  private voicePlaying = false;
+  /** Lines whose region write is held while a voice plays, oldest first. */
+  private heldLines: string[] = [];
+  /** Cancels the pending safety release, if any. */
+  private cancelVoiceTimer: (() => void) | undefined;
+  /** Starts the safety timer; returns a cancel function. Injectable for tests. */
+  private readonly startVoiceTimer: (fn: () => void, ms: number) => () => void;
+
+  /**
    * @param region the role=log element.
    * @param transcript optional visible mirror for sighted co-players.
    * @param schedule how to defer the next paced dialogue line; defaults to
    *   queueMicrotask so dialogue is paced out across microtasks (and a focus
    *   move landing between them can drop the rest). Injected in tests.
+   * @param voiceTimer how to start the voice-hold safety timer; defaults to
+   *   setTimeout. Injected in tests.
    */
   constructor(
     region: HTMLElement,
@@ -92,17 +111,67 @@ export class LiveRegion {
     schedule?: (fn: () => void) => void,
     interruptRegion?: HTMLElement,
     now?: () => number,
+    voiceTimer?: (fn: () => void, ms: number) => () => void,
   ) {
     this.region = region;
     this.transcript = transcript;
     this.interruptRegion = interruptRegion;
     this.now = now ?? (() => Date.now());
+    this.startVoiceTimer =
+      voiceTimer ??
+      ((fn, ms) => {
+        const id = setTimeout(fn, ms);
+        return () => clearTimeout(id);
+      });
     this.schedule =
       schedule ??
       ((fn) =>
         typeof queueMicrotask === "function"
           ? queueMicrotask(fn)
           : void Promise.resolve().then(fn));
+  }
+
+  /**
+   * An actor's recorded line has started. Hold region writes until it ends.
+   * Restarts the safety timer, so the hold is released 15 s after the LAST
+   * voiced start if no voiceEnd arrives.
+   */
+  voiceStart(): void {
+    this.voicePlaying = true;
+    this.cancelVoiceTimer?.();
+    this.cancelVoiceTimer = this.startVoiceTimer(
+      () => this.voiceEnd(),
+      VOICE_HOLD_TIMEOUT_MS,
+    );
+  }
+
+  /**
+   * The actor's line ended (or the hold is being released by a key press or the
+   * safety timer). Writes what was held: only the newest would be heard anyway,
+   * so several held lines are written once, joined with a space in order.
+   */
+  voiceEnd(): void {
+    this.cancelVoiceTimer?.();
+    this.cancelVoiceTimer = undefined;
+    this.voicePlaying = false;
+    if (this.heldLines.length === 0) return;
+    const joined = this.heldLines.join(" ");
+    this.heldLines = [];
+    this.setRegion(joined);
+  }
+
+  /** True while region writes are being held for a playing voice. */
+  isVoicePlaying(): boolean {
+    return this.voicePlaying;
+  }
+
+  /** Write a line to the region now, or hold it while a voice plays. */
+  private writeOrHold(line: string): void {
+    if (this.voicePlaying) {
+      if (line) this.heldLines.push(line);
+      return;
+    }
+    this.setRegion(line);
   }
 
   /**
@@ -124,7 +193,8 @@ export class LiveRegion {
     // line rather than appending and reading the whole history. setRegion
     // guarantees the DOM actually changes even when `line` equals what the
     // region already holds, so a repeat is never silently dropped (Fix 3).
-    this.setRegion(line);
+    // While an actor's voice plays the write is held (see voiceStart).
+    this.writeOrHold(line);
     if (this.transcript) {
       const p = this.transcript.ownerDocument.createElement("p");
       p.textContent = line;
@@ -198,8 +268,9 @@ export class LiveRegion {
     // so dialogue is written immediately; with voiced lines off by default the
     // backlog a focus move used to hear is mostly gone. dropPendingDialogue()
     // stays as the hook for any queued writes. setRegion guarantees a DOM change
-    // even when two consecutive dialogue lines are identical (Fix 3).
-    this.setRegion(line);
+    // even when two consecutive dialogue lines are identical (Fix 3). Held
+    // while an actor's voice plays (see voiceStart).
+    this.writeOrHold(line);
   }
 
   /**

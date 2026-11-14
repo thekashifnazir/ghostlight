@@ -47,6 +47,11 @@ export interface NarratorLive {
    * when absent a suppressed voiced line is simply dropped from history too.
    */
   record?(text: string): void;
+  /**
+   * An actor's recorded line has started: hold region writes until it ends
+   * (voice timing). Optional so bare test stubs still satisfy the type.
+   */
+  voiceStart?(): void;
 }
 
 /** Options wiring the Narrator to the voiced-lines setting (speech fix 1). */
@@ -237,6 +242,9 @@ export class Narrator {
    * can drop it if it has not been read yet (the stale-after-moving case).
    */
   private emitDialogue(line: string, voiced: boolean): void {
+    // An actor is speaking this line: hold every region write until the clip
+    // ends, whether or not the screen reader is to read the line itself.
+    if (voiced) this.live.voiceStart?.();
     if (voiced && !this.readVoiced()) {
       this.suppressVoiced(line);
       return;
