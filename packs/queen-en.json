@@ -308,6 +308,33 @@
       "name": "journal",
       "description": "Your journal, for saving and loading the game.",
       "note": "Look line is the generic 'I don't see anything special'."
+    },
+    {
+      "id": 51,
+      "chapters": [
+        1
+      ],
+      "name": "other sheet",
+      "description": "A cotton bed sheet from the corner by the radiator. It's strong, but not long on its own.",
+      "note": "Engine name 'other sheet', look 'The sheet is made of pretty strong cotton'. 'Not long on its own' is from Joe's line when used on the radiator alone ('It's too short to tie to that')."
+    },
+    {
+      "id": 52,
+      "chapters": [
+        1
+      ],
+      "name": "sheet",
+      "description": "A cotton bed sheet from the pile on the floor. It's strong, but not long on its own.",
+      "note": "Engine name 'sheet', same look line and same refusal on the radiator as 51."
+    },
+    {
+      "id": 53,
+      "chapters": [
+        1
+      ],
+      "name": "sheet rope",
+      "description": "The two sheets knotted together into one long rope.",
+      "note": "Engine name 'sheet rope', look 'This sheet rope is really long'. Made by using 52 on 51 (native check, 14 Nov)."
     }
   ],
   "milestones": [
