@@ -12,7 +12,7 @@
 
 import type { Command, InvItem } from "../engine/adapter.js";
 import type { Hotspot } from "../model/hotspot-list.js";
-import { HERO_TARGET } from "../model/hero.js";
+import { currentGame, type GameConfig } from "../engine/game.js";
 import { type FixedAction, type Match, parsePhrase } from "../model/parser.js";
 
 export interface CommandBoxCallbacks {
@@ -60,13 +60,21 @@ export class CommandBox {
   private readonly el: HTMLElement;
   private readonly input: HTMLInputElement;
   private readonly cb: CommandBoxCallbacks;
+  private readonly game: GameConfig;
   private open = false;
 
   /**
    * @param el the container element (hidden until opened).
    * @param input the single-line text input inside it.
+   * @param game the game config (hero target, example phrase).
    */
-  constructor(el: HTMLElement, input: HTMLInputElement, cb: CommandBoxCallbacks) {
+  constructor(
+    el: HTMLElement,
+    input: HTMLInputElement,
+    cb: CommandBoxCallbacks,
+    game: GameConfig = currentGame(),
+  ) {
+    this.game = game;
     this.el = el;
     this.input = input;
     this.cb = cb;
@@ -85,7 +93,7 @@ export class CommandBox {
     this.input.value = "";
     this.input.focus();
     this.cb.announce(
-      "Command. Type what to do, for example talk to drunk, then press Enter. Escape closes.",
+      `Command. Type what to do, for example ${this.game.commandExample}, then press Enter. Escape closes.`,
     );
   }
 
@@ -143,6 +151,12 @@ export class CommandBox {
       return;
     }
 
+    // No hero hotspot in this game: answer without sending anything.
+    if (match.kind === "useSelf" && this.game.heroTarget == null) {
+      this.cb.announce("You can't use things on yourself in this game.");
+      return;
+    }
+
     const command = this.commandFor(match);
     if (command) {
       // A real command: close the box, return to the list, then send so the
@@ -196,7 +210,8 @@ export class CommandBox {
         return { verb: "use", item: match.item.id, target };
       }
       case "useSelf":
-        return { verb: "use", item: match.item.id, target: HERO_TARGET };
+        if (this.game.heroTarget == null) return undefined;
+        return { verb: "use", item: match.item.id, target: this.game.heroTarget };
       case "choice":
         return { verb: "choose", n: match.n };
       default:

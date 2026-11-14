@@ -18,7 +18,6 @@ import { LiveAdapter } from "./engine/live-adapter.js";
 import { ReplayAdapter } from "./engine/replay-adapter.js";
 import { mapEngineError } from "./engine/error-lines.js";
 import { CrossingSkip } from "./engine/crossing-skip.js";
-import { HERO_TARGET } from "./model/hero.js";
 import { StatusTracker } from "./engine/status.js";
 import { installSpeechlog, isSpeechlogEnabled, type Speechlog } from "./engine/speechlog.js";
 import { Persistence, probeSaves } from "./engine/persistence.js";
@@ -203,6 +202,9 @@ interface PlayerState {
 
 /** The game this page load runs (?game=queen, Drascula otherwise). */
 const GAME = currentGame();
+// The static command box help names an example phrase for this game.
+const commandExampleEl = document.getElementById("command-box-example");
+if (commandExampleEl) commandExampleEl.textContent = GAME.commandExample;
 const packJson = GAME.pack === "queen-en" ? queenPackJson : drasculaPackJson;
 
 function loadBundledPack(): Pack {
@@ -720,7 +722,10 @@ export async function boot(): Promise<void> {
   const inventory = new Inventory(inventoryEl, pack, {
     announce: (t) => live.announce(t),
     useOnItem: (item, target) => sendCommand({ verb: "use", item, target }),
-    useOnSelf: (item) => sendCommand({ verb: "use", item, target: HERO_TARGET }),
+    useOnSelf: (item) => {
+      if (GAME.heroTarget == null) return;
+      sendCommand({ verb: "use", item, target: GAME.heroTarget });
+    },
     returnToList,
     chapter: () => state.chapter,
   });
