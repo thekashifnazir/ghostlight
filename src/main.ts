@@ -109,7 +109,8 @@ const HELP_TEXT =
   "Slash opens a command box: type a plain command such as talk to " +
   "drunk, press Enter to send it, or Escape to close. " +
   "R repeats the last line; Shift plus R steps back through earlier lines. " +
-  "L reads the whole room. H asks the ghost for a hint; the ghost speaks the " +
+  "L reads the whole room and ends with a suggestion; H gives more help. " +
+  "H asks the ghost for a hint; the ghost speaks the " +
   "hint aloud. " +
   "G turns the ghost voice on or off; if you turn it off the hint is read as " +
   "text instead, so hints keep working either way. " +
@@ -797,7 +798,11 @@ export async function boot(): Promise<void> {
     // reading already ends on a full stop today; this guards it so a future
     // change to roomAnnouncement cannot merge the two into one run-on line.
     const roomEnded = /[.!?]$/.test(room) ? room : `${room}.`;
-    const withSuffix = suffix ? `${roomEnded} ${suffix}` : room;
+    // The always-on "worth a look" nudge ends the same readout as its own
+    // sentence (one key press, one line); it also marks the nudge as given.
+    const nudge = hintEngine.worthALook(state.room, (r) => pack.roomName(r));
+    const body = nudge ? `${roomEnded} ${nudge}` : room;
+    const withSuffix = suffix ? `${nudge ? body : roomEnded} ${suffix}` : body;
     live.announce(prefix ? `${prefix} ${withSuffix}` : withSuffix);
   };
 
