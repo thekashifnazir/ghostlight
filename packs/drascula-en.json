@@ -13,7 +13,7 @@
   "pack": {
     "version": "1.1.0",
     "updated": "2026-11-14",
-    "coverage": { "chapters": [1, 2, 3, 5] },
+    "coverage": { "chapters": [1, 2, 3, 5, 6] },
     "speechLocale": "en-GB",
     "authors": ["Ghostlight"],
     "licence": "CC-BY-4.0",
@@ -1066,6 +1066,22 @@
       "exits": { "104": { "label": "door through the gate, to the bedroom", "to": 56, "direction": "ahead" } },
       "objects": {}
     },
+    "58": {
+      "chapters": [6],
+      "name": "Cell with the torch",
+      "short": "A cell with a torch on the wall and a door on the far left.",
+      "long": "A cell. A torch hangs on the wall left of centre, and on the far left is a door, which the game calls obviously a secret door. It stays shut until you deal with the torch.",
+      "seen": true,
+      "exits": { "104": { "label": "secret door to B.J.'s bedroom, opens after the torch", "to": 59 } },
+      "objects": {
+        "103": {
+          "name": "torch",
+          "type": "object",
+          "description": "A torch on the wall.",
+          "note": "Engine look line is stock filler (THERE IS NOTHING SPECIAL ABOUT IT). Puzzle object; description names it only."
+        }
+      }
+    },
     "59": {
       "chapters": [6],
       "name": "B.J.'s bedroom",
@@ -1075,7 +1091,12 @@
       "exits": { "108": { "label": "door on the far left, to the bar", "to": 60, "direction": "left" } },
       "objects": {
         "51": { "name": "B.J.", "type": "npc", "description": "B.J., lying on the bed." },
-        "105": { "name": "wardrobe", "type": "exit", "description": "A tall wooden wardrobe at the back, right of centre." },
+        "105": {
+          "name": "wardrobe",
+          "type": "exit",
+          "description": "A tall wooden wardrobe at the back, right of centre.",
+          "note": "Not a live exit: the engine forces this door off in room 59 (objects.cpp), so there is no way back to room 58."
+        },
         "106": {
           "name": "trunk",
           "type": "object",
@@ -1121,6 +1142,24 @@
           "type": "npc",
           "description": "A crowd of fans on the left of the bar.",
           "note": "Engine name FANS; stock filler on look."
+        }
+      }
+    },
+    "61": {
+      "chapters": [6],
+      "name": "Back room",
+      "short": "A back room with a curtain, papers and a machine.",
+      "long": "A small back room off the bar. The door back to the bar is on the far left. A curtain hangs left of centre, papers are pinned up right of centre, and a machine stands on the far right.",
+      "seen": true,
+      "exits": { "111": { "label": "door back to the bar", "to": 60 } },
+      "objects": {
+        "116": { "name": "papers", "type": "object", "description": "Papers. It's a bet for tonight's game." },
+        "117": { "name": "curtain", "type": "object", "description": "A curtain. You wonder what's behind it." },
+        "118": {
+          "name": "machine",
+          "type": "object",
+          "description": "A machine.",
+          "note": "Stock filler on look. Nothing confirms what kind of machine."
         }
       }
     },

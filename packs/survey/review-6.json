@@ -1,6 +1,6 @@
 {
   "chapter": 6,
-  "generated": "2026-11-13",
+  "generated": "2026-11-14",
   "units": [
     {
       "key": "room:102",
@@ -82,14 +82,14 @@
       "key": "room:58",
       "kind": "room",
       "room": 58,
-      "status": "pending",
-      "provenance": "drafted by Claude Code by hand from the 10 Nov engine survey only (no screenshot: the room couldn't be reached from the saves on 12 Nov)",
+      "status": "accepted",
+      "provenance": "drafted by Claude Code by hand from the 10 Nov engine survey, updated 14 Nov from the engine state on entry (reached from the chapter 6 start save: take 101, use 20 100); positions from the engine's hotspot rectangles, no screenshot",
       "alreadyCovered": false,
       "proposed": {
         "name": "Cell with the torch",
-        "short": "A cell with a torch on the wall and a door.",
-        "long": "A cell with a torch on the wall. There is a door that the game calls obviously a secret door.",
-        "seen": false,
+        "short": "A cell with a torch on the wall and a door on the far left.",
+        "long": "A cell. A torch hangs on the wall left of centre, and on the far left is a door, which the game calls obviously a secret door. It stays shut until you deal with the torch.",
+        "seen": true,
         "chapters": [
           6
         ]
@@ -100,11 +100,11 @@
       "kind": "exit",
       "room": 58,
       "hotspot": 104,
-      "status": "pending",
-      "provenance": "drafted by Claude Code by hand from the 10 Nov engine survey only (no screenshot: the room couldn't be reached from the saves on 12 Nov)",
+      "status": "accepted",
+      "provenance": "drafted by Claude Code by hand from the 10 Nov engine survey, updated 14 Nov from the engine state on entry (reached from the chapter 6 start save: take 101, use 20 100); positions from the engine's hotspot rectangles, no screenshot",
       "alreadyCovered": false,
       "proposed": {
-        "label": "secret door, to B.J.'s bedroom",
+        "label": "secret door to B.J.'s bedroom, opens after the torch",
         "to": 59
       }
     },
@@ -113,14 +113,14 @@
       "kind": "object",
       "room": 58,
       "hotspot": 103,
-      "status": "pending",
-      "provenance": "drafted by Claude Code by hand from the 10 Nov engine survey only (no screenshot: the room couldn't be reached from the saves on 12 Nov)",
+      "status": "accepted",
+      "provenance": "drafted by Claude Code by hand from the 10 Nov engine survey, updated 14 Nov from the engine state on entry (reached from the chapter 6 start save: take 101, use 20 100); positions from the engine's hotspot rectangles, no screenshot",
       "alreadyCovered": false,
       "proposed": {
         "name": "torch",
         "type": "object",
         "description": "A torch on the wall.",
-        "note": "Engine gives only a stock filler line on look. Puzzle object; description names it only."
+        "note": "Engine look line is stock filler (THERE IS NOTHING SPECIAL ABOUT IT). Puzzle object; description names it only."
       }
     },
     {
@@ -179,7 +179,8 @@
       "proposed": {
         "name": "wardrobe",
         "type": "exit",
-        "description": "A tall wooden wardrobe at the back, right of centre."
+        "description": "A tall wooden wardrobe at the back, right of centre.",
+        "note": "Not a live exit: the engine forces this door off in room 59 (objects.cpp), so there is no way back to room 58."
       }
     },
     {
@@ -348,14 +349,14 @@
       "key": "room:61",
       "kind": "room",
       "room": 61,
-      "status": "pending",
-      "provenance": "drafted by Claude Code by hand from the 10 Nov engine survey only (no screenshot: walking through door 110 from slot 43 didn't reach the room on 12 Nov)",
+      "status": "accepted",
+      "provenance": "drafted by Claude Code by hand from the 10 Nov engine survey, updated 14 Nov from the engine state on entry (reached from the chapter 6 bar save with walk 110); positions from the engine's hotspot rectangles, no screenshot",
       "alreadyCovered": false,
       "proposed": {
         "name": "Back room",
-        "short": "A back room with papers, a curtain and a machine.",
-        "long": "A back room behind the bar. There are papers, a curtain and a machine, and a door leads back to the bar.",
-        "seen": false,
+        "short": "A back room with a curtain, papers and a machine.",
+        "long": "A small back room off the bar. The door back to the bar is on the far left. A curtain hangs left of centre, papers are pinned up right of centre, and a machine stands on the far right.",
+        "seen": true,
         "chapters": [
           6
         ]
@@ -366,8 +367,8 @@
       "kind": "exit",
       "room": 61,
       "hotspot": 111,
-      "status": "pending",
-      "provenance": "drafted by Claude Code by hand from the 10 Nov engine survey only (no screenshot: walking through door 110 from slot 43 didn't reach the room on 12 Nov)",
+      "status": "accepted",
+      "provenance": "drafted by Claude Code by hand from the 10 Nov engine survey, updated 14 Nov from the engine state on entry (reached from the chapter 6 bar save with walk 110); positions from the engine's hotspot rectangles, no screenshot",
       "alreadyCovered": false,
       "proposed": {
         "label": "door back to the bar",
@@ -379,8 +380,8 @@
       "kind": "object",
       "room": 61,
       "hotspot": 116,
-      "status": "pending",
-      "provenance": "drafted by Claude Code by hand from the 10 Nov engine survey only (no screenshot: walking through door 110 from slot 43 didn't reach the room on 12 Nov)",
+      "status": "accepted",
+      "provenance": "drafted by Claude Code by hand from the 10 Nov engine survey, updated 14 Nov from the engine state on entry (reached from the chapter 6 bar save with walk 110); positions from the engine's hotspot rectangles, no screenshot",
       "alreadyCovered": false,
       "proposed": {
         "name": "papers",
@@ -393,8 +394,8 @@
       "kind": "object",
       "room": 61,
       "hotspot": 117,
-      "status": "pending",
-      "provenance": "drafted by Claude Code by hand from the 10 Nov engine survey only (no screenshot: walking through door 110 from slot 43 didn't reach the room on 12 Nov)",
+      "status": "accepted",
+      "provenance": "drafted by Claude Code by hand from the 10 Nov engine survey, updated 14 Nov from the engine state on entry (reached from the chapter 6 bar save with walk 110); positions from the engine's hotspot rectangles, no screenshot",
       "alreadyCovered": false,
       "proposed": {
         "name": "curtain",
@@ -407,8 +408,8 @@
       "kind": "object",
       "room": 61,
       "hotspot": 118,
-      "status": "pending",
-      "provenance": "drafted by Claude Code by hand from the 10 Nov engine survey only (no screenshot: walking through door 110 from slot 43 didn't reach the room on 12 Nov)",
+      "status": "accepted",
+      "provenance": "drafted by Claude Code by hand from the 10 Nov engine survey, updated 14 Nov from the engine state on entry (reached from the chapter 6 bar save with walk 110); positions from the engine's hotspot rectangles, no screenshot",
       "alreadyCovered": false,
       "proposed": {
         "name": "machine",
