@@ -3,6 +3,8 @@
 // (launch arguments, save-file names, pack, flag count) lives here so the rest
 // of the player asks one place instead of hardcoding Drascula.
 
+import { HERO_TARGET } from "../model/hero.js";
+
 /** The games the player can run. */
 export type GameId = "drascula" | "queen";
 
@@ -23,6 +25,10 @@ export interface GameConfig {
   flagCount: number;
   /** The accessibility pack to load, by file name under packs/. */
   pack: "drascula-en" | "queen-en";
+  /** Target number of the hero for "use item on yourself"; absent if the game has none. */
+  heroTarget?: number;
+  /** Example phrase spoken in the command box announcement and help text. */
+  commandExample: string;
 }
 
 export const DRASCULA: GameConfig = {
@@ -34,6 +40,8 @@ export const DRASCULA: GameConfig = {
   genericLookPhrase: "anything in particular",
   flagCount: 50,
   pack: "drascula-en",
+  heroTarget: HERO_TARGET,
+  commandExample: "talk to drunk",
 };
 
 export const QUEEN: GameConfig = {
@@ -45,6 +53,7 @@ export const QUEEN: GameConfig = {
   genericLookPhrase: "anything special",
   flagCount: 211,
   pack: "queen-en",
+  commandExample: "look at chest",
 };
 
 /** The game named by the `game` query parameter; Drascula if missing or unknown. */

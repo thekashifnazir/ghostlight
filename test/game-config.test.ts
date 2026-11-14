@@ -28,6 +28,13 @@ describe("game configs", () => {
     expect(DRASCULA.pack).toBe("drascula-en");
     expect(QUEEN.pack).toBe("queen-en");
   });
+
+  it("carries the hero target and command example", () => {
+    expect(DRASCULA.heroTarget).toBe(50);
+    expect(QUEEN.heroTarget).toBeUndefined();
+    expect(DRASCULA.commandExample).toBe("talk to drunk");
+    expect(QUEEN.commandExample).toBe("look at chest");
+  });
 });
 
 describe("save file names", () => {

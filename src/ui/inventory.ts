@@ -15,6 +15,7 @@
 // Only action results (item made active, use-on-item, cancel) are announced.
 
 import type { InvItem } from "../engine/adapter.js";
+import { currentGame, type GameConfig } from "../engine/game.js";
 import type { Pack } from "../model/pack.js";
 
 export interface InventoryCallbacks {
@@ -49,7 +50,15 @@ export class Inventory {
   private open = false;
   private activeId: number | undefined;
 
-  constructor(el: HTMLElement, pack: Pack, cb: InventoryCallbacks) {
+  private readonly game: GameConfig;
+
+  constructor(
+    el: HTMLElement,
+    pack: Pack,
+    cb: InventoryCallbacks,
+    game: GameConfig = currentGame(),
+  ) {
+    this.game = game;
     this.el = el;
     this.pack = pack;
     this.cb = cb;
@@ -111,7 +120,7 @@ export class Inventory {
 
   /** The carried items, plus a final "Yourself" entry while an item is active. */
   private entries(): CarriedItem[] {
-    return this.activeId == null
+    return this.activeId == null || this.game.heroTarget == null
       ? this.items
       : [...this.items, { id: SELF_ENTRY, name: "Yourself" }];
   }

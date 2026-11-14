@@ -2,6 +2,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { loadPack, type PackData } from "../src/model/pack.js";
 import { Inventory } from "../src/ui/inventory.js";
+import { QUEEN } from "../src/engine/game.js";
 
 // A tiny pack with a couple of items so names resolve.
 const pack = loadPack({
@@ -127,5 +128,28 @@ describe("Inventory", () => {
     const { el, inv } = setup();
     inv.openMenu();
     expect(el.querySelectorAll('[role="menuitem"]')).toHaveLength(3);
+  });
+
+  it("no 'Yourself' entry when the game has no hero target", () => {
+    document.body.innerHTML = `<div id="i" role="menu"></div>`;
+    const el = document.getElementById("i")!;
+    const inv = new Inventory(
+      el,
+      pack,
+      {
+        announce: vi.fn(),
+        useOnItem: vi.fn(),
+        useOnSelf: vi.fn(),
+        returnToList: vi.fn(),
+        chapter: () => 2,
+      },
+      QUEEN,
+    );
+    inv.setItems([13, 9, 28]);
+    inv.openMenu();
+    inv.chooseCurrent(); // an item is active
+    const items = el.querySelectorAll('[role="menuitem"]');
+    expect(items).toHaveLength(3);
+    expect(Array.from(items).map((i) => i.textContent)).not.toContain("Yourself");
   });
 });
