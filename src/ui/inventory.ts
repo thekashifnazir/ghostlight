@@ -21,11 +21,16 @@ export interface InventoryCallbacks {
   announce: (text: string) => void;
   /** Send `use activeItem targetItem` (both are inventory item ids). */
   useOnItem: (itemId: number, targetItemId: number) => void;
+  /** Send `use activeItem` on the hero (the "Yourself" entry). */
+  useOnSelf: (itemId: number) => void;
   /** Return focus to the hotspot list. */
   returnToList: () => void;
   /** The current chapter, for pack item-name lookup. */
   chapter: () => number;
 }
+
+/** Placeholder id for the "Yourself" entry; never a real item id. */
+const SELF_ENTRY = -1;
 
 /** One carried item: id and its resolved pack name. */
 interface CarriedItem {
@@ -91,7 +96,7 @@ export class Inventory {
 
   next(): void {
     if (!this.open) return;
-    this.index = (this.index + 1) % this.items.length;
+    this.index = (this.index + 1) % this.entries().length;
     // Move roving focus only; the newly focused button is what the screen
     // reader reads. No live-region write, to avoid double-speak (R6.2).
     this.focusCurrent();
@@ -99,21 +104,43 @@ export class Inventory {
 
   prev(): void {
     if (!this.open) return;
-    this.index = (this.index - 1 + this.items.length) % this.items.length;
+    const n = this.entries().length;
+    this.index = (this.index - 1 + n) % n;
     this.focusCurrent();
+  }
+
+  /** The carried items, plus a final "Yourself" entry while an item is active. */
+  private entries(): CarriedItem[] {
+    return this.activeId == null
+      ? this.items
+      : [...this.items, { id: SELF_ENTRY, name: "Yourself" }];
   }
 
   /**
    * Choose the focused item. If no item is active yet, make it active. If one
    * is already active, send `use active chosen` (use item on item) and clear.
+   * The final "Yourself" entry uses the active item on the hero.
    */
   chooseCurrent(): void {
     if (!this.open || this.items.length === 0) return;
-    const chosen = this.items[this.index];
+    const chosen = this.entries()[this.index];
+    if (!chosen) return;
 
     if (this.activeId == null) {
       this.activeId = chosen.id;
       this.cb.announce(`${chosen.name} is now active. Choose a target, or press Backspace to cancel.`);
+      this.render();
+      return;
+    }
+
+    if (chosen.id === SELF_ENTRY) {
+      const activeId = this.activeId;
+      const activeName = this.nameOf(activeId);
+      this.close();
+      this.activeId = undefined;
+      this.cb.announce(`Using ${activeName} on yourself.`);
+      this.cb.useOnSelf(activeId);
+      this.cb.returnToList();
       return;
     }
 
@@ -142,6 +169,7 @@ export class Inventory {
       const name = this.nameOf(this.activeId);
       this.activeId = undefined;
       this.cb.announce(`Cleared ${name}.`);
+      if (this.open) this.render();
       return;
     }
     if (this.open) {
@@ -163,8 +191,8 @@ export class Inventory {
 
   private render(): void {
     this.el.innerHTML = "";
-    const total = this.items.length;
-    this.buttons = this.items.map((it, i) => {
+    const total = this.entries().length;
+    this.buttons = this.entries().map((it, i) => {
       const b = this.el.ownerDocument.createElement("button");
       b.type = "button";
       b.setAttribute("role", "menuitem");

@@ -18,6 +18,7 @@ import { LiveAdapter } from "./engine/live-adapter.js";
 import { ReplayAdapter } from "./engine/replay-adapter.js";
 import { mapEngineError } from "./engine/error-lines.js";
 import { CrossingSkip } from "./engine/crossing-skip.js";
+import { HERO_TARGET } from "./model/hero.js";
 import { StatusTracker } from "./engine/status.js";
 import { installSpeechlog, isSpeechlogEnabled, type Speechlog } from "./engine/speechlog.js";
 import { Persistence, probeSaves } from "./engine/persistence.js";
@@ -108,6 +109,7 @@ const HELP_TEXT =
   "options again. " +
   "Slash opens a command box: type a plain command such as talk to " +
   "drunk, press Enter to send it, or Escape to close. " +
+  "You can use an item on yourself: type use earplugs on yourself. " +
   "R repeats the last line; Shift plus R steps back through earlier lines. " +
   "L reads the whole room. H asks the ghost for a hint; the ghost speaks the " +
   "hint aloud. " +
@@ -692,6 +694,7 @@ export async function boot(): Promise<void> {
   const inventory = new Inventory(inventoryEl, pack, {
     announce: (t) => live.announce(t),
     useOnItem: (item, target) => sendCommand({ verb: "use", item, target }),
+    useOnSelf: (item) => sendCommand({ verb: "use", item, target: HERO_TARGET }),
     returnToList,
     chapter: () => state.chapter,
   });

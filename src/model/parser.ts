@@ -34,6 +34,7 @@ export type Match =
   | { kind: "hotspot"; hotspot: Hotspot; verb?: EngineVerb }
   | { kind: "item"; item: InvItem; verb?: EngineVerb }
   | { kind: "use"; item: InvItem; target: Hotspot | InvItem }
+  | { kind: "useSelf"; item: InvItem }
   | { kind: "fixed"; action: FixedAction }
   | { kind: "choice"; n: number }
   | { kind: "ambiguous"; options: Hotspot[] }
@@ -168,6 +169,11 @@ export function parsePhrase(
   const words = normalise(phrase);
   if (words.length === 0) return { kind: "none", present: presentNames(visible) };
 
+  // An item used on the hero: "use X on me", "wear X", "put on X",
+  // "put X in my ears".
+  const self = parseSelfUse(words, inventory);
+  if (self) return { kind: "useSelf", item: self };
+
   // Verb phrase? Lead word maps to an engine verb.
   let verb: EngineVerb | undefined;
   let rest = words;
@@ -224,6 +230,41 @@ export function parsePhrase(
   }
 
   return { kind: "none", present: presentNames(visible) };
+}
+
+const SELF_WORDS = new Set(["me", "myself", "yourself", "self", "hero"]);
+const EAR_WORDS = new Set(["ear", "ears"]);
+
+/**
+ * Recognise an item used on the hero and return the carried item, else
+ * undefined. Forms: "use X on me/myself/yourself/self/hero", "wear X",
+ * "put on X", "put X in my ears" (and "put X on me").
+ */
+function parseSelfUse(words: string[], inventory: InvItem[]): InvItem | undefined {
+  const lead = words[0];
+  const content = (ws: string[]): string[] => ws.filter((w) => !STOP_WORDS.has(w));
+  let itemWords: string[];
+
+  if (lead === "wear") {
+    itemWords = content(words.slice(1));
+  } else if (lead === "put" && words[1] === "on") {
+    itemWords = content(words.slice(2));
+  } else if (lead === "use" || lead === "put") {
+    const rest = words.slice(1);
+    const splitAt = rest.findIndex((w) => SPLIT_WORDS.has(w));
+    if (splitAt < 0) return undefined;
+    const right = content(rest.slice(splitAt + 1));
+    const toSelf =
+      right.length === 1 &&
+      (SELF_WORDS.has(right[0]) || (lead === "put" && EAR_WORDS.has(right[0])));
+    if (!toSelf) return undefined;
+    itemWords = content(rest.slice(0, splitAt));
+  } else {
+    return undefined;
+  }
+
+  if (itemWords.length === 0) return undefined;
+  return bestItem(itemWords, inventory).item;
 }
 
 function presentNames(visible: Hotspot[]): string[] {
