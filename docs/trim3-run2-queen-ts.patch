@@ -1,0 +1,184 @@
+diff --git a/engine/queen/a11y.cpp b/engine/queen/a11y.cpp
+index 2c49e2e..934d666 100644
+--- a/engine/queen/a11y.cpp
++++ b/engine/queen/a11y.cpp
+@@ -51,6 +51,7 @@
+ #include "common/str.h"
+ #include "common/stream.h"
+ #include "common/system.h"
++#include "common/tokenizer.h"
+ #include "common/util.h"
+ 
+ #include "queen/a11y.h"
+@@ -80,14 +81,6 @@ enum {
+ 	kPhaseChoice
+ };
+ 
+-// Wall clock of the last line written, for the busy watchdog the command side
+-// will add (same role as g_lastEngineOutputMs in engine/a11y.cpp).
+-static uint32 g_lastOutputMs = 0;
+-
+-uint32 lastOutputMs() {
+-	return g_lastOutputMs;
+-}
+-
+ // All a11y output is one prefixed line on stderr, so a web page reads it via
+ // Module.printErr and a native run reads it on fd 2. logMessage with the error
+ // type goes to stderr on the SDL backend and adds no prefix of its own, which
+@@ -95,7 +88,6 @@ uint32 lastOutputMs() {
+ static void emitLine(const Common::String &line) {
+ 	if (!g_system)
+ 		return;
+-	g_lastOutputMs = g_system->getMillis();
+ 	Common::String out = line + "\n";
+ 	g_system->logMessage(LogMessageType::kError, out.c_str());
+ }
+@@ -475,8 +467,8 @@ static bool carriedChanged(QueenEngine *vm, Layer &s) {
+ // ---------------------------------------------------------------- diff
+ 
+ // The command the engine is about to execute, as a short label such as
+-// "open 2" or "use 3 on 5". There is no command file yet, so this is the
+-// engine's own verb and nouns. A right click is resolved to the object's
++// "open 2" or "use 3 on 5", from the engine's own verb and nouns (this is what
++// the player's own clicks run, as well as file commands). A right click is resolved to the object's
+ // default verb exactly as Command::executeCurrentAction does at its top.
+ static Common::String describeAction(QueenEngine *vm) {
+ 	Logic *l = vm->logic();
+@@ -724,18 +716,9 @@ static bool parseNum(const Common::String &s, int &out) {
+ }
+ 
+ static void splitWords(const Common::String &text, Common::Array<Common::String> &w) {
+-	Common::String cur;
+-	for (uint i = 0; i <= text.size(); ++i) {
+-		char c = (i < text.size()) ? text[i] : ' ';
+-		if (c == ' ' || c == '\t') {
+-			if (!cur.empty()) {
+-				w.push_back(cur);
+-				cur.clear();
+-			}
+-		} else {
+-			cur += c;
+-		}
+-	}
++	Common::StringTokenizer tok(text, " \t");
++	while (!tok.empty())
++		w.push_back(tok.nextToken());
+ }
+ 
+ static Common::String firstWord(const Common::String &text) {
+diff --git a/engine/queen/a11y.h b/engine/queen/a11y.h
+index 632ddf8..209bb92 100644
+--- a/engine/queen/a11y.h
++++ b/engine/queen/a11y.h
+@@ -1,4 +1,4 @@
+-/* Ghostlight - accessibility layer for the ScummVM Queen engine (read side)
++/* Ghostlight - accessibility layer for the ScummVM Queen engine
+  *
+  * Copyright (C) 2026 Ghostlight contributors
+  *
+@@ -70,10 +70,6 @@ void onChoices(QueenEngine *vm, const char *o1, const char *o2, const char *o3,
+ //! Talk::speak, after the empty-sentence check: one call per spoken line.
+ void onSpeak(QueenEngine *vm, const char *speaker, const char *sentence);
+ 
+-//! g_system->getMillis() of the last line written (0 before the first line).
+-//! Read by the busy watchdog the command side will add.
+-uint32 lastOutputMs();
+-
+ } // End of namespace A11y
+ } // End of namespace Queen
+ 
+diff --git a/src/engine/adapter.ts b/src/engine/adapter.ts
+index 154651b..4c8fde9 100644
+--- a/src/engine/adapter.ts
++++ b/src/engine/adapter.ts
+@@ -41,9 +41,9 @@ export interface RoomState {
+   /** Hero foot/centre point, in the objects' coordinate space. */
+   hero: { x: number; y: number };
+   objects: RoomObject[];
+-  /** Real item ids carried (7+; verb slots excluded by the engine). */
++  /** Item ids carried (in Drascula 7+, verb slots excluded by the engine). */
+   inventory: number[];
+-  /** All 50 engine flags, reported faithfully (flag 12 noise included). */
++  /** The game's progress flags, reported faithfully (50 in Drascula, 211 in Queen). */
+   flags: number[];
+ }
+ 
+@@ -104,8 +104,8 @@ export interface InvItem {
+ /**
+  * The engine's own control phase (the `A11Y_PHASE` line). Emitted by the engine
+  * a11y layer straight from engine truth, not inferred by the player:
+- *   - `control` — the engine is idle and able to take a command this frame
+- *     (`canSaveGameStateCurrently()` is true and no command is running).
++ *   - `control` — the engine is idle in free play and able to take a command
++ *     this frame, judged per game (not `canSaveGameStateCurrently()`).
+  *   - `busy`    — a command is running / the engine is not ready.
+  *   - `choice`  — a conversation choice menu is open and waiting.
+  * The player maps these onto its readiness phase (see src/engine/status.ts).
+diff --git a/src/engine/status.ts b/src/engine/status.ts
+index 793babf..197f524 100644
+--- a/src/engine/status.ts
++++ b/src/engine/status.ts
+@@ -36,8 +36,8 @@
+ // Settling: engine truth first, quiet-period fallback
+ // ----------------------------------------------------
+ // The engine a11y layer emits an `A11Y_PHASE` line straight from engine truth:
+-// `control` when the engine can take a command (`canSaveGameStateCurrently()`
+-// is true and nothing is running), `busy` while a command runs, and `choice`
++// `control` when the engine is idle in free play and can take a command,
++// `busy` while a command runs or a cutscene has the engine, and `choice`
+ // while a conversation menu is open. When these arrive (the live engine, and
+ // any recording made with the A11Y_PHASE-emitting build) they are AUTHORITATIVE:
+ // `control` -> `ready`, `busy` -> `busy` (or `conversation` while dialogue text
+diff --git a/src/model/pack.ts b/src/model/pack.ts
+index 2cc8828..4db1084 100644
+--- a/src/model/pack.ts
++++ b/src/model/pack.ts
+@@ -44,7 +44,7 @@ interface PackItem {
+   description?: string;
+ }
+ 
+-type TextFixContext = "hotspot" | "dialogue" | "item";
++type TextFixContext = "hotspot" | "dialogue" | "item" | "any";
+ 
+ interface TextFix {
+   from: string;
+@@ -86,7 +86,7 @@ export interface PackData {
+ }
+ 
+ /** Context a text fix applies in, passed to applyTextFixes. */
+-export type FixContext = TextFixContext;
++export type FixContext = Exclude<TextFixContext, "any">;
+ 
+ export class Pack {
+   private readonly data: PackData;
+@@ -270,7 +270,7 @@ export class Pack {
+     const fixes = this.data.textFixes ?? [];
+     let out = raw;
+     for (const fix of fixes) {
+-      if (fix.context && fix.context !== context) continue;
++      if (fix.context && fix.context !== "any" && fix.context !== context) continue;
+       if (fix.rooms && (room == null || !fix.rooms.includes(room))) continue;
+       if (fix.match === "substring") {
+         out = out.split(fix.from).join(fix.to);
+diff --git a/test/pack.test.ts b/test/pack.test.ts
+index 23fefb0..469096a 100644
+--- a/test/pack.test.ts
++++ b/test/pack.test.ts
+@@ -187,3 +187,17 @@ describe("Pack reader: state-aware description accessors (description-variants)"
+     expect(pack.objectDescription(5, 213)).toBe("A second window, shut.");
+   });
+ });
++
++describe("Pack text fixes with context any", () => {
++  it("applies an `any` fix in every context, as the pack format allows", () => {
++    const pack = loadPack({
++      formatVersion: "1.0",
++      rooms: {},
++      items: [],
++      textFixes: [{ from: "HOLA", to: "hello", context: "any" }],
++    });
++    expect(pack.applyTextFixes("HOLA", "hotspot")).toBe("hello");
++    expect(pack.applyTextFixes("HOLA", "dialogue")).toBe("hello");
++    expect(pack.applyTextFixes("HOLA", "item")).toBe("hello");
++  });
++});

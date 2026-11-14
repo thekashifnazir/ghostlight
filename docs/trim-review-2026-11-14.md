@@ -198,3 +198,17 @@ Safe now, because no shipped file imports them: row 4 (`save-snapshot.ts`), row 
 - Compared the power's files to `packs/` with `cmp`.
 - Checked `vendor/scummvm` for the TTS backends, `StringTokenizer` and `JSONValue::stringifyString`.
 - I did not run the test suites or build anything. Line savings are estimates from the ranges listed.
+
+## Phase 3 result (14 Nov, engine)
+
+Done (Kiro, commit "Trim phase 3a"): rows 6, 10, 14, the engine items in row 15, and most of row 7 in the Drascula layer, plus a shorter `hooks.patch` header. Drascula engine files went from 4,967 to 4,458 lines. Claude Code applied the same diff in a throwaway worktree first: native and web builds clean, the A11Y output of a tavern run and of the chapter 1 to 2 crossing identical before and after (ignoring phase flips, voice-end markers, echoed skips and flag 12, which vary run to run on the unchanged build too), live Chromium 14 of 14. Kiro's files are byte-identical to that dry run.
+
+Verified but not applied, because the Kiro run above cost 10.2 credits against a 6-credit cap: `docs/trim3-run2-queen-ts.patch`. It removes Queen's unused `lastOutputMs()`, uses `StringTokenizer` in Queen's `splitWords`, fixes the stale Queen and player comments listed above, and fixes a real bug the pack-types check found: a text fix with `"context": "any"` (allowed by the pack format and validator) never applied in the player. It adds a test for that. Typecheck and 537 unit tests passed with it in the dry run.
+
+Dropped, with reasons:
+- Row 11 (one shared header for both engines): needs build-script changes in phase 2's files, and where shared code should live is a question for the ScummVM conversation.
+- Row 12 (pack-types merge): the player's types are deliberately partial so tests and older packs load; merging forces every required field onto every test pack. The real drift it showed is the `any` bug above.
+- Row 13 (status.ts quiet-period fallback): six fixtures still have no phase lines, including chapter 3 and chapter 6 runs that need saves we don't have; removing the fallback breaks their replay specs.
+- `GHOSTLIGHT_PLAY_INTRO`: removing the guard means deleting ScummVM's own intro call instead of guarding it, which makes the patch harder to review.
+- Row 7's queue-reset helper: four 4-line copies; a helper saves almost nothing.
+- A comment pass: `a11y.h` is still about 80% comments (157 code lines of 955). Worth a comments-only pass before ScummVM sees it, checked by comparing the code with comments stripped.

@@ -2100,3 +2100,19 @@ Not committed (edit-only session, no shell): needs the native build, `npm --pref
 **Time taken:** a few minutes to apply; the dry run and verification were done beforehand.
 **What went wrong or surprised you:** nothing in the edits. This session ran no tests or scripts; verification is the earlier dry run.
 **What was learned:** one shared parser means a new A11Y line type reaches the player, the MCP server and the engine tests at once.
+
+## 157 · engine · 2026-11-14 · Trim phase 3a: dead and duplicated engine code (Drascula)
+**What was asked:** transcribe `.trim3/run1-drascula.patch` into `engine/a11y.h`, `engine/a11y.cpp` and the comment header of `engine/hooks.patch`, edits only, no redesign (trim review rows 6, 7, 10, 14 and the engine items in row 15). Claude Code had already applied the same diff in a throwaway worktree, rebuilt the native and web engines, and checked that the A11Y output of a tavern run and of the chapter 1 to 2 crossing is identical before and after.
+**What Kiro did:**
+- Removed the dead synthetic-click state machine: `synthClick`, `clickSettled`, `stepClick`, `ClickState`, `_clickState`, and the hold in `poll()` that waited on it.
+- Folded the single-implementer `A11yControlProbe` / `DrasculaControlProbe` into a private `A11yLayer::playerInControl()`, and dropped the never-called `awaitingChoice()` and the `_probe` member.
+- Replaced `onRoomEntry()` and `dump()` with direct calls to `emitRoomState()`, and `itemInInventory()` with the existing `slotForItem()`.
+- Dropped two inventory re-checks in `runVerbOnItemSlot` and `useItemOnItemSlot` that the callers already make.
+- Added static `splitVerb()` and `splitWords()` (`Common::StringTokenizer`, so `common/tokenizer.h` is included) in place of five hand-written verb splitters and two word splitters.
+- Added `inventoryDelta()` and `saidJson()` members in place of the duplicated added/removed loops in `emitDiff` and the duplicated `said` loops in `emitDiff` and `emitGameEnd`.
+- Replaced the field-by-field `CrossChapterDiff` copy with a `CrossCarry` struct holding a `Snapshot` and an `Array<SaidLine>`, declared after `_said` and reached through static `crossCarry()`.
+- Replaced the long comment header above the first `diff --git` line in `engine/hooks.patch` with the shorter one; no line from `diff --git` down was touched.
+**Files changed:** `engine/a11y.h`, `engine/a11y.cpp`, `engine/hooks.patch`, `docs/kiro-process.md`.
+**Time taken:** a few minutes.
+**What went wrong or surprised you:** one find-and-replace on a comment block failed on the first try and was redone against the file's actual text. This session had no shell, so it could not build the engine or run any tests. The dry run, the native and web rebuilds and the before/after A11Y output check were all done by Claude Code; nothing here is verified by this session beyond re-reading the changed regions against the diff.
+**What was learned:** with a diff that was already applied and checked elsewhere, the failure to watch for in a hand transcription is a merged line or a lost label, so each changed region gets re-read against the diff's + lines.

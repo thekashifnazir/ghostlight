@@ -28,6 +28,7 @@
 #include "common/str.h"
 #include "common/system.h"
 #include "common/textconsole.h"
+#include "common/tokenizer.h"
 #include "common/util.h"
 
 #include "drascula/drascula.h"
@@ -82,54 +83,13 @@ static uint32 g_lastEngineOutputMs = 0;
 //
 // Instead the ending chapter's layer, at the moment it detects the crossing, stashes
 // the before-snapshot, the `cmd` string, the error-count baseline and the
-// `said` lines captured during the cutscene into this module-static carrier
-// (module-static so it survives the layer's destruction, like g_errCount). The
+// `said` lines captured during the cutscene into a process-lifetime carrier
+// (crossCarry(), so it survives the layer's destruction). The
 // NEXT chapter's layer, once its first room is fully set up, emits ONE
 // A11Y_DIFF from the carrier in onStartup() — chapter [1,2], room [62,14], the
 // new room's objects — instead of a plain A11Y room-state line. This is what
 // makes the chapter-crossing walk yield exactly one coherent diff (R4.3), and
 // matches the leave-tavern fixture and the spike transcript.
-//
-// The carrier mirrors the Snapshot fields the diff needs (Snapshot is a private
-// nested type, so we store its parts here) plus the captured said lines.
-struct CrossChapterDiff {
-	bool pending;
-	Common::String cmd;
-	uint32 errCountBefore;
-	// before-snapshot parts
-	int chapter;
-	int room;
-	int heroX;
-	int heroY;
-	Common::Array<int> objNums;
-	Common::Array<bool> objVisible;
-	Common::Array<bool> objDoor;
-	Common::Array<int> inventory;
-	int flags[NUM_FLAGS];
-	// said lines captured during the crossing cutscene (colour, text pairs)
-	Common::Array<Common::String> saidColor;
-	Common::Array<Common::String> saidText;
-	// voiced flag per captured said line, parallel to saidColor/saidText, so a
-	// crossing cutscene's voiced lines keep their marking through the carrier.
-	Common::Array<bool> saidVoiced;
-
-	CrossChapterDiff() : pending(false), errCountBefore(0), chapter(0), room(0),
-	                     heroX(0), heroY(0) {
-		for (int f = 0; f < NUM_FLAGS; f++)
-			flags[f] = 0;
-	}
-};
-
-// The single process-lifetime carrier, reached through g_crossDiff(). Held by
-// a lazily-constructed pointer rather than a static object so no global
-// constructor/destructor runs at load/exit (ScummVM builds with
-// -Wglobal-constructors). It lives for the whole process — the crossing data it
-// carries is handed from one chapter's layer to the next and is never needed
-// after that — so the one-time allocation is deliberately not freed.
-static CrossChapterDiff &g_crossDiff() {
-	static CrossChapterDiff *instance = new CrossChapterDiff();
-	return *instance;
-}
 
 // All a11y output is one prefixed line on stderr, so a web page reads it via
 // Module.printErr and a native run reads it on fd 2 (Requirement 10.6). We go
@@ -187,6 +147,22 @@ static Common::String jsonEscape(const char *s) {
 // and `walk` dispatchers); forward-declared here so dispatchUse can call it.
 static bool parseInt(const Common::String &s, int &out);
 
+// Split a command line into its first word (the verb) and the trimmed rest
+// (the argument, empty for a bare verb).
+static void splitVerb(const Common::String &cmd, Common::String &verb, Common::String &arg) {
+	uint sp = 0;
+	while (sp < cmd.size() && cmd[sp] != ' ')
+		sp++;
+	verb = (sp < cmd.size()) ? Common::String(cmd.c_str(), sp) : cmd;
+	arg = (sp < cmd.size()) ? Common::String(cmd.c_str() + sp + 1) : Common::String();
+	arg.trim();
+}
+
+// Split an argument into words, collapsing runs of spaces and tabs.
+static Common::Array<Common::String> splitWords(const Common::String &arg) {
+	return Common::StringTokenizer(arg, " \t").split();
+}
+
 A11yLayer::A11yLayer(DrasculaEngine *engine)
 	: _engine(engine), _lastChapter(-1), _lastRoom(-1), _capturingSaid(false),
 	  _converseActive(false), _converseNeedChoices(false), _choicePressed(false),
@@ -194,16 +170,11 @@ A11yLayer::A11yLayer(DrasculaEngine *engine)
 	  _mainCmdDiffPending(false), _mainCmdOpenedConverse(false), _mainCmdErrCount(0),
 	  _queueHead(0), _inRunCommand(false), _lastSkipPollMs(0), _voicePlaying(false),
 	  _readPause(false), _inHold(false), _voiceLen(0), _cmdLinesRead(0),
-	  _clickState(kClickIdle), _lastPhase(kPhaseNone), _probe(nullptr),
+	  _lastPhase(kPhaseNone),
 	  _lastPollMs(0), _watchdogStage(0), _watchdogBaseMs(0),
 	  _walkGuardArmed(false) {
 	for (int i = 0; i < 4; i++)
 		_choiceBottom[i] = 0;
-	// The per-engine "player in control" probe the phase logic reads. This is
-	// the Drascula implementation; porting the layer to another game swaps only
-	// this line (and the probe class), not any phase logic. Owned by the layer;
-	// freed in the destructor.
-	_probe = new DrasculaControlProbe(this);
 	// Register as the engine's current a11y layer so the centerText() hook in
 	// graphics.cpp can reach us (the hook has only the DrasculaEngine `this`,
 	// not this stack-local layer). _lastText default-constructs empty, so the
@@ -220,8 +191,6 @@ A11yLayer::A11yLayer(DrasculaEngine *engine)
 A11yLayer::~A11yLayer() {
 	if (_engine->_a11y == this)
 		_engine->_a11y = nullptr;
-	delete _probe;
-	_probe = nullptr;
 }
 
 // Capture one whole on-screen text line (R6.2). Called from the centerText()
@@ -316,11 +285,11 @@ void A11yLayer::onStartup() {
 	// Normal chapter start (no pending crossing): emit the first playable room
 	// exactly as a room entry would, so the very first line an external reader
 	// sees is a complete A11Y room state.
-	onRoomEntry();
+	emitRoomState();
 }
 
 // Build the full room-state JSON object as a single line (R1.1, R1.2, R1.3,
-// R1.6, R5.*). The same code backs both room entry (onRoomEntry) and the
+// R1.6, R5.*). The same code backs both room entry and the
 // `dump`/`state` command (R1.5), so an external reader sees identical state
 // whichever triggered it.
 //
@@ -513,17 +482,45 @@ void A11yLayer::emitRoomState() {
 	_lastRoom = _engine->_roomNumber;
 }
 
-// Called on every room entry; emits one `A11Y { ... }` room-state line (R1.1).
-void A11yLayer::onRoomEntry() {
-	emitRoomState();
+// The items in `from` that are not in `other`, as comma-separated JSON objects
+// {"id":N,"name":"..."} in `from`'s order. Empty when there are none.
+Common::String A11yLayer::inventoryDelta(const Common::Array<int> &from,
+                                         const Common::Array<int> &other) const {
+	Common::String out;
+	for (uint i = 0; i < from.size(); i++) {
+		int id = from[i];
+		bool inOther = false;
+		for (uint k = 0; k < other.size(); k++) {
+			if (other[k] == id) { inOther = true; break; }
+		}
+		if (inOther)
+			continue;
+		if (!out.empty())
+			out += ",";
+		out += Common::String::format("{\"id\":%d", id);
+		Common::String nm = itemName(id);
+		if (!nm.empty())
+			out += Common::String::format(",\"name\":\"%s\"", jsonEscape(nm.c_str()).c_str());
+		out += "}";
+	}
+	return out;
 }
 
-// Backs the `dump`/`state` command (R1.5): emit the current room state in the
-// same `A11Y ` format as a room entry. The command reader (a later task) calls
-// this; it is intentionally identical to onRoomEntry() so a dump on demand and
-// a dump on room entry are indistinguishable to an external reader.
-void A11yLayer::dump() {
-	emitRoomState();
+// The captured `said` lines as a JSON array. `voiced` is added only when true,
+// so unvoiced entries keep their original shape.
+Common::String A11yLayer::saidJson() const {
+	Common::String json = "[";
+	for (uint i = 0; i < _said.size(); i++) {
+		if (i > 0)
+			json += ",";
+		json += Common::String::format("{\"color\":\"%s\",\"text\":\"%s\"",
+		                               jsonEscape(_said[i].color.c_str()).c_str(),
+		                               jsonEscape(_said[i].text.c_str()).c_str());
+		if (_said[i].voiced)
+			json += ",\"voiced\":true";
+		json += "}";
+	}
+	return json + "]";
 }
 
 // --- Snapshot diff and A11Y_DIFF emission (task 17, R4 / gotcha 8) ----------
@@ -690,47 +687,10 @@ void A11yLayer::emitDiff(const Common::String &cmd, const Snapshot &before,
 	// `after`. Both in ascending id order with the item's name from itemName().
 	// buildRoomState()/the snapshot already filter to real items (id >= 7).
 	{
-		Common::String added, removed;
-
-		// Added.
-		for (uint i = 0; i < after.inventory.size(); i++) {
-			int id = after.inventory[i];
-			bool inBefore = false;
-			for (uint k = 0; k < before.inventory.size(); k++) {
-				if (before.inventory[k] == id) { inBefore = true; break; }
-			}
-			if (!inBefore) {
-				if (!added.empty())
-					added += ",";
-				added += Common::String::format("{\"id\":%d", id);
-				Common::String nm = itemName(id);
-				if (!nm.empty())
-					added += Common::String::format(",\"name\":\"%s\"",
-					                                 jsonEscape(nm.c_str()).c_str());
-				added += "}";
-				changed = true;
-			}
-		}
-
-		// Removed.
-		for (uint i = 0; i < before.inventory.size(); i++) {
-			int id = before.inventory[i];
-			bool inAfter = false;
-			for (uint k = 0; k < after.inventory.size(); k++) {
-				if (after.inventory[k] == id) { inAfter = true; break; }
-			}
-			if (!inAfter) {
-				if (!removed.empty())
-					removed += ",";
-				removed += Common::String::format("{\"id\":%d", id);
-				Common::String nm = itemName(id);
-				if (!nm.empty())
-					removed += Common::String::format(",\"name\":\"%s\"",
-					                                   jsonEscape(nm.c_str()).c_str());
-				removed += "}";
-				changed = true;
-			}
-		}
+		Common::String added = inventoryDelta(after.inventory, before.inventory);
+		Common::String removed = inventoryDelta(before.inventory, after.inventory);
+		if (!added.empty() || !removed.empty())
+			changed = true;
 
 		if (!added.empty())
 			json += ",\"invAdded\":[" + added + "]";
@@ -765,25 +725,8 @@ void A11yLayer::emitDiff(const Common::String &cmd, const Snapshot &before,
 	// The lines spoken/drawn during the command, in order, each with its colour.
 	// Speech is not a world change, so it never sets `changed` (a line-only
 	// command such as `look 102` is changed:false, per the transcript).
-	if (!_said.empty()) {
-		json += ",\"said\":[";
-		for (uint i = 0; i < _said.size(); i++) {
-			if (i > 0)
-				json += ",";
-			json += Common::String::format("{\"color\":\"%s\",\"text\":\"%s\"",
-			                               jsonEscape(_said[i].color.c_str()).c_str(),
-			                               jsonEscape(_said[i].text.c_str()).c_str());
-			// Carry the voiced flag only when true, so unvoiced `said` entries
-			// stay byte-identical to before (the diff fixtures are unchanged for
-			// non-voiced lines); a voiced line adds `,"voiced":true` so the
-			// player suppresses its screen-reader echo consistently whether it
-			// matched a streamed A11Y_VTEXT line or arrived only here.
-			if (_said[i].voiced)
-				json += ",\"voiced\":true";
-			json += "}";
-		}
-		json += "]";
-	}
+	if (!_said.empty())
+		json += ",\"said\":" + saidJson();
 
 	// --- changed (R4.8) -----------------------------------------------------
 	json += Common::String::format(",\"changed\":%s}", changed ? "true" : "false");
@@ -884,23 +827,12 @@ bool A11yLayer::runCommand(const Common::String &cmd) {
 	emitLine(Common::String("A11Y_CMD ") + cmd);
 
 	// Split off the first word as the verb; the remainder is the argument(s).
-	// A single-word command (no space) has an empty argument.
-	Common::String verb = cmd;
-	uint sp = 0;
-	while (sp < cmd.size() && cmd[sp] != ' ')
-		sp++;
-	if (sp < cmd.size())
-		verb = Common::String(cmd.c_str(), sp);
-
-	// The argument (everything after the first space). Empty for a bare verb.
-	Common::String arg;
-	if (sp < cmd.size())
-		arg = Common::String(cmd.c_str() + sp + 1);
-	arg.trim();
+	Common::String verb, arg;
+	splitVerb(cmd, verb, arg);
 
 	if (verb == "state" || verb == "dump") {
 		// Backed by the same room-state code as room entry (R1.5, task 4).
-		dump();
+		emitRoomState();
 		return false;
 	}
 
@@ -1204,16 +1136,6 @@ bool A11yLayer::dispatchVerb(int verbConst, const Common::String &arg) {
 // a player would do. Either way the item ends up in inventory unless the game
 // deliberately used it up.
 
-// True when the real item `itemId` (>= 7) sits in a live inventory slot.
-bool A11yLayer::itemInInventory(int itemId) const {
-	DrasculaEngine *e = _engine;
-	for (int n = 1; n < ARRAYSIZE(e->inventoryObjects); n++) {
-		if (e->inventoryObjects[n] == itemId)
-			return true;
-	}
-	return false;
-}
-
 // Apply item `itemId` to the room object in `slot`, then return the item to the
 // inventory if the action did not consume it (R3.4, R3.5).
 bool A11yLayer::useItemOnSlot(int itemId, int slot) {
@@ -1285,23 +1207,7 @@ bool A11yLayer::useItemOnSlot(int itemId, int slot) {
 // with A11Y_ERR, keeping the layer running (R2.5). Returns true only when the
 // use ended the chapter (a room-object use whose checkAction() returned true).
 bool A11yLayer::dispatchUse(const Common::String &arg) {
-	// Split the argument into whitespace-separated words, collapsing runs of
-	// spaces. arg is already trimmed by runCommand().
-	Common::Array<Common::String> words;
-	Common::String cur;
-	for (uint i = 0; i < arg.size(); i++) {
-		char c = arg[i];
-		if (c == ' ' || c == '\t') {
-			if (!cur.empty()) {
-				words.push_back(cur);
-				cur.clear();
-			}
-		} else {
-			cur += c;
-		}
-	}
-	if (!cur.empty())
-		words.push_back(cur);
+	Common::Array<Common::String> words = splitWords(arg);
 
 	// A bare `use` or `use <item>` has no target. There is no standalone-use
 	// path in this engine (items are always applied to an object, another item,
@@ -1354,7 +1260,7 @@ bool A11yLayer::dispatchUse(const Common::String &arg) {
 			"A11Y_ERR %d is a verb slot, not an inventory item (items are id 7+)", itemId));
 		return false;
 	}
-	if (!itemInInventory(itemId) && !(itemId == 16 && isHeldPlug(_engine))) {
+	if (slotForItem(itemId) < 0 && !(itemId == 16 && isHeldPlug(_engine))) {
 		emitLine(Common::String::format(
 			"A11Y_ERR item %d is not in the inventory", itemId));
 		return false;
@@ -1734,23 +1640,12 @@ void A11yLayer::useItemOnSelf(int itemId) {
 void A11yLayer::runVerbOnItemSlot(int verb, int itemId) {
 	DrasculaEngine *e = _engine;
 
-	int slot = slotForItem(itemId);
-	if (slot < 0) {
-		// Should not happen (dispatchVerb checked), but guard so a race or bad
-		// state is a clean error, not a bad array read.
-		emitLine(Common::String::format(
-			"A11Y_ERR item %d is not in the inventory", itemId));
-		return;
-	}
-
 	// Clear any held verb/item first (same stale-verb reasoning as elsewhere).
 	if (e->takeObject == 1)
 		e->selectVerb(kVerbNone);
 
 	// Open the inventory screen so checkAction() takes its _menuScreen branch.
 	openInventoryScreen();
-
-	(void)slot; // resolved above only to confirm the item is really held
 
 	// Select the verb while the screen is open — selectVerb sets pickedObject,
 	// which the menu look-at-item handlers (checkAction's _menuScreen branch)
@@ -1781,12 +1676,6 @@ void A11yLayer::runVerbOnItemSlot(int verb, int itemId) {
 // (R3.6, R3.5).
 void A11yLayer::useItemOnItemSlot(int itemA, int itemB) {
 	DrasculaEngine *e = _engine;
-
-	if (slotForItem(itemB) < 0) {
-		emitLine(Common::String::format(
-			"A11Y_ERR item %d is not in the inventory", itemB));
-		return;
-	}
 
 	// Drop whatever is held first (right-click equivalent).
 	if (e->takeObject == 1)
@@ -1865,24 +1754,7 @@ static bool parseInt(const Common::String &s, int &out) {
 // runCurrentChapter(). Every other outcome (free-point walk, non-door object,
 // a non-chapter-ending door, or an A11Y_ERR) returns false.
 bool A11yLayer::dispatchWalk(const Common::String &arg) {
-	// Split the argument into whitespace-separated words. arg is already
-	// trimmed by runCommand(), so there is no leading/trailing space; collapse
-	// any run of spaces between words.
-	Common::Array<Common::String> words;
-	Common::String cur;
-	for (uint i = 0; i < arg.size(); i++) {
-		char c = arg[i];
-		if (c == ' ' || c == '\t') {
-			if (!cur.empty()) {
-				words.push_back(cur);
-				cur.clear();
-			}
-		} else {
-			cur += c;
-		}
-	}
-	if (!cur.empty())
-		words.push_back(cur);
+	Common::Array<Common::String> words = splitWords(arg);
 
 	if (words.empty()) {
 		emitLine("A11Y_ERR walk needs a target: `walk <object>` or `walk <x> <y>`");
@@ -2292,15 +2164,8 @@ void A11yLayer::onConverseFrame(const char *phrase1, const char *phrase2,
 	while (_queueHead < _commandQueue.size()) {
 		const Common::String &cmd = _commandQueue[_queueHead];
 
-		// Split off the first word (the verb).
-		uint sp = 0;
-		while (sp < cmd.size() && cmd[sp] != ' ')
-			sp++;
-		Common::String verb = (sp < cmd.size()) ? Common::String(cmd.c_str(), sp) : cmd;
-		Common::String arg;
-		if (sp < cmd.size())
-			arg = Common::String(cmd.c_str() + sp + 1);
-		arg.trim();
+		Common::String verb, arg;
+		splitVerb(cmd, verb, arg);
 
 		if (verb == "choices") {
 			// Re-list the current options on demand (R7.1). Consume the command
@@ -2410,79 +2275,6 @@ void A11yLayer::onConverseFrame(const char *phrase1, const char *phrase2,
 	}
 }
 
-// --- Synthetic click model (R8 / R3.3 / gotchas 2, 3) -----------------------
-//
-// A real left click in Drascula is two events on two different frames: a
-// button-down, then a button-up later. The main loop (drascula.cpp,
-// runCurrentChapter) reads the resulting _leftMouseButton once per frame and,
-// when it is 1 and was not already handled (_leftMouseButtonHeld == false),
-// runs verify1()/verify2() for that click, sets _leftMouseButtonHeld = true and
-// delays ~50 ms. On a later frame it sees _leftMouseButton == 0 and clears
-// _leftMouseButtonHeld. updateEvents() is what normally sets _leftMouseButton
-// (1 on EVENT_LBUTTONDOWN, 0 on EVENT_LBUTTONUP) and _mouseX/_mouseY (on
-// EVENT_MOUSEMOVE); with no real input device driving the replay, those fields
-// stay exactly as we leave them until the next real event, so we set them
-// directly.
-//
-// Two hard rules fall out of that (gotchas 2, 3):
-//   * Press and release must land on separate frames. If we set the button to
-//     1 and back to 0 within one poll(), the main loop reads a single value and
-//     the click is either seen once or not at all — never the clean down-then-up
-//     a click needs. So synthClick() only presses; stepClick() releases next
-//     frame (R8.1).
-//   * The button must not stay held across dialogue. A held button makes the
-//     speech loop treat every line as "skip", so lines are lost. Releasing on
-//     the very next frame, the way a real click does, avoids that (R8.2).
-
-// Set the button down for the press frame and warp the mouse to (x, y).
-//
-// The warp is the R3.3 requirement: direct object dispatch (tasks 8-11) acts on
-// the object slot itself and does not depend on the pixel under the cursor, but
-// the engine derives the on-screen hover name from _mouseX/_mouseY in
-// checkObjects()/moveCursor(). Warping the cursor to the target's hotspot keeps
-// that hover name matching the object the action runs on. We set the engine's
-// own _mouseX/_mouseY (what checkObjects/verify read) and also ask the backend
-// to move the real cursor via g_system->warpMouse(), so a native real-window
-// run shows the cursor over the object too; on the web build warpMouse is a
-// no-op on an invisible cursor, which is fine.
-void A11yLayer::synthClick(int x, int y) {
-	DrasculaEngine *e = _engine;
-
-	// Warp (R3.3): move both the engine's tracked position and the backend
-	// cursor to the target hotspot so the hover name matches.
-	e->_mouseX = x;
-	e->_mouseY = y;
-	if (g_system)
-		g_system->warpMouse(x, y);
-
-	// Press (R8.1): button down, and make sure the "already handled" latch is
-	// clear so the main loop treats this as a fresh click and runs verify*().
-	e->_leftMouseButton = 1;
-	e->_leftMouseButtonHeld = false;
-
-	_clickState = kClickPressed;
-}
-
-// Release frame: with the press acted on last frame, drop the button back to 0
-// so the main loop clears _leftMouseButtonHeld and the click ends — press and
-// release on separate frames, button not left held (R8.1, R8.2). Called from
-// stepClick() at the top of the frame after synthClick().
-bool A11yLayer::clickSettled() const {
-	return _clickState == kClickIdle;
-}
-
-// Advance the click state machine by one frame. Runs at the top of poll(),
-// before any command is dequeued, so an in-flight click's release lands before
-// the next command is considered (R2.2 settle model).
-void A11yLayer::stepClick() {
-	if (_clickState == kClickPressed) {
-		// Release the button on this, the frame after the press (R8.1). The
-		// main loop will see _leftMouseButton == 0 and reset _leftMouseButtonHeld.
-		_engine->_leftMouseButton = 0;
-		_clickState = kClickIdle;
-	}
-}
-
 // Called once per main-loop frame. Three jobs, in order:
 //
 //   1. Read the command file and append any new lines to the queue (R2.1).
@@ -2501,13 +2293,6 @@ void A11yLayer::stepClick() {
 //
 // The room-change check runs after the command so that a command which changed
 // room (a later task) still produces its room-state line in the same frame.
-//
-// A synthetic click in flight is advanced first (stepClick): its release lands
-// on the frame after the press, and no new command is dequeued until the click
-// has settled (clickSettled). This keeps the two-step press/release click
-// (R8.1, R8.2) inside the one-command-at-a-time settle model (R2.2): a command
-// that issues a click this frame does not let the next command start until the
-// click's release frame has run.
 
 // Emit `A11Y_PHASE <name>` only when the phase changes (kPhaseNone forces the
 // first real phase out, so a reader always sees an initial phase). Cheap: a
@@ -2522,18 +2307,13 @@ void A11yLayer::emitPhase(Phase phase) {
 	emitLine(Common::String("A11Y_PHASE ") + name);
 }
 
-// Control/busy phase for this frame, read from the per-engine control probe.
-// There is no reliable engine-wide "player in control" API
-// (canSaveGameStateCurrently() does NOT mean this — see A11yControlProbe), so
-// the test lives behind the probe interface and this function stays
-// game-agnostic: it asks the probe and maps the answer to a phase. Called once
-// per poll() frame; emits only on a change, so in the steady state it is one
-// virtual call plus a compare per frame.
+// Control/busy phase for this frame. Called once per poll() frame; emits only
+// on a change, so in the steady state it is one check plus a compare per frame.
 void A11yLayer::updateControlPhase() {
-	emitPhase(_probe->playerInControl() ? kPhaseControl : kPhaseBusy);
+	emitPhase(playerInControl() ? kPhaseControl : kPhaseBusy);
 }
 
-// --- DrasculaControlProbe: the Drascula "player in control" test -------------
+// --- The Drascula "player in control" test ----------------------------------
 //
 // playerInControl() is true when the engine is idle in free play and ready for
 // a command this frame. In Drascula that is three things together:
@@ -2553,52 +2333,31 @@ void A11yLayer::updateControlPhase() {
 // only inside two narrow event-pump windows of the main loop
 // (drascula.cpp:630-633 and 704-707), so read from our poll hook it is false
 // even in free play.
-//
-// awaitingChoice() is true for the whole converse() window — between
-// onConverseBegin() (converse.cpp:223) and onConverseEnd() (converse.cpp:328) —
-// tracked by the layer's _converseActive flag. The `choice` phase itself is
-// still raised from emitChoices() (the modal loop means poll() cannot), so this
-// signal is exposed for completeness and for ports that drive the phase from
-// the probe alone.
-bool A11yLayer::DrasculaControlProbe::playerInControl() {
+bool A11yLayer::playerInControl() const {
 	// How recent the last poll() stamp must be to count as "this frame or the
 	// previous one". The engine caps itself near 25-60 fps (frames are tens of
 	// ms apart), so ~120 ms comfortably spans one or two frames of jitter while
 	// still reading stale within a frame or two of a nested loop taking over.
 	static const uint32 kPollFreshMs = 120;
-	DrasculaEngine *e = _layer->_engine;
-	uint32 last = _layer->_lastPollMs;
+	uint32 last = _lastPollMs;
 	bool pollFresh = last != 0 && g_system &&
 	                 (g_system->getMillis() - last) <= kPollFreshMs;
-	return pollFresh && !e->_menuScreen && !_layer->_inRunCommand;
-}
-
-bool A11yLayer::DrasculaControlProbe::awaitingChoice() {
-	return _layer->_converseActive;
+	return pollFresh && !_engine->_menuScreen && !_inRunCommand;
 }
 
 bool A11yLayer::poll() {
 	// Voice timing: tell the player when an actor's clip has ended.
 	checkVoiceEnd();
 
-	// Stamp that the main loop reached our per-frame poll hook this frame. The
-	// control probe reads this: a nested talk/cutscene/transition loop runs the
-	// engine's own pump and never returns here, so the stamp goes stale and the
-	// probe reports the player is no longer in control (phase `busy`). Stamped
-	// first thing, before any early return below, so even the click-settle hold
-	// frames still count as the main loop being live.
+	// Stamp that the main loop reached our per-frame poll hook this frame.
+	// playerInControl() reads this: a nested talk/cutscene/transition loop runs
+	// the engine's own pump and never returns here, so the stamp goes stale and
+	// the phase reads `busy`. Stamped
+	// first thing, before any early return below.
 	if (g_system)
 		_lastPollMs = g_system->getMillis();
 
-	// Advance any click in flight (release the button the frame after a press).
-	stepClick();
-
 	readCommandFile();
-
-	// Hold the queue while a synthetic click is mid-flight: the current command
-	// has not settled until its click's release frame has run (R2.2, R8.1).
-	if (!clickSettled())
-		return false;
 
 	bool ranCommand = false;
 	// The chapter/room this frame started in, captured before runCommand() so
@@ -2813,18 +2572,8 @@ void A11yLayer::onGameEnd() {
 }
 void A11yLayer::emitGameEnd(const Common::String &cmd) {
 	_gameEnded = true;
-	Common::String json = "A11Y_GAME_END {\"cmd\":\"" + jsonEscape(cmd.c_str()) + "\",\"said\":[";
-	for (uint i = 0; i < _said.size(); i++) {
-		if (i > 0)
-			json += ",";
-		json += Common::String::format("{\"color\":\"%s\",\"text\":\"%s\"",
-		                               jsonEscape(_said[i].color.c_str()).c_str(),
-		                               jsonEscape(_said[i].text.c_str()).c_str());
-		if (_said[i].voiced)
-			json += ",\"voiced\":true";
-		json += "}";
-	}
-	json += "]}";
+	Common::String json = "A11Y_GAME_END {\"cmd\":\"" + jsonEscape(cmd.c_str()) +
+	                      "\",\"said\":" + saidJson() + "}";
 	emitLine(json);
 	_capturingSaid = false;
 	_said.clear();
@@ -2833,38 +2582,27 @@ void A11yLayer::emitGameEnd(const Common::String &cmd) {
 // `walk` into the module-static carrier, so the NEXT chapter's onStartup() can
 // emit the one coherent A11Y_DIFF once its first room is set up. Called from
 // poll() at the instant it detects the crossing (exitRoom returned true), just
-// before poll() returns true to end the chapter. Copies the Snapshot's parts
-// (Snapshot is a private nested type, so its fields are stored individually in
-// the carrier) plus the _said buffer, then closes the said-capture window.
+// before poll() returns true to end the chapter. Copies the snapshot and the
+// _said buffer, then closes the said-capture window.
+// The single process-lifetime carrier. Held by a lazily-constructed pointer
+// rather than a static object so no global constructor/destructor runs at
+// load/exit (ScummVM builds with -Wglobal-constructors). It is never freed: it
+// is handed from one chapter's layer to the next for the whole process.
+A11yLayer::CrossCarry &A11yLayer::crossCarry() {
+	static CrossCarry *instance = new CrossCarry();
+	return *instance;
+}
+
 void A11yLayer::stashCrossChapterDiff(const Common::String &cmd,
                                       const Snapshot &before, uint32 errCountBefore) {
-	CrossChapterDiff &cd = g_crossDiff();
-
+	CrossCarry &cd = crossCarry();
 	cd.pending = true;
 	cd.cmd = cmd;
 	cd.errCountBefore = errCountBefore;
-
-	cd.chapter = before.chapter;
-	cd.room = before.room;
-	cd.heroX = before.heroX;
-	cd.heroY = before.heroY;
-	cd.objNums = before.objNums;
-	cd.objVisible = before.objVisible;
-	cd.objDoor = before.objDoor;
-	cd.inventory = before.inventory;
-	for (int f = 0; f < NUM_FLAGS; f++)
-		cd.flags[f] = before.flags[f];
-
-	// Carry the said lines the crossing cutscene drew (captured by onText()
-	// while _capturingSaid was armed) so the crossing diff reports them.
-	cd.saidColor.clear();
-	cd.saidText.clear();
-	cd.saidVoiced.clear();
-	for (uint i = 0; i < _said.size(); i++) {
-		cd.saidColor.push_back(_said[i].color);
-		cd.saidText.push_back(_said[i].text);
-		cd.saidVoiced.push_back(_said[i].voiced);
-	}
+	cd.before = before;
+	// The said lines the crossing cutscene drew (captured by onText() while
+	// _capturingSaid was armed), so the crossing diff reports them.
+	cd.said = _said;
 
 	// Close this layer's capture window; the layer is about to be destroyed.
 	_capturingSaid = false;
@@ -2874,55 +2612,27 @@ void A11yLayer::stashCrossChapterDiff(const Common::String &cmd,
 // If a chapter-crossing diff is pending (stashed by the previous chapter's
 // layer), emit it now from THIS layer, against this layer's live (settled) room
 // — the new chapter's first room. Rebuilds the before-Snapshot from the carrier
-// and the _said buffer, then calls the normal emitDiff() so the crossing is a
+// and the said lines, then calls the normal emitDiff() so the crossing is a
 // single ordinary A11Y_DIFF (chapter [1,2], room [62,14], new-room objects,
 // said lines, changed:true). Returns true if a diff was emitted (so onStartup()
 // skips the usual plain room-state line, matching the fixture which shows the
-// crossing as one diff and no A11Y line). Clears the carrier either way.
+// crossing as one diff and no A11Y line). Clears the carrier.
 bool A11yLayer::emitPendingCrossChapterDiff() {
-	CrossChapterDiff &cd = g_crossDiff();
-
+	CrossCarry &cd = crossCarry();
 	if (!cd.pending)
 		return false;
 
-	// Rebuild the before-snapshot from the carrier.
-	Snapshot before;
-	before.chapter = cd.chapter;
-	before.room = cd.room;
-	before.heroX = cd.heroX;
-	before.heroY = cd.heroY;
-	before.objNums = cd.objNums;
-	before.objVisible = cd.objVisible;
-	before.objDoor = cd.objDoor;
-	before.inventory = cd.inventory;
-	for (int f = 0; f < NUM_FLAGS; f++)
-		before.flags[f] = cd.flags[f];
-
 	// Restore the said lines the crossing cutscene drew, and arm the capture
 	// flag so emitDiff() treats them as this command's `said` and clears them.
-	_said.clear();
-	for (uint i = 0; i < cd.saidText.size(); i++) {
-		SaidLine s;
-		s.color = cd.saidColor[i];
-		s.text = cd.saidText[i];
-		s.voiced = (i < cd.saidVoiced.size()) ? cd.saidVoiced[i] : false;
-		_said.push_back(s);
-	}
+	_said = cd.said;
 	_capturingSaid = true;
 
 	Common::String cmd = cd.cmd;
 	uint32 errCountBefore = cd.errCountBefore;
+	Snapshot before = cd.before;
 
 	// Consume the carrier before emitting so a re-entrant path cannot double-emit.
-	cd.pending = false;
-	cd.cmd.clear();
-	cd.objNums.clear();
-	cd.objVisible.clear();
-	cd.objDoor.clear();
-	cd.inventory.clear();
-	cd.saidColor.clear();
-	cd.saidText.clear();
-	cd.saidVoiced.clear();
+	cd = CrossCarry();
 
 	// emitDiff() takes the after-snapshot from the live engine (now the new
 	// chapter's room) and builds the one coherent crossing diff. Task 30: the
@@ -3063,11 +2773,8 @@ bool A11yLayer::takeQueuedSkip() {
 	for (uint i = _queueHead; i < _commandQueue.size(); i++) {
 		const Common::String &cmd = _commandQueue[i];
 
-		// First word of the command.
-		uint sp = 0;
-		while (sp < cmd.size() && cmd[sp] != ' ')
-			sp++;
-		Common::String verb = (sp < cmd.size()) ? Common::String(cmd.c_str(), sp) : cmd;
+		Common::String verb, arg;
+		splitVerb(cmd, verb, arg);
 
 		if (verb == "skip") {
 			// Echo it as received (R2.4), exactly as the main reader would.
@@ -3107,11 +2814,8 @@ void A11yLayer::dropSurplusSkips() {
 	//    any non-`skip` command so legitimate follow-ups still run (R2.2).
 	uint w = _queueHead;
 	for (uint r = _queueHead; r < _commandQueue.size(); r++) {
-		const Common::String &cmd = _commandQueue[r];
-		uint sp = 0;
-		while (sp < cmd.size() && cmd[sp] != ' ')
-			sp++;
-		Common::String verb = (sp < cmd.size()) ? Common::String(cmd.c_str(), sp) : cmd;
+		Common::String verb, arg;
+		splitVerb(_commandQueue[r], verb, arg);
 		if (verb == "skip")
 			continue;                 // surplus skip: drop it
 		if (w != r)
@@ -3455,18 +3159,12 @@ bool A11yLayer::takeQueuedReadPause() {
 	bool took = false;
 	for (uint i = _queueHead; i < _commandQueue.size();) {
 		const Common::String cmd = _commandQueue[i];
-		uint sp = 0;
-		while (sp < cmd.size() && cmd[sp] != ' ')
-			sp++;
-		Common::String verb = (sp < cmd.size()) ? Common::String(cmd.c_str(), sp) : cmd;
+		Common::String verb, arg;
+		splitVerb(cmd, verb, arg);
 		if (verb != "readpause") {
 			i++;
 			continue;
 		}
-		Common::String arg;
-		if (sp < cmd.size())
-			arg = Common::String(cmd.c_str() + sp + 1);
-		arg.trim();
 		emitLine(Common::String("A11Y_CMD ") + cmd);
 		_commandQueue.remove_at(i);
 		const uint32 errBefore = g_errCount;

@@ -42,46 +42,6 @@ namespace Drascula {
 class DrasculaEngine;
 class A11yLayer;
 
-// --- Generic "player in control" probe --------------------------------------
-//
-// The A11Y_PHASE signal (control/busy/choice) needs to know whether the engine
-// is at the player's command or still working. There is NO reliable engine-wide
-// API for this: Engine::canSaveGameStateCurrently() is NOT a "player in control"
-// test (Queen and Lure return true during dialogue, Sky during cutscenes), and
-// in Drascula the engine's own _canSaveLoad is true only inside two narrow
-// event-pump windows of the main loop (drascula.cpp:630-633 and 704-707), so
-// read from our poll hook at drascula.cpp:588 it reads false even in free play.
-//
-// So the test is per-engine. A11yControlProbe is the small interface the a11y
-// layer reads instead of any shared API; each game supplies one concrete
-// implementation. The layer stays game-agnostic: it only knows the two boolean
-// signals below and maps them to phases. To port the layer to another ScummVM
-// game, implement this interface for that game and nothing in the layer's phase
-// logic changes.
-//
-//   playerInControl() — true when the engine is idle in free play and able to
-//                        take a command this frame (no cutscene, no modal menu,
-//                        no a11y command mid-flight).
-//   awaitingChoice()  — true when a conversation choice menu is open and waiting
-//                        for the player to pick an option.
-//
-// Per-engine signals, for when the layer is ported (control / choice):
-//   Drascula — implemented below (DrasculaControlProbe): main-loop poll hook
-//              reached this frame or the previous one AND !_menuScreen AND no
-//              a11y command executing; choice from the onConverseBegin/
-//              onConverseEnd window (converse.cpp:223, 328).
-//   Queen    — !cutawayRunning and not in Talk; choice from a new hook at
-//              talk.cpp:1265.
-//   Lure     — talkState == TALK_NONE && cursorState == CS_NONE; choice from
-//              TALK_SELECT.
-//   Sky      — the mouse-control bits (mouse.cpp:252, 261-264); choice from
-//              SF_CHOOSING.
-struct A11yControlProbe {
-	virtual ~A11yControlProbe() {}
-	virtual bool playerInControl() = 0;
-	virtual bool awaitingChoice() = 0;
-};
-
 // The a11y layer. Observes room/inventory/flag state, translates text commands
 // from <savepath>/a11y-cmd.txt into the engine's own action calls, and emits
 // newline-delimited A11Y* log lines via the engine's debug/printErr path.
@@ -191,14 +151,6 @@ public:
 	// cutscene settles and control returns to the main loop.
 	void onUpdateEvents();
 
-	// Called on every room entry; emits one `A11Y { ... }` room-state line.
-	void onRoomEntry();
-
-	// Emits the current room state as an `A11Y { ... }` line, identical to a
-	// room entry. Backs the `dump`/`state` command (R1.5); the command reader
-	// in a later task calls this.
-	void dump();
-
 	// Called once per main-loop frame; reads the command file, queues any new
 	// lines, and runs at most one queued command (emitting A11Y_CMD and, when a
 	// handler exists, A11Y_DIFF, or A11Y_ERR when it cannot run). Also re-emits
@@ -212,27 +164,6 @@ public:
 	// true;` does for a real door click, so run() advances to the next chapter.
 	// Returns false on every other frame (the main loop keeps running).
 	bool poll();
-
-	// Schedule a synthetic left click at room-coordinate (x, y). A real click
-	// is a button press on one frame and a release on a following frame, so
-	// this does NOT click immediately: it warps the mouse to (x, y) so the
-	// engine's hover name matches the target (R3.3), presses the button this
-	// frame, and queues the release for the next frame (R8.1). The button is
-	// never pressed and released in the same frame, and never held across a
-	// dialogue line (R8.2 / gotchas 2, 3).
-	//
-	// The dispatch tasks (8-11, 20) call this to drive the game. It returns
-	// once the press is set up; the press is acted on by the engine's own
-	// button handling later in the same frame, and clickSettled() reports true
-	// only after the release frame has run, so the one-command-at-a-time settle
-	// model waits for the whole click to complete.
-	void synthClick(int x, int y);
-
-	// True when no synthetic click is mid-flight (idle), so a command that
-	// issued a click has fully settled its click (press frame and release
-	// frame both done). Dispatch code uses this to hold the command queue until
-	// the click completes.
-	bool clickSettled() const;
 
 private:
 	// --- Snapshot + diff (task 17, R4 / gotcha 8) ---------------------------
@@ -279,6 +210,12 @@ private:
 	// main-loop commands and from the converse hook for `choose`.
 	void emitDiff(const Common::String &cmd, const Snapshot &before,
 	              uint32 errCountBefore);
+
+	// JSON helpers for emitDiff() and emitGameEnd(): the items in `from` that
+	// are not in `other`, and the captured `said` lines as an array.
+	Common::String inventoryDelta(const Common::Array<int> &from,
+	                              const Common::Array<int> &other) const;
+	Common::String saidJson() const;
 
 	// --- Chapter-crossing diff carry (task 18, R4.3 / design "Settling") ----
 	//
@@ -362,11 +299,6 @@ private:
 	// Returns true only when the use ended the chapter (checkAction() true).
 	bool dispatchUse(const Common::String &arg);
 
-	// True when inventory item id `itemId` (a real item, id >= 7) is currently
-	// held in a live inventory slot (inventoryObjects[1..]). Used to reject a
-	// `use` of an item the hero does not have before anything is disturbed, so
-	// the command is a clean A11Y_ERR with no state change (R2.5).
-	bool itemInInventory(int itemId) const;
 
 	// Apply inventory item `itemId` to the room object in `slot` by reproducing
 	// the engine's own "click a room object while holding an item" path (R3.4),
@@ -526,8 +458,8 @@ private:
 	int heroY() const;
 
 	// Build the full room-state JSON object (chapter, room, hero point,
-	// objects, inventory, flags) as a single line. Shared by onRoomEntry()
-	// and dump() so both emit identical state.
+	// objects, inventory, flags) as a single line. Shared by room entry and
+	// the `dump`/`state` command so both emit identical state.
 	Common::String buildRoomState();
 
 	// Emit the room state and remember what room/chapter it describes, so the
@@ -632,12 +564,6 @@ private:
 	// is released on the next frame by the converse hook (R8.1).
 	void applyChoose(int n);
 
-	// Advance the synthetic-click state machine by one frame. Called at the top
-	// of poll(), before any command is dequeued, so a click in flight finishes
-	// (press this frame, release the next) before the next command runs. See
-	// the ClickState comments and synthClick() for the two-step model (R8).
-	void stepClick();
-
 	DrasculaEngine *_engine;
 
 	// Last chapter/room an `A11Y` room-state line was emitted for. poll()
@@ -673,6 +599,18 @@ private:
 		bool voiced = false;
 	};
 	Common::Array<SaidLine> _said;
+
+	// The carrier stashCrossChapterDiff() fills and the next chapter's layer
+	// reads. One per process, reached through crossCarry(); it outlives the
+	// layer that filled it.
+	struct CrossCarry {
+		bool pending = false;
+		Common::String cmd;
+		uint32 errCountBefore = 0;
+		Snapshot before;
+		Common::Array<SaidLine> said;
+	};
+	static CrossCarry &crossCarry();
 
 	// True while a command's dispatch window is open, so onText() should append
 	// the drawn line to _said. Set by beginSaidCapture() at the top of a
@@ -845,30 +783,6 @@ private:
 	// poll(). Returns true if one was taken.
 	bool takeQueuedReadPause();
 
-	// Synthetic click state machine (R8 / gotchas 2, 3). A real mouse click is
-	// a press event on one frame followed by a release event on a later frame;
-	// the engine's main loop reads _leftMouseButton once per frame and only
-	// acts on the press when the button was not already held (_leftMouseButtonHeld),
-	// then clears the "held" latch when it sees the button go back to 0. So a
-	// synthetic click MUST set the button down on one frame and clear it on a
-	// following frame — never both in one frame (the press/release would cancel
-	// and never be seen, gotcha 2), and never hold it down across frames of
-	// dialogue (a held button skips every line, gotcha 3).
-	//
-	//   kClickIdle    — nothing in flight.
-	//   kClickPressed — the button was set down and the mouse warped this frame;
-	//                   the release is queued for the next frame.
-	//
-	// synthClick() moves Idle -> Pressed and sets the button/mouse for the press
-	// frame. stepClick(), at the top of the next poll(), moves Pressed -> Idle and
-	// clears the button for the release frame. clickSettled() is true only in
-	// kClickIdle, so dispatch holds the command queue until the full click is done.
-	enum ClickState {
-		kClickIdle = 0,
-		kClickPressed
-	};
-	ClickState _clickState;
-
 	// --- Engine-truth control phase (A11Y_PHASE) ----------------------------
 	//
 	// A single line, `A11Y_PHASE <control|busy|choice>`, tells an external
@@ -878,10 +792,10 @@ private:
 	// this instead of guessing a conversation has ended from a pause.
 	//
 	//   control — the engine is idle in free play and able to take a command
-	//             this frame: the control probe's playerInControl() is true (see
-	//             A11yControlProbe / _probe). There is no reliable engine-wide
-	//             API for this, so the test is per-engine behind the probe
-	//             interface, keeping the phase logic here game-agnostic.
+	//             this frame: playerInControl() is true. There is no reliable
+	//             engine-wide API for this (canSaveGameStateCurrently() is not
+	//             it, and Drascula's _canSaveLoad is only true inside two narrow
+	//             windows of the main loop), so the test is Drascula's own.
 	//   busy    — a command is running, a cutscene/speech loop has taken over the
 	//             main loop (so poll stops being reached), or the engine is
 	//             otherwise not ready.
@@ -891,7 +805,7 @@ private:
 	//             while it is open (gotcha 4).
 	//
 	// The phase is emitted only when it CHANGES (plus once after boot), so a
-	// per-frame poll() adds at most one cheap probe call and a compare, never a
+	// per-frame poll() adds at most one cheap check and a compare, never a
 	// line per frame. _lastPhase is the last value emitted; kPhaseNone (the
 	// initial value) forces the first real phase to be emitted so a reader
 	// always sees an initial A11Y_PHASE.
@@ -903,17 +817,11 @@ private:
 	};
 	Phase _lastPhase;
 
-	// The per-engine "player in control" probe the phase logic reads (see
-	// A11yControlProbe). Owned by the layer; constructed in the constructor as
-	// the Drascula implementation. Stored by base pointer so the layer never
-	// names a game-specific type here.
-	A11yControlProbe *_probe;
-
 	// Milliseconds (g_system->getMillis()) at the top of the last poll() call.
 	// poll() is the main loop's per-frame a11y hook; a talk/cutscene/room-
 	// transition loop runs the engine's OWN frame pump and never returns to the
 	// main loop, so poll() (and this stamp) stop advancing for the whole of that
-	// loop. The Drascula probe's playerInControl() compares this against the
+	// loop. playerInControl() compares this against the
 	// current time: a poll within the last frame or two means the main loop is
 	// live (free play); a stale stamp means a nested loop has taken over, so the
 	// phase reads `busy`. 0 means poll() has not run yet.
@@ -1029,28 +937,17 @@ private:
 	// and remember it. Cheap: a compare and, on a change only, one emitLine().
 	void emitPhase(Phase phase);
 
-	// Compute and emit the control/busy phase for this frame from the control
-	// probe: control when _probe->playerInControl() is true, busy otherwise.
-	// Called once per poll() frame (and once at boot). Not called while a
-	// conversation is open — that path emits `choice`.
+	// Compute and emit the control/busy phase for this frame: control when
+	// playerInControl() is true, busy otherwise. Called once per poll() frame
+	// (and once at boot). Not called while a conversation is open — that path
+	// emits `choice`.
 	void updateControlPhase();
 
-	// The Drascula implementation of A11yControlProbe. Nested so it can read the
-	// layer's private signals (the poll stamp, _inRunCommand) and the engine's
-	// own state (_menuScreen); holds only a back-pointer to the owning layer.
-	// playerInControl() is true when the main-loop poll hook was reached this
-	// frame or the previous one AND the engine is not in a modal menu
-	// (!_menuScreen) AND no a11y command is executing (!_inRunCommand).
-	// awaitingChoice() is true between onConverseBegin() and onConverseEnd()
-	// (_converseActive), the engine's converse() window.
-	class DrasculaControlProbe : public A11yControlProbe {
-	public:
-		explicit DrasculaControlProbe(A11yLayer *layer) : _layer(layer) {}
-		bool playerInControl() override;
-		bool awaitingChoice() override;
-	private:
-		A11yLayer *_layer;
-	};
+	// True when the main-loop poll hook was reached this frame or the previous
+	// one AND the engine is not in a modal menu (!_menuScreen) AND no a11y
+	// command is executing (!_inRunCommand).
+	bool playerInControl() const;
+
 };
 
 } // namespace Drascula
