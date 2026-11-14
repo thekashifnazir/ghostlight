@@ -70,6 +70,13 @@ const COMMAND_CAP_MS = 10_000;
 const FINAL_ACTION = "use 9 56";
 const ENDING_CAP_MS = 180_000;
 
+/**
+ * Queen quiet cap for every command. A legitimate long action (look 3 in room
+ * 70: Joe walks to the window and a cutaway plays) is silent for about 22 s
+ * before its text and diff, so Queen gets 30 s. Drascula keeps COMMAND_CAP_MS.
+ */
+const QUEEN_COMMAND_CAP_MS = 30_000;
+
 /** The command file name the engine reads under the save path. */
 const COMMAND_FILE = "a11y-cmd.txt";
 
@@ -115,6 +122,8 @@ interface PendingSend {
    * then just a stray line between commands, harmlessly ignored.
    */
   resolveRoom?: (room: RoomState) => void;
+  /** Snapshot waits only: reject the snapshot promise (e.g. on a busy error). */
+  rejectRoom?: (e: Error) => void;
   resolve: (r: CommandResult) => void;
 }
 
@@ -192,6 +201,12 @@ export class NativeTransport implements Transport {
       `--savepath=${this.config.savePath}`,
       "--subtitles", // mandatory or no text is drawn (gotcha 1 / R6.7)
     );
+    if (game === "queen") {
+      // Automation only. Floppy Queen has no speech, so a line stays up for a
+      // talkspeed-based time (look 2 on room 70 was silent over 10 s and hit the
+      // quiet cap; with 255 it settles in about 2 s). The browser is untouched.
+      args.push("--talkspeed=255");
+    }
     if (this.config.slot !== undefined) {
       // Load a saved game so the session begins partway through (R6.2).
       args.push(`--save-slot=${this.config.slot}`);
@@ -303,7 +318,12 @@ export class NativeTransport implements Transport {
     // per send is correct and leaves nothing behind for the next frame.
     writeFileSync(this.commandFile, expected + "\n");
 
-    const capMs = expected === FINAL_ACTION ? ENDING_CAP_MS : COMMAND_CAP_MS;
+    const capMs =
+      expected === FINAL_ACTION
+        ? ENDING_CAP_MS
+        : this.config.game === "queen"
+          ? QUEEN_COMMAND_CAP_MS
+          : COMMAND_CAP_MS;
     return new Promise<CommandResult>((resolve) => {
       // A QUIET-PERIOD cap, not an absolute one: it fires only after
       // COMMAND_CAP_MS with NO A11Y output at all for this command. Any A11Y
@@ -405,6 +425,7 @@ export class NativeTransport implements Transport {
         bump,
         clear,
         resolveRoom: resolve,
+        rejectRoom: reject,
         // Unused for a snapshot wait (resolveRoom settles it), but the shape
         // requires a resolver; a no-op keeps the slot total.
         resolve: () => {},
@@ -538,6 +559,24 @@ export class NativeTransport implements Transport {
   private routeToPending(event: EngineEvent): void {
     const p = this.pending;
     if (!p) return; // a stray line between commands (e.g. a late talk diff); ignore.
+
+    // The engine drops a command written while it is busy and emits this with
+    // no A11Y_CMD echo (engine/queen/a11y.cpp:819-823, engine/a11y.cpp:3237).
+    // Settle at once as an error so the caller can retry, not after the cap.
+    if (event.type === "error" && event.message.startsWith("busy")) {
+      if (p.resolveRoom) {
+        // A snapshot has no CommandResult to carry the error: reject it at once
+        // with the engine's message.
+        p.clear();
+        this.pending = undefined;
+        this.log(`settled "${p.expected}": error (${event.message})`);
+        p.rejectRoom?.(new Error(event.message));
+        return;
+      }
+      p.events.push(event);
+      this.settle({ events: p.events, error: event.message });
+      return;
+    }
 
     if (!p.echoed) {
       // Wait for THIS command's echo before collecting, so lines from a prior
