@@ -790,6 +790,12 @@ static void readCommandFile(Layer &s) {
 // command's own diff covers it.
 static void doSkip(Layer &s) {
 	emitLine("A11Y_CMD skip");
+	// An open dialogue menu reads a skip as the right click that ends the
+	// conversation (input.cpp:77-79). Refuse it, leave the menu open.
+	if (s.phase == kPhaseChoice) {
+		emitErr("skip: a choice menu is open, use choose");
+		return;
+	}
 	pushAction(kActionSkipText);
 	pushAction(kActionSkipCutaway);
 	if (!s.run.active)
@@ -1323,12 +1329,10 @@ void onChoices(QueenEngine *vm, const char *o1, const char *o2, const char *o3, 
 	s.chooseBlockedUntil = 0;
 	emitPhase(s, kPhaseChoice);
 
-	// Whatever the pick triggers is reported by the next diff. The pick itself
-	// is not visible to the hooks yet, so the label is just "choose".
-	takeSnap(vm, s.before);
-	s.cmd = "choose";
-	s.said.clear();
-	s.pending = true;
+	// No diff is armed here. Only handleChoose arms one, under the player's
+	// own `choose N`, so a diff never carries a cmd the player did not send.
+	// If the engine leaves the conversation by itself, its spoken lines still
+	// go out as A11Y_TEXT and the next command's diff reports the state change.
 }
 
 void onSpeak(QueenEngine *, const char *speaker, const char *sentence) {
