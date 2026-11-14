@@ -34,8 +34,16 @@ set -u -o pipefail
 REPO="$(cd "$(dirname "$0")/.." && pwd)"
 export SR_VM="${SR_VM:-Ghostlight Win11}"
 export SR_GL="${SR_GL:-C:\\gl}"
-SR_SNAPSHOT="${SR_SNAPSHOT:-4 activated}"
+if [ "${SR_BROWSER:-chrome}" = edge ]; then SR_SNAPSHOT="${SR_SNAPSHOT:-5 edge ready}"; else SR_SNAPSHOT="${SR_SNAPSHOT:-4 activated}"; fi
 SR_PORT="${SR_PORT:-9222}"
+# Browser under test: chrome (default) or edge. Edge needs snapshot "5 edge ready"
+# (Edge first-run, sign-in, restore and update prompts turned off by policy).
+SR_BROWSER="${SR_BROWSER:-chrome}"
+case "$SR_BROWSER" in
+  chrome) SR_BROWSER_EXE='C:\Program Files\Google\Chrome\Application\chrome.exe' ;;
+  edge)   SR_BROWSER_EXE='C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe' ;;
+  *) echo "sr-check: SR_BROWSER must be chrome or edge" >&2; exit 2 ;;
+esac
 DEFAULT_WAIT_MS="${SR_DEFAULT_WAIT_MS:-1500}"
 
 # ---- arguments (Requirement 1.1, 1.2, 1.4) --------------------------------
@@ -160,8 +168,8 @@ if [[ "$URL_SCHEME" == "http" ]]; then
   echo "sr-check: http URL - enabling secure context for origin $URL_ORIGIN"
   CHROME_ARGS="$CHROME_ARGS --unsafely-treat-insecure-origin-as-secure=$URL_ORIGIN"
 fi
-echo "sr-check: starting Chrome on $URL..."
-sr_vmps "Start-Process 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe' -ArgumentList '$CHROME_ARGS','$URL'" >/dev/null
+echo "sr-check: starting $SR_BROWSER on $URL..."
+sr_vmps "Start-Process '$SR_BROWSER_EXE' -ArgumentList '$CHROME_ARGS','$URL'" >/dev/null
 
 # Wait for the Ghostlight tab to be loaded AND showing its start gate. The old
 # check grepped for "complete", which also matched Node's own error text when

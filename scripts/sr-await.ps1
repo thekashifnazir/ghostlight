@@ -48,9 +48,12 @@ function LiveRegionText {
   try { & $node $cdp (Join-Path $gl 'sr-live.js') 2>$null } catch { '' }
 }
 
-# Focus Chrome so keys land in the page.
+# Focus the browser (Chrome or Edge, whichever this run started) by the process
+# that owns a visible window. Edge's title has a zero-width space in
+# "Microsoft Edge", so activate by process id rather than by title.
 $sh = New-Object -ComObject WScript.Shell
-[void]$sh.AppActivate("Google Chrome")
+$bw = Get-Process chrome, msedge -ErrorAction SilentlyContinue | Where-Object { $_.MainWindowHandle -ne 0 } | Select-Object -First 1
+if ($bw) { [void]$sh.AppActivate($bw.Id) } else { [void]$sh.AppActivate("Google Chrome") }
 Start-Sleep -Milliseconds 600
 
 # Record the NVDA log size before the press, so we capture only new speech.
