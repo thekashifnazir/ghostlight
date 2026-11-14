@@ -97,11 +97,6 @@ export const FIXTURE_START: Record<FixtureName, FixtureStartMode> = {
   "ch2-vending-machine": { startChapter: 2, saveSlot: 9 },
 };
 
-/** True when a fixture reaches its start by loading a save (chapter 2). */
-export function loadsSave(name: FixtureName): boolean {
-  return FIXTURE_START[name].saveSlot !== undefined;
-}
-
 /**
  * An EngineHarness that replays a loaded fixture. send(cmd) returns the lines
  * for the next step and asserts the command matches, so a test driving the

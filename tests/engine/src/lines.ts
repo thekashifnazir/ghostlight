@@ -1,10 +1,9 @@
 // Typed model of the engine a11y layer's output lines.
 //
 // The layer emits newline-delimited, prefix-tagged lines (see
-// .kiro/specs/engine-a11y-layer/design.md, "Data formats"). Most lines carry a
-// single-line JSON object after the prefix; a few carry free text. These types
-// describe what we parse back out, so both the replay fixtures (task 21) and the
-// property tests (task 22) share one contract.
+// .kiro/specs/engine-a11y-layer/design.md, "Data formats"). parse.ts reads them
+// with the player's own parser and maps each event onto these `kind`-tagged
+// types, which the replay fixtures and the property tests share.
 
 /** A single object in a room, as the engine reports it. */
 export interface A11yObject {
@@ -92,6 +91,8 @@ export interface ErrLine {
 export interface TextLine {
   kind: "text";
   text: string;
+  /** True for an A11Y_VTEXT line: an actor was speaking it aloud. */
+  voiced?: boolean;
 }
 
 export interface ChoicesLine {
@@ -109,20 +110,26 @@ export interface SavedLine {
   slot: string;
 }
 
-export interface HoverLine {
-  kind: "hover";
-  text: string;
+/** `A11Y_PHASE`: the engine's own control phase. */
+export interface PhaseLine {
+  kind: "phase";
+  phase: "control" | "busy" | "choice";
 }
 
-export interface SayLine {
-  kind: "say";
-  text: string;
+/** `A11Y_VEND`: an actor's recorded line ended or was skipped. */
+export interface VoiceEndLine {
+  kind: "voiceEnd";
+}
+
+/** `A11Y_VHOLD <ms>`: a reading pause began after a voiced line. */
+export interface VoiceHoldLine {
+  kind: "voiceHold";
+  ms: number;
 }
 
 /** `A11Y_GAME_END`: the last chapter ended (no diff follows). */
 export interface GameEndLine {
   kind: "gameEnd";
-  cmd: string;
   said: SaidLine[];
 }
 /** `A11Y_EXIT`: the ending and credits are done; the engine is quitting. */
@@ -138,7 +145,8 @@ export type A11yLine =
   | ChoicesLine
   | InvLine
   | SavedLine
-  | HoverLine
-  | SayLine
+  | PhaseLine
+  | VoiceEndLine
+  | VoiceHoldLine
   | GameEndLine
   | ExitLine;
