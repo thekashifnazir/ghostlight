@@ -291,3 +291,21 @@ describe("A11Y_EXIT", () => {
     ]);
   });
 });
+
+describe("A11Y_VHOLD", () => {
+  it("parses to a voiceHold event with the hold in ms", () => {
+    expect(parseA11yLine("A11Y_VHOLD 2350")).toEqual({ type: "voiceHold", ms: 2350 });
+  });
+
+  it("drops a VHOLD line with no usable number", () => {
+    expect(parseA11yLine("A11Y_VHOLD")).toBeNull();
+    expect(parseA11yLine("A11Y_VHOLD soon")).toBeNull();
+  });
+
+  it("is recognised as a line start when glued to another line", () => {
+    expect(splitA11yLines('A11Y_DIFF {"cmd":"skip","changed":false}A11Y_VHOLD 900')).toEqual([
+      'A11Y_DIFF {"cmd":"skip","changed":false}',
+      "A11Y_VHOLD 900",
+    ]);
+  });
+});

@@ -74,6 +74,8 @@ export class ReplayAdapter implements EngineAdapter {
    * clear error and do not advance past the recorded command (R11.4).
    */
   send(cmd: Command): void {
+    // A player setting with no recorded counterpart: nothing to replay.
+    if (cmd.verb === "readpause") return;
     const expected = serializeCommand(cmd);
 
     // Find the next recorded command line from the cursor.

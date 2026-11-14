@@ -361,6 +361,9 @@ export class Narrator {
    */
   maybeNothingHappened(diff: Diff, isLook: boolean): void {
     const isSave = diff.cmd?.startsWith("save ") === true;
+    // `readpause on|off` is a player setting, not a game action: its settle
+    // diff must never say "Nothing happened."
+    const isReadPause = diff.cmd?.startsWith("readpause ") === true;
     const producedSomething =
       this.producedChoices || this.producedDialogue || this.enteredChoicePhase;
     if (
@@ -368,6 +371,7 @@ export class Narrator {
       !diff.said?.length &&
       !isLook &&
       !isSave &&
+      !isReadPause &&
       !producedSomething
     ) {
       this.announce("Nothing happened.");

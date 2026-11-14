@@ -419,6 +419,15 @@ export async function boot(): Promise<void> {
   // reads it via the readVoiced callback.
   let readVoicedLines = loadReadVoiced();
 
+  // Whether the engine's reading pause (`readpause`) has been synced to the
+  // setting yet. Sent once when the first room arrives (the engine is ready),
+  // then on every D toggle. The raw adapter is used so the setting never opens
+  // a narration window. `adapter` is assigned below; this is only called after.
+  let readPauseSynced = false;
+  const sendReadPause = (): void => {
+    readPauseSynced = true;
+    adapter.send({ verb: "readpause", on: readVoicedLines });
+  };
   // The narrator owns the cross-cutting narration rules the live-engine survey
   // turned up: dropping the generic look reply and hover-name echoes from the
   // A11Y_TEXT path during an examine, not saying "Nothing happened." after a
@@ -547,6 +556,7 @@ export async function boot(): Promise<void> {
   const toggleVoicedLines = (): void => {
     readVoicedLines = !readVoicedLines;
     saveReadVoiced(readVoicedLines);
+    sendReadPause();
     live.announce(
       readVoicedLines ? "Voiced lines will be read" : "Voiced lines won't be read",
     );
@@ -909,6 +919,10 @@ export async function boot(): Promise<void> {
     status.onEvent(e);
     switch (e.type) {
       case "room":
+        // First room: the engine is ready. Sync the reading pause once, and
+        // only if the stored setting is on (the engine default is off).
+        if (!readPauseSynced && readVoicedLines) sendReadPause();
+        readPauseSynced = true;
         applyRoom(e.state);
         break;
       case "diff":
@@ -917,6 +931,9 @@ export async function boot(): Promise<void> {
       case "voiceEnd":
         // The actor's clip ended: write whatever the live region held back.
         live.voiceEnd();
+        break;
+      case "voiceHold":
+        // The engine's reading pause started; nothing to announce yet.
         break;
       case "text":
         announceText(e.line, e.voiced === true);
