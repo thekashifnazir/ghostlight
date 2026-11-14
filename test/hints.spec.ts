@@ -76,9 +76,11 @@ test.describe("hint key: folded flags drive the reached set", () => {
   test("a diff that sets a milestone's flag stops the ghost hinting at it", async ({ page }) => {
     await start(page, "tavern"); // chapter 1, room 62, flag 0 = 0
 
-    // Before progress: the ghost hints at ch1.room (rooms include 62).
+    // Before progress: the ghost hints at ch1.room (rooms include 62). The room
+    // readout already spoke that milestone's nudge ("Worth a look: ..."), so H
+    // starts at its clue.
     await page.keyboard.press("h");
-    await expectHint(page, "It's late, and you'll need somewhere to sleep.");
+    await expectHint(page, "The bartender runs the place. He handles the rooms.");
 
     // Replay the fixture's recorded commands in order (look 52, look 100,
     // talk 52). talk 52's diff sets flag 0 = 1, which the player folds forward,

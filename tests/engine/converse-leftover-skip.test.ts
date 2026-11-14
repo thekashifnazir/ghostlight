@@ -24,8 +24,8 @@
 //     `choose 2`, a drained reply skip, a SURPLUS `skip` echoed with no error
 //     or state change, then `choose 3` echoed and settled with its own diff.
 //     This is the deterministic evidence available with no engine.
-//   * GHOSTLIGHT_NATIVE=1: load the chapter-2 save (slot 9), open the Von Braun
-//     conversation, pick option 2, then queue TWO skips (one drained by the
+//   * GHOSTLIGHT_NATIVE=1: load the chapter-2 save (slot 9, the inn bar), talk
+//     to the drunkard (53), whose menu asks about Von Braun, pick option 2, then queue TWO skips (one drained by the
 //     reply, one surplus) and a `choose 3`. The `choose 3` must settle with its
 //     own diff under a short cap, proving the head was not wedged.
 
@@ -64,27 +64,31 @@ function nativePaths() {
 describe("a leftover skip in an open conversation does not wedge the queue", () => {
   if (useNative()) {
     it("a surplus skip is drained and the following `choose 3` still settles", async () => {
-      // Load the chapter-2 start (slot 9), as the chapter-2 fixtures do, so the
-      // Von Braun / NPC conversation is reachable without replaying chapter 1.
+      // Load the chapter-2 start (slot 9, the inn bar), as the chapter-2
+      // fixtures do. The drunkard's voiced opening runs about 25 s before his
+      // menu, hence the long settle cap. (The bartender, 52, tells a story with
+      // no menu here.)
       const harness = new NativeHarness({
         ...nativePaths(),
         saveSlot: 9,
         label: "native:converse-leftover-skip",
-        settleMs: 20_000,
+        settleMs: 90_000,
       });
       try {
         const start = await harness.start();
         expect(start.chapter).toBe(2);
 
         // Open the conversation and pick option 2; its reply runs a short story.
-        await harness.send("talk 52");
+        await harness.send("talk 53");
         await harness.send("choose 2");
 
         // One skip is drained by the reply's own speech loop; the second is a
         // SURPLUS skip that survives into the re-listed choices. Before the fix
         // this surplus skip stuck at the head and the `choose 3` below never
         // settled (the send would hit the settle cap as a timeout).
-        await harness.send("skip");
+        // It settles with no diff of its own (it is only echoed), so queue it
+        // rather than wait on it; the `choose 3` send below returns its echo.
+        harness.queue("skip");
 
         // The regression assertion: `choose 3` is applied and settles with its
         // own diff rather than waiting behind the wedged skip forever.
@@ -106,7 +110,7 @@ describe("a leftover skip in an open conversation does not wedge the queue", () 
       } finally {
         await harness.stop();
       }
-    });
+    }, 240_000);
   } else {
     it("the golden transcript drains the surplus skip and applies `choose 3`", () => {
       const path = resolve(HERE, "fixtures", "converse-leftover-skip.json");

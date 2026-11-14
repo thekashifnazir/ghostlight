@@ -137,6 +137,14 @@ export class NativeHarness implements EngineHarness {
     ];
     if (this.options.saveSlot !== undefined) {
       // Load the chapter-2 start instead of replaying chapter 1 (R9.2).
+      // A missing save would leave the engine without a room until the settle
+      // cap, so fail at once and name the script that makes it.
+      const save = join(this.savePath, `drascula.${String(this.options.saveSlot).padStart(3, "0")}`);
+      if (!existsSync(save)) {
+        throw new Error(
+          `save slot ${this.options.saveSlot} not found (${save}); make it first with scripts/make-ch2-save.sh (slot 9) or scripts/make-gated-door-save.sh (slot 8)`,
+        );
+      }
       args.push(`--save-slot=${this.options.saveSlot}`);
     }
     args.push("drascula");
@@ -175,6 +183,15 @@ export class NativeHarness implements EngineHarness {
     const fresh = all.slice(this.consumed);
     this.consumed = all.length;
     return fresh;
+  }
+
+  /**
+   * Queue a command without waiting for it to settle. For commands that settle
+   * with no diff of their own, such as a surplus `skip` drained inside an open
+   * choice menu (it is only echoed); the next send() returns its lines too.
+   */
+  queue(cmd: string): void {
+    this.rawLogAppendCmd(cmd);
   }
 
   private rawLogAppendCmd(cmd: string): void {

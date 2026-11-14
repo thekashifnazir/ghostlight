@@ -8,7 +8,7 @@
 // become the golden transcript.
 
 import { describe, expect, it } from "vitest";
-import { FIXTURE_NAMES, loadFixture, makeHarness } from "./src/fixture.js";
+import { FIXTURE_NAMES, loadFixture, makeHarness, useNative } from "./src/fixture.js";
 import type { FixtureName } from "./src/fixture.js";
 import { diffOf, erredOf, roomStateOf } from "./src/harness.js";
 import type { A11yLine, Diff } from "./src/lines.js";
@@ -22,18 +22,34 @@ import type { A11yLine, Diff } from "./src/lines.js";
  * command order comes from the fixture's own recorded steps either way, so the
  * assertions below are identical across harnesses.
  */
-async function replay(
-  name: FixtureName,
-): Promise<{ cmd: string; lines: A11yLine[] }[]> {
-  const commands = loadFixture(name).steps.map((s) => s.cmd);
-  const harness = makeHarness(name);
-  await harness.start();
-  const out: { cmd: string; lines: A11yLine[] }[] = [];
-  for (const cmd of commands) {
-    out.push({ cmd, lines: await harness.send(cmd) });
+const replays = new Map<FixtureName, Promise<{ cmd: string; lines: A11yLine[] }[]>>();
+
+/**
+ * Replay a fixture's commands once and share the result across the describe
+ * blocks below (the assertions only read it). A native replay of the tavern
+ * takes minutes, and a failed one must still stop its engine: a stray engine on
+ * the shared save path would read the next replay's commands.
+ */
+function replay(name: FixtureName): Promise<{ cmd: string; lines: A11yLine[] }[]> {
+  let run = replays.get(name);
+  if (!run) {
+    run = (async () => {
+      const commands = loadFixture(name).steps.map((s) => s.cmd);
+      const harness = makeHarness(name);
+      try {
+        await harness.start();
+        const out: { cmd: string; lines: A11yLine[] }[] = [];
+        for (const cmd of commands) {
+          out.push({ cmd, lines: await harness.send(cmd) });
+        }
+        return out;
+      } finally {
+        await harness.stop();
+      }
+    })();
+    replays.set(name, run);
   }
-  await harness.stop();
-  return out;
+  return run;
 }
 
 /** The ordered diff lines a replay produced (skipping commands that erred). */
@@ -171,7 +187,10 @@ describe("replay fixtures: the recorded A11Y_DIFF sequence", () => {
     expect(choose4.hero).toBeUndefined();
   });
 
-  it("leave-tavern: the door/cutscene/chapter crossing in one diff", async () => {
+  // Fixture-only: the recording starts with the door already unlocked (flag 0
+  // set by talking to the bartender). A fresh native start has it locked, so
+  // `walk 105` cannot cross there; the tavern replay covers the native crossing.
+  it.skipIf(useNative())("leave-tavern: the door/cutscene/chapter crossing in one diff", async () => {
     const steps = await replay("leave-tavern");
     expect(steps).toHaveLength(1);
     const d = diffOf(steps[0]!.lines)!;
@@ -212,7 +231,10 @@ describe("replay fixtures: the recorded A11Y_DIFF sequence", () => {
     expect(handbag.hero).toBeUndefined();
   });
 
-  it("ch2-vending-machine: use-item-on-object, item return, error case, push", async () => {
+  // Fixture-only: the recording starts holding the handbag's coins (item 18).
+  // The native chapter 2 save (slot 9) is taken on arrival, before the handbag,
+  // so `use 18 188` has no coins to use there.
+  it.skipIf(useNative())("ch2-vending-machine: use-item-on-object, item return, error case, push", async () => {
     const steps = await replay("ch2-vending-machine");
 
     // Door walk 14 -> 15 moves the hero, so its diff carries the new point

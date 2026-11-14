@@ -198,5 +198,8 @@ export function makeHarness(name: FixtureName): EngineHarness {
     ...paths,
     saveSlot: slot,
     label: `native:${name}${slot !== undefined ? `:slot${slot}` : ""}`,
+    // Voiced lines play in real time natively: the tavern bartender's talk runs
+    // about 80 s and the chapter 1 to 2 crossing cutscene longer still.
+    settleMs: 300_000,
   });
 }
