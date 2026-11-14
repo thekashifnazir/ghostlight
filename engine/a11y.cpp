@@ -192,7 +192,7 @@ A11yLayer::A11yLayer(DrasculaEngine *engine)
 	  _converseActive(false), _converseNeedChoices(false), _choicePressed(false),
 	  _choiceDiffPending(false), _choiceErrCount(0),
 	  _mainCmdDiffPending(false), _mainCmdOpenedConverse(false), _mainCmdErrCount(0),
-	  _queueHead(0), _inRunCommand(false), _lastSkipPollMs(0),
+	  _queueHead(0), _inRunCommand(false), _lastSkipPollMs(0), _voicePlaying(false),
 	  _clickState(kClickIdle), _lastPhase(kPhaseNone), _probe(nullptr),
 	  _lastPollMs(0), _watchdogStage(0), _watchdogBaseMs(0),
 	  _walkGuardArmed(false) {
@@ -258,6 +258,10 @@ void A11yLayer::onText(const char *message) {
 	// `A11Y_TEXT` prefix as before, so nothing a voice does not cover changes.
 	const bool voiced = _engine->soundIsActive();
 	emitLine(Common::String(voiced ? "A11Y_VTEXT " : "A11Y_TEXT ") + message);
+	// A voiced clip is now playing: remember it so checkVoiceEnd() can emit one
+	// A11Y_VEND when the sample stops (voice timing).
+	if (voiced)
+		_voicePlaying = true;
 
 	// Task 17 (R4.7): while a command's dispatch window is open, attribute each
 	// distinct drawn line to that command's diff `said`, with the engine's own
@@ -2544,6 +2548,9 @@ bool A11yLayer::DrasculaControlProbe::awaitingChoice() {
 }
 
 bool A11yLayer::poll() {
+	// Voice timing: tell the player when an actor's clip has ended.
+	checkVoiceEnd();
+
 	// Stamp that the main loop reached our per-frame poll hook this frame. The
 	// control probe reads this: a nested talk/cutscene/transition loop runs the
 	// engine's own pump and never returns here, so the stamp goes stale and the
@@ -3336,6 +3343,18 @@ void A11yLayer::checkWalkOvershoot() {
 // the main loop (so a `walk`-into-a-cutscene followed by other commands still
 // runs those commands in order afterwards). Guarded so it does nothing before
 // g_system exists.
+// Emits one A11Y_VEND when a voiced clip (marked by onText) has stopped, whether
+// it played out or a skip / stopSound ended it early. Clears the flag first, so
+// at most one A11Y_VEND is emitted per clip.
+void A11yLayer::checkVoiceEnd() {
+	if (!_voicePlaying || !_engine)
+		return;
+	if (_engine->soundIsActive())
+		return;
+	_voicePlaying = false;
+	emitLine("A11Y_VEND");
+}
+
 void A11yLayer::onUpdateEvents() {
 	if (!g_system)
 		return;
@@ -3348,6 +3367,10 @@ void A11yLayer::onUpdateEvents() {
 	// no-op whenever the engine is still showing life (poll() fresh or a line
 	// emitted within the window) or nothing is queued.
 	runBusyWatchdog();
+
+	// Voice timing: every frame (not throttled), so A11Y_VEND is emitted as soon
+	// as the actor's clip ends or a skip stops it inside a talk or cutscene loop.
+	checkVoiceEnd();
 
 	// End an a11y walk that has walked past its stop window and so can never
 	// stop by itself (see checkWalkOvershoot). Every frame, not throttled:

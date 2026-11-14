@@ -806,6 +806,14 @@ private:
 	// from the skip hook yet", so the first cutscene frame reads immediately.
 	uint32 _lastSkipPollMs;
 
+	// True from the moment onText() emits an A11Y_VTEXT line until
+	// checkVoiceEnd() sees the voice sample stop and emits A11Y_VEND.
+	bool _voicePlaying;
+
+	// Emits one A11Y_VEND if a voiced clip was playing and has now stopped.
+	// Called every frame from poll() and onUpdateEvents().
+	void checkVoiceEnd();
+
 	// Synthetic click state machine (R8 / gotchas 2, 3). A real mouse click is
 	// a press event on one frame followed by a release event on a later frame;
 	// the engine's main loop reads _leftMouseButton once per frame and only

@@ -891,6 +891,10 @@ export async function boot(): Promise<void> {
       case "diff":
         applyDiff(e.diff);
         break;
+      case "voiceEnd":
+        // The actor's clip ended: write whatever the live region held back.
+        live.voiceEnd();
+        break;
       case "text":
         announceText(e.line, e.voiced === true);
         break;
@@ -949,6 +953,8 @@ export async function boot(): Promise<void> {
         // Command echo; nothing to announce (the diff carries the result).
         break;
       case "gameEnd":
+        // The ending must never wait on a voice: release any hold first.
+        live.voiceEnd();
         // The last chapter ended. Say the ending's lines, then plainly that the
         // game is finished (nothing lives only on the canvas), and make the way
         // back to the start gate reachable.
@@ -960,6 +966,8 @@ export async function boot(): Promise<void> {
         showBackToStart();
         break;
       case "engineExit":
+        // Never wait on a voice here either: release any hold first.
+        live.voiceEnd();
         // The engine stopped (credits done). Only meaningful after the ending,
         // and only once (A11Y_EXIT and a runtime exit can both arrive).
         if (gameFinished && !engineStopped) {
@@ -1268,6 +1276,18 @@ export async function boot(): Promise<void> {
   doc.addEventListener(
     "keydown",
     (ev) => {
+      // A key press always releases the voice hold first (the player is in
+      // charge), then the key is handled normally. A bare modifier is not a
+      // command, so it does not release.
+      if (
+        ev.key !== "Shift" &&
+        ev.key !== "Control" &&
+        ev.key !== "Alt" &&
+        ev.key !== "Meta" &&
+        live.isVoicePlaying()
+      ) {
+        live.voiceEnd();
+      }
       if (startGate.hidden) {
         // On the end-of-game button, Enter and Space belong to the button;
         // every other key (R repeat, H, etc.) still reaches the controller.
