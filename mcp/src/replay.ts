@@ -146,7 +146,7 @@ export class ReplayTransport implements Transport {
  * (or a replay mismatch) instead. Events are always carried in full so no
  * engine output is lost (Req 3.1, 3.2, 3.8).
  */
-export function toCommandResult(events: EngineEvent[]): CommandResult {
+function toCommandResult(events: EngineEvent[]): CommandResult {
   const diff = events.find((e) => e.type === "diff");
   const error = events.find((e) => e.type === "error");
   const end = events.find((e) => e.type === "gameEnd");

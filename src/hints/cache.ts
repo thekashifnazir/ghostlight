@@ -47,37 +47,6 @@ export async function cacheKey(
   return createHash("sha256").update(message, "utf8").digest("hex");
 }
 
-/**
- * The cache key computed explicitly with Node's `crypto` module, kept so the
- * unit test can prove the Node and Web Crypto paths agree. `cacheKey` above is
- * the one the engine and generator call.
- */
-export async function cacheKeyNode(
-  text: string,
-  voiceId: string,
-  modelId: string,
-): Promise<string> {
-  const { createHash } = await import("node:crypto");
-  return createHash("sha256")
-    .update(canonical(text, voiceId, modelId), "utf8")
-    .digest("hex");
-}
-
-/**
- * The cache key computed explicitly with Web Crypto, kept for the agreement
- * unit test. Browser playback and the engine use `cacheKey`, which prefers this
- * path when Web Crypto is present.
- */
-export async function cacheKeyWeb(
-  text: string,
-  voiceId: string,
-  modelId: string,
-): Promise<string> {
-  const data = new TextEncoder().encode(canonical(text, voiceId, modelId));
-  const digest = await crypto.subtle.digest("SHA-256", data);
-  return toHex(digest);
-}
-
 /** The cache file name for a key: `<key>.mp3`. */
 export function cacheFileName(key: string): string {
   return `${key}.mp3`;

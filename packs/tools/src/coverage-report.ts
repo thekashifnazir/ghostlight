@@ -65,24 +65,3 @@ export function buildCoverageReport(pack: Pack, census: Census): CoverageReport 
 
   return { claimedChapters: claimed, chapters, ok: gaps.length === 0 };
 }
-
-/** Format the report as plain text for a terminal or a log. */
-export function formatCoverageReport(report: CoverageReport): string {
-  const lines: string[] = [];
-  lines.push(`Coverage report — claimed chapters: ${report.claimedChapters.join(", ") || "(none)"}`);
-  for (const c of report.chapters) {
-    lines.push("");
-    lines.push(
-      `Chapter ${c.chapter}: ${c.describedRooms.length}/${c.reachableRooms.length} rooms described.`,
-    );
-    if (c.missingRooms.length) {
-      lines.push(`  Reachable but not described: ${c.missingRooms.join(", ")}`);
-    }
-    for (const h of c.hotspotsWithoutNames) {
-      lines.push(`  Object without a name: ${h.message}`);
-    }
-  }
-  lines.push("");
-  lines.push(report.ok ? "All claimed chapters are fully covered." : "Coverage gaps found (see above).");
-  return lines.join("\n");
-}

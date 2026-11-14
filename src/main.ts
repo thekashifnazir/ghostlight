@@ -218,13 +218,9 @@ function chooseAdapter(log?: string, saveSlot?: number): EngineAdapter {
   if (replay || log) {
     return new ReplayAdapter(log ?? "");
   }
-  // ?live opts in to the real wasm engine (web-build spec). Without it, keep
-  // the existing selection so the replay-based player tests are unchanged.
+  // The real wasm engine is the default; ?live is accepted but changes nothing.
   // `saveSlot`, when set, loads that save at launch (save-progress R5.1); a
   // fresh start passes undefined and the boot args are unchanged.
-  if (params.has("live")) {
-    return new LiveAdapter(undefined, undefined, saveSlot);
-  }
   return new LiveAdapter(undefined, undefined, saveSlot);
 }
 
@@ -709,9 +705,7 @@ export async function boot(): Promise<void> {
   // stays the active mode and the last spoken line should be the engine's
   // result (after a choose) or the menu's own "Cancelled" line (after a
   // cancel), not a re-announced focus line that would clobber it (R2.6).
-  const returnToList = (): void => {
-    focusGame();
-  };
+  const returnToList = focusGame;
 
   const verbMenu = new VerbMenu(verbMenuEl, {
     announce: (t) => live.announce(t),
@@ -941,7 +935,7 @@ export async function boot(): Promise<void> {
         // The engine's reading pause started; nothing to announce yet.
         break;
       case "text":
-        announceText(e.line, e.voiced === true);
+        narrator.text(e.line, e.voiced === true);
         break;
       case "choices":
         // A conversation offered choices and the engine is now WAITING for the
@@ -1056,11 +1050,6 @@ export async function boot(): Promise<void> {
     }
   }
 
-  /** Route one A11Y_TEXT line through the narrator's examine filter. */
-  function announceText(line: string, voiced = false): void {
-    narrator.text(line, voiced);
-  }
-
   // End of the game: a button that returns to the start gate (a reload brings
   // the gate back, with Continue / New game from the saves).
   let gameFinished = false;
@@ -1152,9 +1141,8 @@ export async function boot(): Promise<void> {
     hintEngine.onEngineState(hintState);
 
     // If a diff carries a hero position, adopt it before rebuilding so sonar
-    // pans from the current hero (the engine chat adds an optional A11Y_DIFF
-    // `hero`; until then this is absent and sonar keeps the last room's hero).
-    const diffHero = (diff as { hero?: { x: number; y: number } }).hero;
+    // pans from the current hero; without one, sonar keeps the last hero.
+    const diffHero = diff.hero;
     if (diffHero) state.hero = diffHero;
 
     // A room or chapter change rebuilds from the diff's new objects.
@@ -1195,7 +1183,7 @@ export async function boot(): Promise<void> {
           currentList,
         );
       }
-      announceSaid(diff);
+      narrator.said(diff);
       // A chapter change (the chapter 1 -> 2 crossing) is announced with the
       // new room so the player hears they have advanced — the bedtime cutscene
       // played and they are now in chapter 2. The live region holds only the
@@ -1254,7 +1242,7 @@ export async function boot(): Promise<void> {
     // Announce the engine's own reply first, then the inventory changes, so
     // the "Received X" / "no longer carried" confirmation is the last line the
     // player hears (the live region keeps only the newest line).
-    const isLookDiff = announceSaid(diff);
+    const isLookDiff = narrator.said(diff); // closes the examine window, de-duplicates said lines
 
     for (const added of diff.invAdded ?? []) {
       if (!state.inventory.includes(added.id)) state.inventory.push(added.id);
@@ -1290,16 +1278,6 @@ export async function boot(): Promise<void> {
         readRoom();
       }
     }
-  }
-
-  /**
-   * Announce a diff's spoken text through the narrator: it closes the examine
-   * window on a look diff, drops the generic look reply (suppressGenericLook),
-   * and de-duplicates a `said` line already announced as an A11Y_TEXT event.
-   * Returns whether this was a look diff, for the "Nothing happened." guard.
-   */
-  function announceSaid(diff: Diff): boolean {
-    return narrator.said(diff);
   }
 
   // Keyboard: stop keys reaching the engine's own input (gotcha 7).
