@@ -28,21 +28,41 @@
  *   A11Y_CHOICES  dialogue menu  Talk::selectSentence (talk.cpp)
  *   A11Y_INV      carried items  Logic::itemData
  *   A11Y_PHASE    control/busy/choice
+ *   A11Y_CMD      echo of a command when it starts
+ *   A11Y_ERR      a refused or dropped command
+ *   A11Y_SAVED    after `save N`
+ *
+ * Command side: <savepath>/a11y-cmd.txt is read and truncated (same as
+ * engine/a11y.cpp readCommandFile). Commands start only at the idle branch
+ * (onIdle). Verbs are dispatched by pushing the same events a player makes
+ * (verb action, then mouse move and left click), not by calling Command
+ * internals: Command::_state and grabSelectedNoun are private (brief
+ * section 2 gotcha 6) and the click path is what the probe proved.
  */
 
+// getenv for the survey-only `room` command (same exception the probe used).
+#define FORBIDDEN_SYMBOL_EXCEPTION_getenv
+
 #include "common/array.h"
+#include "common/config-manager.h"
+#include "common/events.h"
+#include "common/fs.h"
+#include "common/path.h"
 #include "common/str.h"
+#include "common/stream.h"
 #include "common/system.h"
 #include "common/util.h"
 
 #include "queen/a11y.h"
 #include "queen/command.h"
 #include "queen/defs.h"
+#include "queen/display.h"
 #include "queen/graphics.h"
 #include "queen/grid.h"
 #include "queen/input.h"
 #include "queen/logic.h"
 #include "queen/queen.h"
+#include "queen/resource.h"
 #include "queen/state.h"
 #include "queen/structs.h"
 
@@ -206,6 +226,36 @@ struct SaidLine {
 	Common::String text;
 };
 
+// A layer command in flight (verb on an object, walk, use, choose, room).
+// Stages run one per idle frame so the verb key and the click never share a
+// frame (the verb is read first by Command::updatePlayer, the click after).
+enum {
+	kStageScroll = 0,   // bring the item into one of the 4 visible slots
+	kStageVerb,         // push the verb action
+	kStageItem,         // push the inventory slot key
+	kStageClick,        // push mouse move and left click on the object
+	kStageWait          // click sent, waiting for JWM_EXECUTE (onBeforeAction)
+};
+
+struct Run {
+	bool active;        // a command is in flight, its diff is not out yet
+	bool started;       // the engine action began (diff armed)
+	int stage;
+	Common::String text;
+	int verbAction;     // kAction* to push, or -1 for none (walk)
+	uint16 item;        // item id for `use I N`, else 0
+	uint16 noun;        // room-relative object number
+	int wait;           // idle frames spent in kStageWait
+	int scrolls;        // inventory scroll steps taken
+	int scrollDir;      // +1 down, -1 up
+	bool flipped;       // direction already reversed once
+	uint32 lastSig;     // visible slots before the last scroll step
+
+	Run() : active(false), started(false), stage(kStageVerb), verbAction(-1),
+	        item(0), noun(0), wait(0), scrolls(0), scrollDir(1), flipped(false),
+	        lastSig(0) {}
+};
+
 struct Layer {
 	Snap before;                    // snapshot taken before the pending action
 	bool pending;                   // a diff is armed and not yet emitted
@@ -218,8 +268,16 @@ struct Layer {
 	int phase;
 	bool idleToken;                 // set by onIdle, consumed by the update(true) that follows
 
+	Run run;                        // the layer command in flight
+	Common::Array<Common::String> queue;  // lines read from the command file
+	uint32 lastReadMs;              // last command-file read from onUpdate
+	int choiceCount;                // visible options of the open menu
+	Common::String choicesLine;     // last A11Y_CHOICES line, for `choices`
+	uint32 chooseBlockedUntil;      // a pushed `choose` is not yet consumed
+
 	Layer() : pending(false), roomSeen(false), lastRoom(0), invSeen(false),
-	          phase(kPhaseNone), idleToken(false) {}
+	          phase(kPhaseNone), idleToken(false), lastReadMs(0), choiceCount(0),
+	          chooseBlockedUntil(0) {}
 };
 
 // Lazily allocated, never freed: the process owns it until exit, and a plain
@@ -562,6 +620,586 @@ static void emitDiff(QueenEngine *vm) {
 
 	s.said.clear();
 	s.pending = false;
+	// The layer command that owned this diff is done. Only once its action
+	// began: an earlier action's flush must not end a command still waiting
+	// for its click.
+	if (s.run.started) {
+		s.run.active = false;
+		s.run.started = false;
+	}
+}
+
+// ---------------------------------------------------------------- commands
+
+static const int kRoomHeight = 150;             // room zone height, panel below (brief section 1)
+static const int kScreenWidth = 320;
+static const uint32 kReadThrottleMs = 250;      // same cadence as Drascula onUpdateEvents
+static const uint32 kChooseHoldMs = 1500;       // a pushed digit not consumed by then is forgotten
+static const int kClickWaitFrames = 4;          // idle frames to wait for JWM_EXECUTE after a click
+static const int kMaxScrolls = 60;
+
+// Verb words and the keymapper action that selects the verb. Names are from
+// queen.h (verb actions, input.cpp:31-40). One table so a rename is a one-line
+// fix. -1 is "no verb" (walk).
+struct VerbWord {
+	const char *word;
+	int action;
+};
+
+static const VerbWord kVerbWords[] = {
+	{ "look", kActionLook },
+	{ "open", kActionOpen },
+	{ "close", kActionClose },
+	{ "pick", kActionPickUp },
+	{ "take", kActionPickUp },      // the player's wire word for pick up
+	{ "talk", kActionTalk },
+	{ "push", kActionMove },        // Queen has one Move verb
+	{ "pull", kActionMove },
+	{ "use", kActionUse },
+	{ "walk", -1 }
+};
+
+// Digit keys 1..4: pick an inventory slot, or a dialogue option
+// (input.cpp:119-130 maps these to VERB_DIGIT_n, talk.cpp:1316-1324).
+static const int kSlotActions[4] = {
+	kActionInvSlot1, kActionInvSlot2, kActionInvSlot3, kActionInvSlot4
+};
+
+static void emitErr(const Common::String &msg) {
+	emitLine(Common::String("A11Y_ERR ") + msg);
+}
+
+// The one diff of a command that changes no state itself (state, inventory,
+// save, choices, skip with nothing to skip), as Drascula emits it.
+static void emitDone(const Common::String &cmd) {
+	emitLine(Common::String("A11Y_DIFF {\"cmd\":\"") + jsonEscape(cmd.c_str()) + "\",\"changed\":false}");
+}
+
+static void pushEv(Common::Event &e) {
+	g_system->getEventManager()->pushEvent(e);
+}
+
+// Same shape as the probe's pushAction.
+static void pushAction(int action) {
+	Common::Event e;
+	e.type = Common::EVENT_CUSTOM_ENGINE_ACTION_START;
+	e.customType = action;
+	pushEv(e);
+	e.type = Common::EVENT_CUSTOM_ENGINE_ACTION_END;
+	pushEv(e);
+}
+
+// Same shape as the probe's pushRightClick, with the left button. The move
+// comes first because selection reads the cursor position (command.cpp:575).
+static void pushClick(int x, int y) {
+	Common::Event e;
+	e.mouse = Common::Point(x, y);
+	e.type = Common::EVENT_MOUSEMOVE;
+	pushEv(e);
+	e.type = Common::EVENT_LBUTTONDOWN;
+	pushEv(e);
+	e.type = Common::EVENT_LBUTTONUP;
+	pushEv(e);
+}
+
+static void pushWheel(bool up) {
+	Common::Event e;
+	e.type = up ? Common::EVENT_WHEELUP : Common::EVENT_WHEELDOWN;
+	pushEv(e);
+}
+
+static bool parseNum(const Common::String &s, int &out) {
+	if (s.empty() || s.size() > 5)
+		return false;
+	int v = 0;
+	for (uint i = 0; i < s.size(); ++i) {
+		if (s[i] < '0' || s[i] > '9')
+			return false;
+		v = v * 10 + (s[i] - '0');
+	}
+	out = v;
+	return true;
+}
+
+static void splitWords(const Common::String &text, Common::Array<Common::String> &w) {
+	Common::String cur;
+	for (uint i = 0; i <= text.size(); ++i) {
+		char c = (i < text.size()) ? text[i] : ' ';
+		if (c == ' ' || c == '\t') {
+			if (!cur.empty()) {
+				w.push_back(cur);
+				cur.clear();
+			}
+		} else {
+			cur += c;
+		}
+	}
+}
+
+static Common::String firstWord(const Common::String &text) {
+	Common::Array<Common::String> w;
+	splitWords(text, w);
+	if (w.empty())
+		return Common::String();
+	Common::String v = w[0];
+	v.toLowercase();
+	return v;
+}
+
+// ---- command file (same behaviour as engine/a11y.cpp readCommandFile)
+
+static Common::FSNode commandFileNode() {
+	Common::Path savePath = ConfMan.getPath("savepath");
+	return Common::FSNode(savePath.appendComponent("a11y-cmd.txt"));
+}
+
+// Read the file, queue each non-blank line that is not a '#' comment, then
+// truncate it so every line is consumed once. A missing file is silent.
+static void readCommandFile(Layer &s) {
+	Common::FSNode node = commandFileNode();
+	if (!node.exists())
+		return;
+	Common::SeekableReadStream *in = node.createReadStream();
+	if (!in)
+		return;
+	bool sawAny = false;
+	while (!in->eos()) {
+		Common::String line = in->readLine();
+		if (in->err())
+			break;
+		line.trim();
+		if (line.empty() || line[0] == '#')
+			continue;
+		s.queue.push_back(line);
+		sawAny = true;
+	}
+	delete in;
+	if (sawAny) {
+		Common::SeekableWriteStream *out = node.createWriteStream();
+		delete out;
+	}
+}
+
+// ---- skip
+
+// Echo, then push both skip actions: kActionSkipText ends a spoken line
+// (input.cpp:110-111, talk.cpp:751-755) and kActionSkipCutaway ends a cutaway,
+// honoured only while _canQuit (input.cpp:131-139), so the extra one is a
+// no-op elsewhere. With no command of ours in flight the skip is its own
+// command and gets the no-op diff Drascula gives it; inside a command the
+// command's own diff covers it.
+static void doSkip(Layer &s) {
+	emitLine("A11Y_CMD skip");
+	pushAction(kActionSkipText);
+	pushAction(kActionSkipCutaway);
+	if (!s.run.active)
+		emitDone("skip");
+}
+
+// Take every queued skip out of the queue (others keep their order).
+static void takeSkips(Layer &s) {
+	uint i = 0;
+	while (i < s.queue.size()) {
+		if (firstWord(s.queue[i]) == "skip") {
+			s.queue.remove_at(i);
+			doSkip(s);
+		} else {
+			++i;
+		}
+	}
+}
+
+// Busy or command in flight: every queued command except skip is dropped, one
+// error each (the wording of Drascula's busy drop, engine/a11y.cpp:3237).
+static void dropQueued(Layer &s) {
+	while (!s.queue.empty()) {
+		s.queue.remove_at(0);
+		emitErr("busy: commands dropped");
+	}
+}
+
+// ---- verbs, walk, use
+
+static int visibleSlot(Logic *l, uint16 item) {
+	for (int i = 0; i < 4; ++i) {
+		if (l->findInventoryItem(i) == item)
+			return i;
+	}
+	return -1;
+}
+
+static uint32 slotSig(Logic *l) {
+	uint32 v = 0;
+	for (int i = 0; i < 4; ++i)
+		v = (v << 8) | (uint32)(l->findInventoryItem(i) & 0xFF);
+	return v;
+}
+
+// A screen point where the engine's own zone test returns object k, so the
+// click cannot land on a neighbour (brief gotcha 6). The box centre first,
+// then a 5x5 sample. The probe tested zone lookup in room coordinates and the
+// click in screen coordinates (box minus scroll); same here.
+static bool findClickPoint(QueenEngine *vm, uint16 room, uint16 k, int &sx, int &sy) {
+	Logic *l = vm->logic();
+	Grid *g = vm->grid();
+	const Box *b = g->objectBox(l->roomData(room) + k);
+	if (b->x2 <= b->x1 || b->y2 <= b->y1)
+		return false;
+	int scroll = vm->display()->horizontalScroll();
+	for (int pass = 0; pass < 26; ++pass) {
+		int x, y;
+		if (pass == 0) {
+			x = (b->x1 + b->x2) / 2;
+			y = (b->y1 + b->y2) / 2;
+		} else {
+			int p = pass - 1;
+			x = b->x1 + (b->x2 - b->x1) * (2 * (p % 5) + 1) / 10;
+			y = b->y1 + (b->y2 - b->y1) * (2 * (p / 5) + 1) / 10;
+		}
+		int px = x - scroll;
+		if (px < 0 || px >= kScreenWidth || y < 0 || y >= kRoomHeight)
+			continue;
+		uint16 zone = g->findZoneForPos(GS_ROOM, x, y);
+		if (zone != 0 && g->findObjectNumber(zone) == k) {
+			sx = px;
+			sy = y;
+			return true;
+		}
+	}
+	return false;
+}
+
+static void failRun(QueenEngine *vm, const Common::String &msg) {
+	Layer &s = layer();
+	emitErr(msg);
+	// Drop any half-built verb or item selection so the next command starts clean.
+	vm->command()->clear(true);
+	s.run = Run();
+}
+
+// One step of the command in flight; called once per idle frame (and once at
+// start). Events pushed here are consumed by the update(true) that follows.
+static void advanceRun(QueenEngine *vm) {
+	Layer &s = layer();
+	Run &r = s.run;
+	if (!r.active || r.started || s.pending)
+		return;
+	Logic *l = vm->logic();
+
+	for (;;) {
+		switch (r.stage) {
+		case kStageScroll: {
+			// Scroll before the verb: a scroll after it could reset the verb.
+			if (visibleSlot(l, r.item) >= 0) {
+				r.stage = kStageVerb;
+				continue;
+			}
+			uint32 sig = slotSig(l);
+			if (r.scrolls > 0 && sig == r.lastSig) {
+				if (r.flipped) {
+					failRun(vm, Common::String::format("item %d cannot be scrolled into view", (int)r.item));
+					return;
+				}
+				r.flipped = true;
+				r.scrollDir = -r.scrollDir;
+			}
+			if (++r.scrolls > kMaxScrolls) {
+				failRun(vm, Common::String::format("item %d cannot be scrolled into view", (int)r.item));
+				return;
+			}
+			r.lastSig = sig;
+			pushWheel(r.scrollDir < 0);
+			return;
+		}
+		case kStageVerb:
+			if (r.verbAction >= 0) {
+				pushAction(r.verbAction);
+				r.stage = (r.item != 0) ? kStageItem : kStageClick;
+				return;
+			}
+			r.stage = kStageClick;
+			continue;
+		case kStageItem: {
+			int slot = visibleSlot(l, r.item);
+			if (slot < 0) {
+				failRun(vm, Common::String::format("item %d is not in a visible slot", (int)r.item));
+				return;
+			}
+			pushAction(kSlotActions[slot]);
+			r.stage = kStageClick;
+			return;
+		}
+		case kStageClick: {
+			int x = 0, y = 0;
+			if (!findClickPoint(vm, l->currentRoom(), r.noun, x, y)) {
+				failRun(vm, Common::String::format("object %d has no clickable point", (int)r.noun));
+				return;
+			}
+			pushClick(x, y);
+			r.stage = kStageWait;
+			r.wait = 0;
+			return;
+		}
+		default:
+			// kStageWait: the action starts at JWM_EXECUTE (queen.cpp:372), and
+			// onBeforeAction sets r.started. Reaching an idle frame first means
+			// the engine did not take the click.
+			if (++r.wait > kClickWaitFrames)
+				failRun(vm, "the game did not act on the command");
+			return;
+		}
+	}
+}
+
+// Validate a `<verb> N` or `use [I] N` command and start it.
+static void startVerb(QueenEngine *vm, const Common::String &text,
+                      const Common::Array<Common::String> &w, int action, bool isUse) {
+	Layer &s = layer();
+	Logic *l = vm->logic();
+	Common::String verb = w[0];
+	verb.toLowercase();
+
+	int item = 0, noun = 0;
+	if (w.size() == 1) {
+		emitErr(Common::String::format("%s needs an object number, e.g. `%s 3`", verb.c_str(), verb.c_str()));
+		return;
+	}
+	if (isUse && w.size() == 3) {
+		if (!parseNum(w[1], item) || !parseNum(w[2], noun)) {
+			emitErr(Common::String("use needs two numbers, an item and an object, got: ") + text);
+			return;
+		}
+	} else if (w.size() == 2) {
+		if (!parseNum(w[1], noun)) {
+			emitErr(Common::String("object must be a number, got: ") + w[1]);
+			return;
+		}
+	} else {
+		emitErr(Common::String("too many arguments: ") + text);
+		return;
+	}
+
+	uint16 room = l->currentRoom();
+	if (noun < 1 || noun > (int)vm->grid()->objMax(room) ||
+	    l->roomData(room) + noun > numObjects(l)) {
+		emitErr(Common::String::format("object %d is not in this room", noun));
+		return;
+	}
+	ObjectData *od = l->objectData(l->roomData(room) + noun);
+	if (od->name == 0) {
+		emitErr(Common::String::format("object %d is not in this room", noun));
+		return;
+	}
+	if (od->name < 0) {
+		emitErr(Common::String::format("object %d is not visible right now", noun));
+		return;
+	}
+	if (isUse && w.size() == 3) {
+		if (item < 1 || item > (int)l->itemDataCount() || !isCarried(l, (uint16)item)) {
+			emitErr(Common::String::format("item %d is not in the inventory", item));
+			return;
+		}
+	}
+	int sx, sy;
+	if (!findClickPoint(vm, room, (uint16)noun, sx, sy)) {
+		emitErr(Common::String::format("object %d has no clickable point", noun));
+		return;
+	}
+
+	// Start from no verb and no half-built command, then run the stages.
+	vm->command()->clear(true);
+	s.run = Run();
+	s.run.active = true;
+	s.run.text = text;
+	s.run.verbAction = action;
+	s.run.item = (uint16)item;
+	s.run.noun = (uint16)noun;
+	s.run.stage = (item != 0) ? kStageScroll : kStageVerb;
+	emitPhase(s, kPhaseBusy);
+	advanceRun(vm);
+}
+
+// ---- save, room
+
+static void startSave(QueenEngine *vm, const Common::String &text, const Common::Array<Common::String> &w) {
+	int slot = 0;
+	if (w.size() != 2 || !parseNum(w[1], slot)) {
+		emitErr("save needs a slot number, e.g. `save 1`");
+		return;
+	}
+	// Queen slots run 1 to 99 (metaengine.cpp:77).
+	if (slot < 1 || slot > 99) {
+		emitErr(Common::String::format("save slot must be 1 to 99, got: %d", slot));
+		return;
+	}
+	if (!vm->canSaveGameStateCurrently()) {
+		emitErr("cannot save right now");
+		return;
+	}
+	Common::Error result = vm->saveGameState(slot, Common::String::format("Ghostlight %d", slot));
+	if (result.getCode() != Common::kNoError) {
+		emitErr(Common::String::format("save to slot %d failed", slot));
+		return;
+	}
+	emitLine(Common::String::format("A11Y_SAVED {\"slot\":%d}", slot));
+	emitDone(text);
+}
+
+// Survey-only teleport, the same three calls as Debugger::Cmd_Room (debug.cpp:177),
+// as the probe's jumpTo does. The room change itself happens on the next run
+// loop pass (queen.cpp:360-366), and the diff, armed here, is flushed by the
+// next onIdle after the A11Y line of the new room.
+static void startRoom(QueenEngine *vm, const Common::String &text, const Common::Array<Common::String> &w) {
+	Layer &s = layer();
+	Logic *l = vm->logic();
+	const char *env = getenv("GHOSTLIGHT_SURVEY");
+	if (env == nullptr || *env == '\0') {
+		emitErr("room is only available in survey mode");
+		return;
+	}
+	int n = 0;
+	if (w.size() != 2 || !parseNum(w[1], n)) {
+		emitErr("room needs a room number, e.g. `room 3`");
+		return;
+	}
+	if (n < 1 || n > (int)l->numRooms()) {
+		emitErr(Common::String::format("room %d is out of range 1 to %d", n, (int)l->numRooms()));
+		return;
+	}
+	// The pinnacle waits for a click and the logo room plays the whole intro
+	// (probe isSpecialRoom), so a teleport there would hang the command.
+	if (n == ROOM_JUNGLE_PINNACLE || n == FOTAQ_LOGO) {
+		emitErr(Common::String::format("room %d cannot be entered by teleport", n));
+		return;
+	}
+	// A room the data lists but this version does not ship would assert in
+	// Resource::loadFile (probe nextJump).
+	Common::String pcx = Common::String::format("%s.%s", l->roomName((uint16)n),
+		vm->resource()->getPlatform() == Common::kPlatformAmiga ? "LBM" : "PCX");
+	Common::String bbk = Common::String::format("%s.BBK", l->roomName((uint16)n));
+	if (!vm->resource()->fileExists(pcx.c_str()) || !vm->resource()->fileExists(bbk.c_str())) {
+		emitErr(Common::String::format("room %d is not in this version of the game", n));
+		return;
+	}
+
+	takeSnap(vm, s.before);
+	s.cmd = text;
+	s.said.clear();
+	s.pending = true;
+	s.run = Run();
+	s.run.active = true;
+	s.run.started = true;
+	s.run.text = text;
+	s.roomSeen = false;     // force the A11Y line even for the same room
+	emitPhase(s, kPhaseBusy);
+
+	l->joePos(0, 0);
+	l->newRoom((uint16)n);
+	l->entryObj(l->roomData((uint16)n) + 1);
+}
+
+// ---- choose
+
+// `choose K` from the update() hook while the menu is open: push digit key K
+// (talk.cpp:1316-1324 picks the Kth non-empty option, same numbering as the
+// A11Y_CHOICES "n"). The diff is the one armed by onChoices; it goes out when
+// the next menu opens or at the next idle frame.
+static void handleChoose(QueenEngine *vm, const Common::String &text) {
+	Layer &s = layer();
+	emitLine(Common::String("A11Y_CMD ") + text);
+	Common::Array<Common::String> w;
+	splitWords(text, w);
+	int n = 0;
+	if (w.size() != 2 || !parseNum(w[1], n)) {
+		emitErr("choose needs an option number, e.g. `choose 1`");
+		return;
+	}
+	if (n < 1 || n > s.choiceCount || n > 4) {
+		emitErr(Common::String::format("option %d is not offered", n));
+		return;
+	}
+	takeSnap(vm, s.before);
+	s.cmd = text;
+	s.said.clear();
+	s.pending = true;
+	s.run = Run();
+	s.run.active = true;
+	s.run.started = true;
+	s.run.text = text;
+	s.chooseBlockedUntil = g_system->getMillis() + kChooseHoldMs;
+	pushAction(kSlotActions[n - 1]);
+}
+
+// Commands that arrive while a nested loop runs (busy or a menu): skip is
+// honoured, choose and choices are honoured in a menu, the rest is dropped.
+static void serviceNested(QueenEngine *vm, Layer &s) {
+	if (!g_system)
+		return;
+	uint32 now = g_system->getMillis();
+	if (s.lastReadMs == 0 || now - s.lastReadMs >= kReadThrottleMs) {
+		s.lastReadMs = now;
+		readCommandFile(s);
+	}
+	takeSkips(s);
+
+	uint i = 0;
+	while (i < s.queue.size()) {
+		Common::String line = s.queue[i];
+		Common::String v = firstWord(line);
+		bool inMenu = (s.phase == kPhaseChoice);
+		if (inMenu && v == "choose" && now >= s.chooseBlockedUntil) {
+			s.queue.remove_at(i);
+			handleChoose(vm, line);
+		} else if (inMenu && v == "choices") {
+			s.queue.remove_at(i);
+			emitLine(Common::String("A11Y_CMD ") + line);
+			emitLine(s.choicesLine);
+			emitDone(line);
+		} else {
+			s.queue.remove_at(i);
+			emitErr("busy: commands dropped");
+		}
+	}
+}
+
+// Start one queued command at the idle branch.
+static void startCommand(QueenEngine *vm, const Common::String &text) {
+	emitLine(Common::String("A11Y_CMD ") + text);
+
+	Common::Array<Common::String> w;
+	splitWords(text, w);
+	Common::String verb = w[0];
+	verb.toLowercase();
+
+	if (verb == "state") {
+		emitLine(Common::String("A11Y ") + roomStateJson(vm));
+		emitDone(text);
+		return;
+	}
+	if (verb == "inventory" || verb == "inv") {
+		emitInv(vm);
+		emitDone(text);
+		return;
+	}
+	if (verb == "save") {
+		startSave(vm, text, w);
+		return;
+	}
+	if (verb == "room") {
+		startRoom(vm, text, w);
+		return;
+	}
+	if (verb == "choose" || verb == "choices") {
+		emitErr("no conversation is open");
+		return;
+	}
+	for (uint i = 0; i < ARRAYSIZE(kVerbWords); ++i) {
+		if (verb == kVerbWords[i].word) {
+			startVerb(vm, text, w, kVerbWords[i].action, verb == "use");
+			return;
+		}
+	}
+	emitErr(Common::String("no handler for command: ") + text);
 }
 
 // ---------------------------------------------------------------- hooks
@@ -592,8 +1230,32 @@ void onIdle(QueenEngine *vm) {
 	if (carriedChanged(vm, s))
 		emitInv(vm);
 
-	// 4. Idle branch reached and no cutaway running: the player is in control.
-	if (!vm->input()->cutawayRunning())
+	// 4. Idle branch reached: a layer command may run and the player is in
+	//    control, unless a cutaway is running (brief section 1, phase).
+	bool inControl = !vm->input()->cutawayRunning();
+
+	// 5. Command file. Only here, at the idle branch, does a command start. A
+	//    skip is always honoured. Anything else while a cutaway runs or while
+	//    one of our commands is in flight is dropped with one error each.
+	readCommandFile(s);
+	takeSkips(s);
+	if (!inControl || s.run.active) {
+		dropQueued(s);
+		// Never push a click into a cutaway.
+		if (inControl)
+			advanceRun(vm);
+	} else if (!s.queue.empty()) {
+		Common::String next = s.queue[0];
+		s.queue.remove_at(0);
+		startCommand(vm, next);
+		// Whatever else was queued behind it is busy now (or waits for the
+		// next frame when the command was instant).
+		if (s.run.active)
+			dropQueued(s);
+	}
+
+	// 6. No command in flight and no cutaway: the player is in control.
+	if (inControl && !s.run.active)
 		emitPhase(s, kPhaseControl);
 
 	// The update(true) call right after this hook is the idle frame itself.
@@ -606,13 +1268,20 @@ void onBeforeAction(QueenEngine *vm) {
 	if (s.pending)
 		emitDiff(vm);
 	takeSnap(vm, s.before);
-	s.cmd = describeAction(vm);
+	// A layer command keeps the text as typed (the diff's cmd); anything else
+	// (a stray click, a script) is named from the engine's own verb and nouns.
+	if (s.run.active) {
+		s.cmd = s.run.text;
+		s.run.started = true;
+	} else {
+		s.cmd = describeAction(vm);
+	}
 	s.said.clear();
 	s.pending = true;
 	emitPhase(s, kPhaseBusy);
 }
 
-void onUpdate(QueenEngine *) {
+void onUpdate(QueenEngine *vm) {
 	Layer &s = layer();
 	if (s.idleToken) {
 		s.idleToken = false;
@@ -623,6 +1292,9 @@ void onUpdate(QueenEngine *) {
 	// keeps its own phase.
 	if (s.phase == kPhaseControl)
 		emitPhase(s, kPhaseBusy);
+	// Skip, and choose in a menu, are served here (the nested loops all pump
+	// update()); every other command is dropped.
+	serviceNested(vm, s);
 }
 
 void onChoices(QueenEngine *vm, const char *o1, const char *o2, const char *o3, const char *o4) {
@@ -646,6 +1318,9 @@ void onChoices(QueenEngine *vm, const char *o1, const char *o2, const char *o3, 
 	if (n == 0)
 		return;
 	emitLine(Common::String("A11Y_CHOICES {\"choices\":[") + list + "]}");
+	s.choicesLine = Common::String("A11Y_CHOICES {\"choices\":[") + list + "]}";
+	s.choiceCount = n;
+	s.chooseBlockedUntil = 0;
 	emitPhase(s, kPhaseChoice);
 
 	// Whatever the pick triggers is reported by the next diff. The pick itself
@@ -664,6 +1339,7 @@ void onSpeak(QueenEngine *, const char *speaker, const char *sentence) {
 	// A line spoken outside an idle frame or a menu is the engine talking.
 	if (s.phase == kPhaseControl || s.phase == kPhaseChoice)
 		emitPhase(s, kPhaseBusy);
+	s.chooseBlockedUntil = 0;
 	// Floppy has no speech, so always A11Y_TEXT and never A11Y_VTEXT.
 	emitLine(Common::String("A11Y_TEXT ") + text);
 	if (s.pending) {

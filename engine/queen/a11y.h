@@ -28,10 +28,12 @@
 
 #include "common/scummsys.h"
 
-// Read side of the Ghostlight layer for Flight of the Amazon Queen. It only
-// observes the engine and writes A11Y lines (same wire format as the Drascula
-// layer, see src/engine/a11y-lines.ts). It never changes engine state, and it
-// has no command input yet: a later task adds the command file and verbs.
+// Ghostlight layer for Flight of the Amazon Queen. Read side: it observes the
+// engine and writes A11Y lines (same wire format as the Drascula layer, see
+// src/engine/a11y-lines.ts). Command side: it reads <savepath>/a11y-cmd.txt
+// and runs state, look/open/close/pick/take/talk/push/pull/walk/use, choose,
+// choices, skip, inventory, save and the survey-only room, by pushing the same
+// input events a player makes. Same hooks as before, no new ones.
 //
 // Every hook below is a free function so each hook in hooks.patch is one line.
 // All state lives in one lazily allocated struct inside a11y.cpp (ScummVM
@@ -47,7 +49,8 @@ namespace A11y {
 void init(QueenEngine *vm);
 
 //! QueenEngine::run, idle branch before update(true): room change, pending
-//! diff, inventory change and control phase, in that order.
+//! diff, inventory change, then the command file (one command starts, or the
+//! one in flight takes its next step), then the control phase.
 void onIdle(QueenEngine *vm);
 
 //! QueenEngine::run, JWM_EXECUTE branch before executeCurrentAction():
@@ -55,7 +58,9 @@ void onIdle(QueenEngine *vm);
 void onBeforeAction(QueenEngine *vm);
 
 //! QueenEngine::update, first statement: a call that did not come straight
-//! from the idle branch is a nested loop (walk, speech, cutaway), so busy.
+//! from the idle branch is a nested loop (walk, speech, cutaway, menu), so
+//! busy. It also reads the command file (throttled to 250 ms), serves skip and
+//! choose, and drops every other queued command with an A11Y_ERR.
 void onUpdate(QueenEngine *vm);
 
 //! Talk::selectSentence, before its loop: the four Joe options (an empty
