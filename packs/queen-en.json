@@ -45,7 +45,7 @@
           "name": "window",
           "type": "object",
           "description": "A tall window on the right wall.",
-          "note": "Engine look line is '?'."
+          "note": "Engine data look line is '?'. In play, looking takes about 22 s of cutaway, Joe says 'Not even my pal Sparky can hear me', and flag 116 goes from 0 to 1 (Crew survey and native check, 14 Nov)."
         },
         "4": {
           "name": "curtain cord",
@@ -79,7 +79,7 @@
           "name": "door",
           "type": "object",
           "description": "A heavy door studded with metal, on the left wall. It's locked.",
-          "note": "Not an exit at the start. 'Locked' is inferred from the look line and from the state line showing no exit."
+          "note": "Not an exit at the start. 'open 13' gives Joe's line 'It's locked' (native check, 14 Nov)."
         },
         "14": {
           "name": "radiator",
@@ -120,7 +120,8 @@
         "5": {
           "name": "cocktail umbrellas",
           "type": "object",
-          "description": "Little cocktail umbrellas on the shelves."
+          "description": "Little cocktail umbrellas on a high shelf, out of reach.",
+          "note": "Looking in play gives only 'I can't quite reach it...' (Crew survey, 14 Nov), so the pack text carries it."
         },
         "6": {
           "name": "mask",
@@ -135,18 +136,20 @@
         "8": {
           "name": "comedy breasts",
           "type": "object",
-          "description": "A pair of joke rubber breasts on the shelves.",
-          "note": "Engine name is 'comedy breasts^_'; the pack drops the stray characters."
+          "description": "A pair of joke breasts on a high shelf, out of reach.",
+          "note": "Engine name is 'comedy breasts^_'; the pack drops the stray characters. Looking in play gives only 'I can't quite reach it...' (Crew survey, 14 Nov), so the pack text carries it."
         },
         "9": {
           "name": "box of crowbars",
           "type": "object",
-          "description": "A box of crowbars on top of the shelves."
+          "description": "A box of crowbars on top of the shelves, out of reach.",
+          "note": "Looking in play gives only 'I can't quite reach it...' (Crew survey, 14 Nov), so the pack text carries it."
         },
         "10": {
           "name": "box of swords",
           "type": "object",
-          "description": "A box of swords on the shelves. They're rubber."
+          "description": "A box of swords on a high shelf, out of reach.",
+          "note": "Looking in play gives only 'I can't quite reach it...' (Crew survey, 14 Nov), so the pack text carries it."
         },
         "12": {
           "name": "laundry chute",
