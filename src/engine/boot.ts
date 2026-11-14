@@ -12,6 +12,7 @@
 // `parseA11yLine` (here, via the `installReader` the adapter owns).
 
 import type { EngineEvent } from "./adapter.js";
+import { currentGame, type GameConfig } from "./game.js";
 
 /**
  * The shape of the Emscripten `Module` the ScummVM wasm build reads. The
@@ -87,7 +88,10 @@ export interface BootOptions {
 }
 
 /** The ScummVM launch arguments the spike proved (03-web-build.md). */
-function launchArguments(saveSlot?: number): string[] {
+export function launchArguments(
+  saveSlot?: number,
+  game: GameConfig = currentGame(),
+): string[] {
   // --savepath=/saves is the IDBFS mount persistence.ts creates, so save files
   // survive a reload (save-progress R1). The engine reads BOTH the save files
   // and the command file from <savepath> (a11y.cpp commandFileNode resolves
@@ -122,7 +126,7 @@ function launchArguments(saveSlot?: number): string[] {
   if (saveSlot !== undefined) {
     args.push(`--save-slot=${saveSlot}`);
   }
-  args.push("-p", "/data/games/drascula", "drascula");
+  args.push("-p", game.dataDir, game.scummvmId);
   return args;
 }
 

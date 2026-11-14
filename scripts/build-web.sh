@@ -36,7 +36,8 @@
 #
 # Output lands in vendor/scummvm-web/build-emscripten/:
 #   scummvm.wasm, scummvm.js, translations.dat, themes, and a data/ tree with
-#   Packet.001, drascula.dat, the Ogg tracks and per-folder index.json files.
+#   Packet.001, drascula.dat, the Ogg tracks, queen.1 under data/games/queen,
+#   and per-folder index.json files.
 # `make dist-emscripten` copies drascula.dat into /data, so no --extrapath is
 # needed at launch. See .kiro/specs/web-build/design.md.
 #
@@ -51,6 +52,9 @@ SCUMMVM_DIR="$VENDOR/scummvm"           # native tree (source only; never built 
 WEB_DIR="$VENDOR/scummvm-web"           # the Emscripten tree; all build work here
 GAME_SRC="$VENDOR/game/drascula"        # game data fetched by fetch.sh (gitignored)
 HOOKS_PATCH="$ENGINE_SRC/hooks.patch"
+QUEEN_SRC="$ENGINE_SRC/queen"            # the Queen a11y layer (own namespace)
+QUEEN_GAME_SRC="$VENDOR/game/queen"      # Queen floppy data fetched by fetch.sh (gitignored)
+QUEEN_HOOKS_PATCH="$QUEEN_SRC/hooks.patch"
 
 EMSDK_VERSION="4.0.10"
 EMSDK_DIR="$WEB_DIR/dists/emscripten/emsdk-$EMSDK_VERSION"
@@ -101,6 +105,9 @@ git -C "$SCUMMVM_DIR" rev-parse --verify -q HEAD >/dev/null 2>&1 \
   || die "vendor/scummvm is not a git checkout. Re-run scripts/fetch.sh."
 [ -f "$ENGINE_SRC/a11y.cpp" ] || die "engine/a11y.cpp missing."
 [ -f "$ENGINE_SRC/a11y.h" ]   || die "engine/a11y.h missing."
+[ -f "$QUEEN_SRC/a11y.cpp" ]  || die "engine/queen/a11y.cpp missing."
+[ -f "$QUEEN_SRC/a11y.h" ]    || die "engine/queen/a11y.h missing."
+[ -f "$QUEEN_HOOKS_PATCH" ]   || die "engine/queen/hooks.patch missing."
 command -v curl    >/dev/null 2>&1 || die "curl not found. It is needed to fetch the Emscripten SDK."
 command -v python3 >/dev/null 2>&1 || die "python3 not found. It is needed to generate the /data HTTP index (build-make_http_index.py)."
 command -v git     >/dev/null 2>&1 || die "git not found. It is needed to materialize vendor/scummvm-web."
@@ -125,6 +132,8 @@ fi
 
 DRASCULA_DIR="$WEB_DIR/engines/drascula"
 [ -d "$DRASCULA_DIR" ] || die "Drascula engine missing in $WEB_DIR. Delete vendor/scummvm-web and re-run."
+QUEEN_DIR="$WEB_DIR/engines/queen"
+[ -d "$QUEEN_DIR" ] || die "Queen engine missing in $WEB_DIR. Delete vendor/scummvm-web and re-run."
 
 # --- optional clean ----------------------------------------------------------
 #
@@ -135,6 +144,8 @@ if [ "$CLEAN" -eq 1 ]; then
   log "cleaning previous engine source changes in $WEB_DIR"
   rm -f "$DRASCULA_DIR/a11y.cpp" "$DRASCULA_DIR/a11y.h"
   git -C "$WEB_DIR" checkout -q -- engines/drascula/module.mk engines/drascula 2>/dev/null || true
+  rm -f "$QUEEN_DIR/a11y.cpp" "$QUEEN_DIR/a11y.h"
+  git -C "$WEB_DIR" checkout -q -- engines/queen 2>/dev/null || true
   ( cd "$WEB_DIR" && make distclean >/dev/null 2>&1 || true )
 fi
 
@@ -168,6 +179,43 @@ if [ -f "$HOOKS_PATCH" ] && grep -Eq '^(diff |--- |\+\+\+ |@@ )' "$HOOKS_PATCH";
   fi
 else
   log "hooks.patch has no diff hunks yet; nothing to apply (placeholder)"
+fi
+
+# --- 1b. Queen engine source flow --------------------------------------------
+#
+# Same flow for the Queen layer (namespace Queen::A11y, so it links beside the
+# Drascula one). engine/queen/hooks.patch already adds a11y.o to the Queen
+# module.mk, so the patch is applied BEFORE the idempotent module.mk check
+# (injecting first would make the patch fail on its own module.mk hunk).
+
+log "copying a11y.cpp / a11y.h into engines/queen"
+cp "$QUEEN_SRC/a11y.cpp" "$QUEEN_DIR/a11y.cpp"
+cp "$QUEEN_SRC/a11y.h"   "$QUEEN_DIR/a11y.h"
+
+if grep -Eq '^(diff |--- |\+\+\+ |@@ )' "$QUEEN_HOOKS_PATCH"; then
+  log "applying engine/queen/hooks.patch"
+  if git -C "$WEB_DIR" apply --check "$QUEEN_HOOKS_PATCH" 2>/dev/null; then
+    git -C "$WEB_DIR" apply "$QUEEN_HOOKS_PATCH"
+  elif git -C "$WEB_DIR" apply --reverse --check "$QUEEN_HOOKS_PATCH" 2>/dev/null; then
+    log "queen hooks.patch already applied; skipping"
+  else
+    die "engine/queen/hooks.patch does not apply cleanly to the web tree"
+  fi
+else
+  log "queen hooks.patch has no diff hunks yet; nothing to apply (placeholder)"
+fi
+
+QUEEN_MODULE_MK="$QUEEN_DIR/module.mk"
+if grep -q '[[:space:]]a11y\.o' "$QUEEN_MODULE_MK"; then
+  log "queen module.mk already lists a11y.o"
+else
+  log "adding a11y.o to queen module.mk"
+  awk '
+    { print }
+    /^MODULE_OBJS := \\$/ && !done { print "\ta11y.o \\"; done=1 }
+  ' "$QUEEN_MODULE_MK" > "$QUEEN_MODULE_MK.tmp"
+  grep -q '[[:space:]]a11y\.o' "$QUEEN_MODULE_MK.tmp" || die "failed to inject a11y.o into queen module.mk"
+  mv "$QUEEN_MODULE_MK.tmp" "$QUEEN_MODULE_MK"
 fi
 
 # --- 2. emsdk 4.0.10, fetched with curl (build.sh would use wget) ------------
@@ -206,9 +254,9 @@ command -v emmake      >/dev/null 2>&1 || die "emmake not found after activating
 # mandatory; without them configure finds neither codec and the music pack is
 # silent (spike 03). This writes config only into vendor/scummvm-web.
 
-log "configuring Emscripten build in $WEB_DIR (Drascula only, Ogg/Vorbis on)"
+log "configuring Emscripten build in $WEB_DIR (Drascula + Queen, Ogg/Vorbis on)"
 ( cd "$WEB_DIR" && ./dists/emscripten/build.sh configure \
-    --disable-all-engines --enable-engine=drascula --disable-debug \
+    --disable-all-engines --enable-engine=drascula,queen --disable-debug \
     --enable-ogg --enable-vorbis --enable-zlib ) \
   || die "configure failed"
 
@@ -237,6 +285,14 @@ log "populating /data with game data (by reference from $GAME_SRC; never committ
 mkdir -p "$DATA_GAME"
 cp -R "$GAME_SRC"/* "$DATA_GAME"/
 
+# Queen: queen.1 (22.7 MB, about 21.6 MiB) is under Cloudflare's 25 MiB
+# static-asset limit, so it ships as a normal static asset; no R2 upload.
+[ -f "$QUEEN_GAME_SRC/queen.1" ] || die "Queen data missing at $QUEEN_GAME_SRC/queen.1. Run scripts/fetch.sh first."
+DATA_QUEEN="$BUILD_OUT/data/games/queen"
+log "populating /data with Queen game data (by reference from $QUEEN_GAME_SRC; never committed)"
+mkdir -p "$DATA_QUEEN"
+cp -R "$QUEEN_GAME_SRC"/* "$DATA_QUEEN"/
+
 log "re-running the HTTP index generator (build-make_http_index.py)"
 python3 "$WEB_DIR/dists/emscripten/build-make_http_index.py" "$BUILD_OUT/data" \
   || die "build-make_http_index.py failed (python3 present but the generator errored)"
@@ -248,4 +304,5 @@ log "  tree:   $WEB_DIR (vendor/scummvm left untouched)"
 log "  output: $BUILD_OUT"
 log "  files:  scummvm.wasm, scummvm.js, translations.dat, themes, data/ (Packet.001, drascula.dat, Ogg, index.json)"
 log "  launch: #--savepath=/tmp --subtitles -p /data/games/drascula drascula  (no --extrapath; drascula.dat is in /data)"
+log "  launch: #--savepath=/tmp --subtitles -p /data/games/queen queen"
 log "  NOTE:   game data is under vendor/ (gitignored); it is never staged or committed."

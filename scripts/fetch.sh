@@ -26,6 +26,14 @@ DRASCULA_BASE="https://downloads.scummvm.org/frs/extras/Drascula_%20The%20Vampir
 GAME_ZIP="drascula-1.0.zip"
 AUDIO_ZIP="drascula-audio-2.0.zip"
 
+# Flight of the Amazon Queen freeware floppy data (queen.1 and readme.txt).
+# NEEDS CONFIRMING: the folder name below follows the Drascula pattern but was
+# not checked against the live site. If the download 404s, copy the real
+# directory from https://www.scummvm.org/games/#games-fotaq and fix it here.
+QUEEN_BASE="https://downloads.scummvm.org/frs/extras/Flight%20of%20the%20Amazon%20Queen"
+QUEEN_ZIP="FOTAQ_Floppy.zip"
+QUEEN_SHA256="2e59de85f708cdb32bf85c85b394ac091c05f7647e856b71f5b3ae73fde761e0"
+
 # Recorded sha256 checksums. Filled in on the first successful fetch (the script
 # prints the computed value and writes it here). A later run then verifies
 # against these and aborts on any mismatch. Leave empty to (re)record.
@@ -38,12 +46,13 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 VENDOR="$ROOT/vendor"
 SCUMMVM_DIR="$VENDOR/scummvm"
 GAME_DIR="$VENDOR/game/drascula"
+QUEEN_DIR="$VENDOR/game/queen"
 DL_DIR="$VENDOR/downloads"
 
 FORCE=0
 [ "${1:-}" = "--force" ] && FORCE=1
 
-mkdir -p "$VENDOR" "$DL_DIR" "$GAME_DIR"
+mkdir -p "$VENDOR" "$DL_DIR" "$GAME_DIR" "$QUEEN_DIR"
 
 # --- helpers -----------------------------------------------------------------
 
@@ -130,5 +139,16 @@ verify "$AUDIO_OUT" "$AUDIO_SHA256" "AUDIO"
 log "unpacking game data into $GAME_DIR"
 ( cd "$GAME_DIR" && unzip -oq "$GAME_OUT" && unzip -oq "$AUDIO_OUT" )
 
-log "done. scummvm: $SCUMMVM_DIR   game data: $GAME_DIR"
+# --- 4. Flight of the Amazon Queen floppy data ------------------------------
+
+QUEEN_OUT="$DL_DIR/$QUEEN_ZIP"
+download "$QUEEN_BASE/$QUEEN_ZIP" "$QUEEN_OUT"
+verify "$QUEEN_OUT" "$QUEEN_SHA256" "QUEEN"
+
+# -j drops any folder inside the zip so queen.1 lands directly in the game dir.
+log "unpacking Queen data into $QUEEN_DIR"
+( cd "$QUEEN_DIR" && unzip -ojq "$QUEEN_OUT" )
+[ -f "$QUEEN_DIR/queen.1" ] || die "queen.1 not found in $QUEEN_DIR after unpacking $QUEEN_ZIP"
+
+log "done. scummvm: $SCUMMVM_DIR   game data: $GAME_DIR   queen data: $QUEEN_DIR"
 log "next: scripts/build-engine.sh"

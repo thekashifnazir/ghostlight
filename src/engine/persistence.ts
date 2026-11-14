@@ -23,6 +23,8 @@
 // never throws from init(): a browser without IDBFS (private mode, blocked
 // storage) falls back to an in-memory session so the page still boots (R1.5).
 
+import { currentGame, type GameConfig } from "./game.js";
+
 /** The save directory the engine launches with (--savepath=/saves). */
 export const SAVE_DIR = "/saves";
 
@@ -48,11 +50,16 @@ export const MANUAL_SLOT = 1;
  * ScummVM names Drascula saves "drascula.NNN" where NNN is the zero-padded
  * slot. We read the save folder through this pattern to find existing slots.
  */
-const SAVE_FILE_RE = /^drascula\.(\d+)$/;
+function saveFileRe(game: GameConfig = currentGame()): RegExp {
+  return new RegExp(`^${game.savePrefix}\\.(\\d+)$`);
+}
 
 /** Build the engine's save-file name for a slot (drascula.001 for slot 1). */
-export function saveFileName(slot: number): string {
-  return `drascula.${String(slot).padStart(3, "0")}`;
+export function saveFileName(
+  slot: number,
+  game: GameConfig = currentGame(),
+): string {
+  return `${game.savePrefix}.${String(slot).padStart(3, "0")}`;
 }
 
 /** Which kind of save a write is: an automatic room-change save or a manual one. */
@@ -131,7 +138,7 @@ export function probeSaves(
             const name = path.startsWith(`${SAVE_DIR}/`)
               ? path.slice(SAVE_DIR.length + 1)
               : path;
-            const m = SAVE_FILE_RE.exec(name);
+            const m = saveFileRe().exec(name);
             if (m) slots.push(Number(m[1]));
           }
           db.close();
@@ -404,7 +411,7 @@ export class Persistence {
     }
     const slots: { slot: number; mtime: number }[] = [];
     for (const name of names) {
-      const m = SAVE_FILE_RE.exec(name);
+      const m = saveFileRe().exec(name);
       if (!m) continue;
       let mtime = 0;
       try {
