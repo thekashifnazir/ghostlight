@@ -17,6 +17,7 @@ import { cacheKey } from "./cache.js";
 import type { ProgressTracker } from "./progress.js";
 import type { EngineHintState } from "./fold.js";
 import { selectTarget } from "./select.js";
+import { WORTH_A_LOOK_PREFIX, worthALook } from "./worth-a-look.js";
 import { answerTier, nextTier, type Tier, type TierState } from "./tiers.js";
 
 /** The ghost voice and model the cache keys are computed against (R8.2). */
@@ -56,6 +57,27 @@ export class HintEngine {
    */
   reached(): ReadonlySet<string> {
     return this.tracker.progress().reached;
+  }
+
+  /**
+   * The always-on "worth a look" line for the room readout, or undefined. When
+   * the line speaks the target's nudge (the milestone is in this room), the
+   * nudge counts as given, so H for that milestone starts at the clue tier. A
+   * tier already given is never lowered. The "elsewhere" form speaks no nudge,
+   * so it records nothing.
+   */
+  worthALook(
+    room: number,
+    roomName: (room: number) => string | undefined,
+  ): string | undefined {
+    const progress = this.tracker.progress();
+    const line = worthALook(this.pack, progress, room, roomName);
+    if (line === undefined || !line.startsWith(WORTH_A_LOOK_PREFIX)) {
+      return line;
+    }
+    const target = selectTarget(this.pack, progress, room);
+    if (target && !this.tiers.has(target.id)) this.tiers.set(target.id, "nudge");
+    return line;
   }
 
   /** The next tier up for the current target, or `none` when nothing is offered. */
