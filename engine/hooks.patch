@@ -20,7 +20,7 @@
 #                  loop, where poll() never runs.
 #   animation.cpp  onGameEnd() in animation_9_6(), before the credits.
 diff --git a/engines/drascula/animation.cpp b/engines/drascula/animation.cpp
-index 34526326dc..ef3d2c4238 100644
+index 34526326dc..b5e3812dff 100644
 --- a/engines/drascula/animation.cpp
 +++ b/engines/drascula/animation.cpp
 @@ -20,6 +20,7 @@
@@ -31,20 +31,18 @@ index 34526326dc..ef3d2c4238 100644
  
  #include "common/text-to-speech.h"
  
-@@ -1715,6 +1716,11 @@ void DrasculaEngine::animation_9_6() {
+@@ -1715,6 +1716,9 @@ void DrasculaEngine::animation_9_6() {
  	updateRoom();
  	updateScreen();
  	talk(301);
-+	// Ghostlight: the ending's last spoken line is done and the credits come
-+	// next (minutes, then the engine quits). Tell the a11y layer now, so the
-+	// player hears the game is finished straight away.
++	// The ending's last line is done and the credits follow.
 +	if (_a11y)
 +		_a11y->onGameEnd();
  	v_cd = _mixer->getVolumeForSoundType(Audio::Mixer::kMusicSoundType) / 16;
  	v_cd += 4;
  	playMusic(17);
 diff --git a/engines/drascula/converse.cpp b/engines/drascula/converse.cpp
-index 3e045cb81b..eaafd3494b 100644
+index 3e045cb81b..6a2643fa8f 100644
 --- a/engines/drascula/converse.cpp
 +++ b/engines/drascula/converse.cpp
 @@ -22,6 +22,7 @@
@@ -55,30 +53,25 @@ index 3e045cb81b..eaafd3494b 100644
  
  #include "common/text-to-speech.h"
  
-@@ -214,6 +215,13 @@ void DrasculaEngine::converse(int index) {
+@@ -214,6 +215,11 @@ void DrasculaEngine::converse(int index) {
  	sayText(ttsPhrase3, Common::TextToSpeechManager::QUEUE);
  	sayText(ttsPhrase4, Common::TextToSpeechManager::QUEUE);
  
-+	// Ghostlight: a conversation runs this modal loop, so the main loop and
-+	// A11yLayer::poll() do not run while it is open (gotcha 4). Tell the layer a
-+	// conversation has opened so it lists the choices and services `choose`/
-+	// `choices` from inside the loop below (R7.1, R7.2, R6.3).
++	// poll() does not run inside this modal loop, so the layer services
++	// `choices` and `choose` from here.
 +	if (_a11y)
 +		_a11y->onConverseBegin();
 +
  	while (breakOut == 0 && !shouldQuit()) {
  		updateRoom();
  
-@@ -235,6 +243,17 @@ void DrasculaEngine::converse(int index) {
+@@ -235,6 +241,14 @@ void DrasculaEngine::converse(int index) {
  		phrase3_bottom = phrase2_bottom + 8 * print_abc_opc(phrase3, phrase2_bottom + 2, game3);
  		phrase4_bottom = phrase3_bottom + 8 * print_abc_opc(phrase4, phrase3_bottom + 2, kDialogOptionUnselected);
  
-+		// Ghostlight: the four option lines are now laid out, so the layer has
-+		// the band bottoms it needs to apply a `choose <n>` as a click. Describe
-+		// the conversation (A11Y_CHOICES on the opening frame and after each
-+		// choice) and, if a `choose`/`choices` is queued, act on it — a `choose`
-+		// sets _mouseY/_leftMouseButton here so the engine's own selection below
-+		// fires for that option this frame (R7.1, R7.2, R6.3).
++		// The option bands are laid out: list the choices, and apply a queued
++		// `choose` by setting _mouseY and the left button before the selection
++		// test below.
 +		if (_a11y)
 +			_a11y->onConverseFrame(phrase1, phrase2, phrase3, phrase4,
 +			                       game1, game2, game3,
@@ -87,13 +80,11 @@ index 3e045cb81b..eaafd3494b 100644
  		if (_mouseY > 0 && _mouseY < phrase1_bottom) {
  			if (game1 == kDialogOptionClicked && _color != kColorWhite)
  				color_abc(kColorWhite);
-@@ -302,6 +321,12 @@ void DrasculaEngine::converse(int index) {
+@@ -302,6 +316,10 @@ void DrasculaEngine::converse(int index) {
  		updateScreen();
  	} // while (breakOut == 0)
  
-+	// Ghostlight: the conversation has ended (option 4 or breakOut). Tell the
-+	// layer so `choices`/`choose` go back to "no conversation open" and the
-+	// per-conversation state is cleared for the next one (R7.2).
++	// Conversation over (option 4 or breakOut).
 +	if (_a11y)
 +		_a11y->onConverseEnd();
 +
@@ -101,7 +92,7 @@ index 3e045cb81b..eaafd3494b 100644
  		loadPic(menuBackground, backSurface);
  	else
 diff --git a/engines/drascula/drascula.cpp b/engines/drascula/drascula.cpp
-index aeccc822cb..138c726e59 100644
+index aeccc822cb..a8dd8c83bc 100644
 --- a/engines/drascula/drascula.cpp
 +++ b/engines/drascula/drascula.cpp
 @@ -33,6 +33,7 @@
@@ -112,39 +103,33 @@ index aeccc822cb..138c726e59 100644
  
  namespace Drascula {
  
-@@ -70,6 +71,10 @@ DrasculaEngine::DrasculaEngine(OSystem *syst, const DrasculaGameDescription *gam
+@@ -70,6 +71,9 @@ DrasculaEngine::DrasculaEngine(OSystem *syst, const DrasculaGameDescription *gam
  	_talkSequences = nullptr;
  	_currentSaveSlot = 0;
  
-+	// Ghostlight: no a11y layer until runCurrentChapter() constructs one on the
-+	// stack (it registers itself here). centerText() checks this before use.
++	// Set by the A11yLayer that runCurrentChapter() keeps on its stack.
 +	_a11y = nullptr;
 +
  	term_int = 0;
  	currentChapter = 0;
  	_loadedDifferentChapter = false;
-@@ -416,6 +421,12 @@ bool DrasculaEngine::runCurrentChapter() {
+@@ -416,6 +420,10 @@ bool DrasculaEngine::runCurrentChapter() {
  	int n;
  	int framesWithoutAction = 0;
  
-+	// Ghostlight a11y layer: observes room/inventory/flag state, drives the
-+	// game from a command file and emits A11Y* log lines. Lives on the stack
-+	// for this chapter so it is in scope for both the chapter setup (intro
-+	// skip, first room state) and the per-frame poll() in the main loop.
++	// Accessibility layer for this chapter: reports state and runs commands
++	// from a file. On the stack so it covers chapter setup and the main loop.
 +	A11yLayer _a11y(this);
 +
  	_rightMouseButton = 0;
  	_leftMouseButtonHeld = false;
  
-@@ -447,8 +458,15 @@ bool DrasculaEngine::runCurrentChapter() {
+@@ -447,8 +455,12 @@ bool DrasculaEngine::runCurrentChapter() {
  	if (currentChapter == 1) {
  		pickObject(28);
  
-+		// Ghostlight: hard-code the intro skip (R1.4). animation_1_1() is the
-+		// chapter-1 intro cutscene (logos, Dracula/Igor, BJ abduction); it sets
-+		// no progress flags and the first playable room is set up by enterRoom(62)
-+		// below regardless, so skipping it lands the player straight in the tavern.
-+		// Kept behind GHOSTLIGHT_PLAY_INTRO so a sighted run can restore the intro.
++		// Skip the chapter 1 intro, which sets no flags. GHOSTLIGHT_PLAY_INTRO
++		// keeps it for a sighted run.
 +#ifdef GHOSTLIGHT_PLAY_INTRO
  		if (!_loadedDifferentChapter)
  			animation_1_1();
@@ -152,79 +137,56 @@ index aeccc822cb..138c726e59 100644
  
  		selectVerb(kVerbNone);
  		loadPic("2aux62.alg", drawSurface2);
-@@ -550,7 +568,26 @@ bool DrasculaEngine::runCurrentChapter() {
+@@ -550,7 +562,15 @@ bool DrasculaEngine::runCurrentChapter() {
  
  	showCursor();
  
-+	// Ghostlight: the chapter is now set up and the first playable room entered,
-+	// so assert subtitles are on and emit the first A11Y room-state line (R1.4,
-+	// R6.1). Runs once per chapter start, which also covers a --save-slot launch.
++	// The first room is live: report it. Also covers a --save-slot launch.
 +	_a11y.onStartup();
 +
  	while (!shouldQuit()) {
-+		// Ghostlight: once per frame, let the a11y layer observe and drive the
-+		// game. poll() reads the command file, runs one queued command, emits
-+		// the A11Y_DIFF, and watches for room/chapter changes (R1.1). It returns
-+		// true when the command it ran ENDED the chapter — a `walk` through a
-+		// chapter-ending door (chapter 1's door 105 -> animation_2_1), whose
-+		// exitRoom() returned true. We relay that out exactly as the engine's own
-+		// door path does (`if (verify1()) return true;` below, and
-+		// `if (exitRoom(l)) return true;` inside verify1()): returning true here
-+		// ends runCurrentChapter() so run() advances to the next chapter. Without
-+		// this the chapter never ends and the hero walks past the door into
-+		// invalid state (task 18 crossing bug).
++		// Runs at most one queued command. True means the command ended the
++		// chapter, as `if (verify1()) return true;` below does for a door click.
 +		if (_a11y.poll())
 +			return true;
 +
  		if (!_characterMoved) {
  			stepX = STEP_X;
  			stepY = STEP_Y;
-@@ -900,6 +937,17 @@ void DrasculaEngine::updateEvents() {
+@@ -900,6 +920,11 @@ void DrasculaEngine::updateEvents() {
  			break;
  		}
  	}
 +
-+	// Ghostlight: updateEvents() is the engine's per-frame event pump, and the
-+	// one function that runs every frame inside BOTH the speech loops (talk.cpp,
-+	// via getScan()/getAction()) and the cutscene loops (animation.cpp), neither
-+	// of which returns to the main loop — so A11yLayer::poll() cannot honour a
-+	// `skip` while they block it (gotcha 5). Let the a11y layer read the command
-+	// file here (throttled) and, if a `skip` is queued, raise the engine's own
-+	// kActionSkip so the loop's existing skip test fires (R7.3, R7.4). Guarded
-+	// on _a11y so the engine runs unchanged with no layer live.
++	// This pump runs inside the speech and cutscene loops, where poll()
++	// does not, so a queued `skip` is honoured here.
 +	if (_a11y)
 +		_a11y->onUpdateEvents();
  }
  
  void DrasculaEngine::delay(int ms) {
 diff --git a/engines/drascula/drascula.h b/engines/drascula/drascula.h
-index 6784cf39c0..cfa1d0484c 100644
+index 6784cf39c0..bf708e3897 100644
 --- a/engines/drascula/drascula.h
 +++ b/engines/drascula/drascula.h
-@@ -335,7 +335,21 @@ static const int interf_y[] = { 51, 51, 51, 51, 83, 83, 83 };
+@@ -335,7 +335,15 @@ static const int interf_y[] = { 51, 51, 51, 51, 83, 83, 83 };
  
  struct RoomHandlers;
  
-+// Ghostlight a11y layer, defined in engine/a11y.h (copied into this engine by
-+// scripts/build-engine.sh). Forward-declared here so DrasculaEngine can hold a
-+// pointer to it (the centerText() text-capture hook, R6.2).
++// Accessibility layer, see a11y.h.
 +class A11yLayer;
 +
  class DrasculaEngine : public Engine {
-+	// Ghostlight a11y layer: reads the engine's own state (including the
-+	// private text/room-action tables used for item look lines, R6.4) and
-+	// drives the game through the engine's own methods. See engine/a11y.cpp.
++	// The accessibility layer reads private state such as the text and
++	// room-action tables.
 +	friend class A11yLayer;
-+	// The currently-live a11y layer, or nullptr when none. The layer lives on
-+	// the stack in runCurrentChapter() and registers/unregisters itself here in
-+	// its constructor/destructor; the centerText() hook reads this to emit
-+	// A11Y_TEXT for drawn text (R6.2). nullptr-initialised in the constructor.
++	// The live accessibility layer, or nullptr. Set by the layer itself.
 +	A11yLayer *_a11y;
  protected:
  	// Engine APIs
  	Common::Error run() override;
 diff --git a/engines/drascula/graphics.cpp b/engines/drascula/graphics.cpp
-index d39d58f6f0..2647b13a7d 100644
+index d39d58f6f0..2b5df73420 100644
 --- a/engines/drascula/graphics.cpp
 +++ b/engines/drascula/graphics.cpp
 @@ -20,6 +20,7 @@
@@ -235,17 +197,11 @@ index d39d58f6f0..2647b13a7d 100644
  #include "graphics/surface.h"
  
  #include "common/stream.h"
-@@ -360,6 +361,16 @@ bool DrasculaEngine::textFitsCentered(char *text, int x) {
+@@ -360,6 +361,10 @@ bool DrasculaEngine::textFitsCentered(char *text, int x) {
  }
  
  void DrasculaEngine::centerText(const char *message, int textX, int textY) {
-+	// Ghostlight: centerText() is the single chokepoint every on-screen text
-+	// line passes through — spoken dialogue (talk.cpp), narration/cutscene text
-+	// (animation.cpp), system messages (interface.cpp) and hover/examine text
-+	// (moveCursor) all call it with the whole line. Hand the full message to the
-+	// a11y layer so it emits A11Y_TEXT (R6.2); the layer de-duplicates the
-+	// per-frame redraw so each line is reported once. Guarded on _a11y so it is
-+	// a no-op when no layer is live.
++	// Every on-screen line passes through here whole: report it.
 +	if (_a11y)
 +		_a11y->onText(message);
 +

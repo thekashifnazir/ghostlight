@@ -2126,3 +2126,8 @@ Credits: 1.48 (cap 1.5).
 What was asked: apply the verified phase 3 run-2 patch as written: drop Queen's unused lastOutputMs(), fix stale comments in the Queen layer and the player's engine adapter and status code, and fix a real bug where a pack text fix with context "any" never applied in the player, with a test.
 What Kiro did: applied the patch to 6 files in one headless run, reading only the patch and its files.
 Verification: files byte-identical to the patch; tsc and unit tests run after (see the merge).
+
+## 160 · engine · 2026-11-14 · Engine comments cut to what a ScummVM reviewer needs
+What was asked: shorten the comments in the engine layer (both games) and in the Drascula hooks, following ScummVM's AI guidelines (no lengthy LLM-oriented explanations) and its formatting conventions: keep the comments that explain a non-obvious engine fact, cut narration, restated code, requirement and task references, and history.
+What Kiro did: applied the verified comments-only patch with git apply. No code changed.
+Verification: comments stripped by clang give identical code before and after for all four source files; the rebuilt scummvm.wasm differs from the baseline only in the embedded build timestamp; the hooks patch was regenerated with git diff against the pinned ScummVM and applies to it cleanly.

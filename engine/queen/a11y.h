@@ -17,10 +17,7 @@
  *
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
- * This file is NEW code added to a GPL ScummVM fork. It is copied into
- * engines/queen of the pinned ScummVM checkout by the build (the matching
- * one-line hooks and read-only accessors live in engine/queen/hooks.patch).
- * Never edit the checkout by hand.
+ * The hooks and read-only accessors that call this layer are in hooks.patch.
  */
 
 #ifndef QUEEN_A11Y_H
@@ -28,16 +25,14 @@
 
 #include "common/scummsys.h"
 
-// Ghostlight layer for Flight of the Amazon Queen. Read side: it observes the
-// engine and writes A11Y lines (same wire format as the Drascula layer, see
-// src/engine/a11y-lines.ts). Command side: it reads <savepath>/a11y-cmd.txt
-// and runs state, look/open/close/pick/take/talk/push/pull/walk/use, choose,
-// choices, skip, inventory, save and the survey-only room, by pushing the same
-// input events a player makes. Same hooks as before, no new ones.
+// Accessibility layer for Flight of the Amazon Queen. It reports engine
+// state as A11Y lines (the same format as the Drascula layer) and runs
+// commands from <savepath>/a11y-cmd.txt by pushing the input events a
+// player would make.
 //
-// Every hook below is a free function so each hook in hooks.patch is one line.
-// All state lives in one lazily allocated struct inside a11y.cpp (ScummVM
-// forbids global constructors), so a hook that fires before init() is safe.
+// Each hook is a free function, so each hook in hooks.patch is one line.
+// State lives in one lazily allocated struct (ScummVM forbids global
+// constructors), so a hook that fires before init() is safe.
 
 namespace Queen {
 

@@ -17,10 +17,6 @@
  *
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
- * This file is NEW code added to a GPL ScummVM fork. It is copied into
- * engines/queen of the pinned ScummVM checkout by the build. Never edit the
- * checkout by hand.
- *
  * Line sources (stock ScummVM ad351d1e9d, engines/queen):
  *   A11Y          room state     Logic::currentRoom, Logic::objectData, Grid::objectBox
  *   A11Y_DIFF     one per action snapshot at queen.cpp JWM_EXECUTE, emitted at the next idle frame
@@ -32,15 +28,14 @@
  *   A11Y_ERR      a refused or dropped command
  *   A11Y_SAVED    after `save N`
  *
- * Command side: <savepath>/a11y-cmd.txt is read and truncated (same as
- * engine/a11y.cpp readCommandFile). Commands start only at the idle branch
+ * Command side: <savepath>/a11y-cmd.txt is read and truncated, as in the
+ * Drascula layer. Commands start only at the idle branch
  * (onIdle). Verbs are dispatched by pushing the same events a player makes
  * (verb action, then mouse move and left click), not by calling Command
- * internals: Command::_state and grabSelectedNoun are private (brief
- * section 2 gotcha 6) and the click path is what the probe proved.
+ * internals: Command::_state and grabSelectedNoun are private.
  */
 
-// getenv for the survey-only `room` command (same exception the probe used).
+// getenv for the survey-only `room` command.
 #define FORBIDDEN_SYMBOL_EXCEPTION_getenv
 
 #include "common/array.h"
@@ -70,8 +65,7 @@
 namespace Queen {
 namespace A11y {
 
-// Queen has no chapters (brief section 1). A constant 1 keeps the sequential
-// chapter filter in src/hints/select.ts harmless.
+// Queen has no chapters; report a constant 1.
 static const int kChapter = 1;
 
 enum {
@@ -81,10 +75,8 @@ enum {
 	kPhaseChoice
 };
 
-// All a11y output is one prefixed line on stderr, so a web page reads it via
-// Module.printErr and a native run reads it on fd 2. logMessage with the error
-// type goes to stderr on the SDL backend and adds no prefix of its own, which
-// keeps every line clean and parseable (same path as engine/a11y.cpp emitLine).
+// All a11y output is one prefixed line on stderr (Module.printErr on the
+// web, fd 2 natively). logMessage() with kError adds no prefix.
 static void emitLine(const Common::String &line) {
 	if (!g_system)
 		return;
@@ -147,7 +139,7 @@ static Common::String cleanText(const char *s) {
 // ---------------------------------------------------------------- lookups
 
 // Total number of objects. roomData has numRooms + 2 entries, the last one
-// closes the final room (the probe relied on the same fact).
+// closes the final room.
 static uint16 numObjects(Logic *l) {
 	return l->roomData(l->numRooms() + 1);
 }
@@ -172,9 +164,9 @@ static Common::String lookText(Logic *l, uint16 d) {
 	return t;
 }
 
-// An item is carried when its name is positive (brief section 1, inventory).
+// An item is carried when its name is positive.
 // The journal is the save/load screen, not a puzzle item, so it is left out:
-// the player must never offer "use journal" (brief section 1, inventory gap).
+// the player must never offer "use journal".
 static bool isCarried(Logic *l, uint16 id) {
 	return id != ITEM_JOURNAL && l->itemData(id)->name > 0;
 }
@@ -287,7 +279,7 @@ static Layer &layer() {
 static void takeSnap(QueenEngine *vm, Snap &s) {
 	Logic *l = vm->logic();
 	s.room = l->currentRoom();
-	// Hero point: Joe is bob 0 (probe: joe=150,130 equals the first object's
+	// Hero point: Joe is bob 0 (joe=150,130 equals the first object's
 	// walk-to point, so it is a foot point). Unconfirmed beyond that.
 	BobSlot *joe = vm->graphics()->bob(0);
 	s.heroX = joe->x;
@@ -320,10 +312,9 @@ static void appendItem(Common::String &list, const Common::String &item) {
 	list += item;
 }
 
-// One room object in the shape the player expects (adapter.ts RoomObject, same
-// field names as Drascula objectJson). `k` is the room-relative noun 1..objMax
-// (brief section 1: global number = roomData(room) + k). Returns "" for a
-// deleted object (name 0) unless `nameHint` carries its old name.
+// One room object, with the same fields as the Drascula layer. `k` is the
+// room-relative noun 1..objMax (global number = roomData(room) + k).
+// Returns "" for a deleted object unless `nameHint` gives its old name.
 static Common::String objectJson(QueenEngine *vm, uint16 room, uint16 k, int16 nameHint) {
 	Logic *l = vm->logic();
 	uint16 gi = l->roomData(room) + k;
@@ -350,7 +341,7 @@ static Common::String objectJson(QueenEngine *vm, uint16 room, uint16 k, int16 n
 	}
 
 	// An exit is open when entryObj > 0 (command.cpp:529-541); a closed door
-	// has entryObj < 0 and becomes an exit only after it opens (brief section 1).
+	// has entryObj < 0 and becomes an exit only after it opens.
 	bool door = od->entryObj > 0 && (uint16)od->entryObj <= numObjects(l);
 	int toRoom = 0;
 	if (door) {
@@ -402,7 +393,7 @@ static Common::String roomStateJson(QueenEngine *vm) {
 	}
 	json += ids;
 
-	// All 211 game-state words, verbatim (brief section 1, flags).
+	// All 211 game-state words, verbatim.
 	json += "],\"flags\":[";
 	for (int i = 0; i < Logic::GAME_STATE_COUNT; ++i) {
 		if (i > 0)
@@ -466,10 +457,9 @@ static bool carriedChanged(QueenEngine *vm, Layer &s) {
 
 // ---------------------------------------------------------------- diff
 
-// The command the engine is about to execute, as a short label such as
-// "open 2" or "use 3 on 5", from the engine's own verb and nouns (this is what
-// the player's own clicks run, as well as file commands). A right click is resolved to the object's
-// default verb exactly as Command::executeCurrentAction does at its top.
+// The command the engine is about to run, such as "open 2" or
+// "use 3 on 5", from its own verb and nouns. A right click resolves to the
+// default verb, as Command::executeCurrentAction() does.
 static Common::String describeAction(QueenEngine *vm) {
 	Logic *l = vm->logic();
 	const CmdState &st = vm->command()->cmdState();
@@ -515,7 +505,7 @@ static void emitDiff(QueenEngine *vm) {
 
 	if (now.room != was.room) {
 		// Chapter never changes, so no "chapter" field. The whole new room is
-		// reported, as in the Drascula diff (adapter.ts Diff.objects).
+		// reported, as in the Drascula diff.
 		json += Common::String::format(",\"room\":[%d,%d]", (int)was.room, (int)now.room);
 		json += ",\"objects\":[" + roomObjectsJson(vm, now.room) + "]";
 		changed = true;
@@ -581,7 +571,7 @@ static void emitDiff(QueenEngine *vm) {
 	}
 
 	// Every game-state word that moved. No noise filter yet: which words are
-	// animation noise in Queen is unknown (brief section 1, flags).
+	// animation noise in Queen is unknown.
 	{
 		Common::String flags;
 		for (int i = 0; i < Logic::GAME_STATE_COUNT; ++i) {
@@ -625,7 +615,7 @@ static void emitDiff(QueenEngine *vm) {
 
 // ---------------------------------------------------------------- commands
 
-static const int kRoomHeight = 150;             // room zone height, panel below (brief section 1)
+static const int kRoomHeight = 150;             // room zone height, panel below
 static const int kScreenWidth = 320;
 static const uint32 kReadThrottleMs = 250;      // same cadence as Drascula onUpdateEvents
 static const uint32 kChooseHoldMs = 1500;       // a pushed digit not consumed by then is forgotten
@@ -673,7 +663,6 @@ static void pushEv(Common::Event &e) {
 	g_system->getEventManager()->pushEvent(e);
 }
 
-// Same shape as the probe's pushAction.
 static void pushAction(int action) {
 	Common::Event e;
 	e.type = Common::EVENT_CUSTOM_ENGINE_ACTION_START;
@@ -683,7 +672,7 @@ static void pushAction(int action) {
 	pushEv(e);
 }
 
-// Same shape as the probe's pushRightClick, with the left button. The move
+// A left click. The move
 // comes first because selection reads the cursor position (command.cpp:575).
 static void pushClick(int x, int y) {
 	Common::Event e;
@@ -826,10 +815,9 @@ static uint32 slotSig(Logic *l) {
 	return v;
 }
 
-// A screen point where the engine's own zone test returns object k, so the
-// click cannot land on a neighbour (brief gotcha 6). The box centre first,
-// then a 5x5 sample. The probe tested zone lookup in room coordinates and the
-// click in screen coordinates (box minus scroll); same here.
+// A screen point where the engine's own zone test returns object k, so
+// the click cannot land on a neighbour: the box centre, then a 5x5 sample.
+// Zones are in room coordinates, clicks in screen coordinates.
 static bool findClickPoint(QueenEngine *vm, uint16 room, uint16 k, int &sx, int &sy) {
 	Logic *l = vm->logic();
 	Grid *g = vm->grid();
@@ -1082,10 +1070,8 @@ static void startSave(QueenEngine *vm, const Common::String &text, const Common:
 	emitDone(text);
 }
 
-// Survey-only teleport, the same three calls as Debugger::Cmd_Room (debug.cpp:177),
-// as the probe's jumpTo does. The room change itself happens on the next run
-// loop pass (queen.cpp:360-366), and the diff, armed here, is flushed by the
-// next onIdle after the A11Y line of the new room.
+// Survey-only teleport, the same calls as Debugger::Cmd_Room. The room
+// changes on the next run loop pass; onIdle() then flushes the diff.
 static void startRoom(QueenEngine *vm, const Common::String &text, const Common::Array<Common::String> &w) {
 	Layer &s = layer();
 	Logic *l = vm->logic();
@@ -1104,13 +1090,13 @@ static void startRoom(QueenEngine *vm, const Common::String &text, const Common:
 		return;
 	}
 	// The pinnacle waits for a click and the logo room plays the whole intro
-	// (probe isSpecialRoom), so a teleport there would hang the command.
+	// (special rooms), so a teleport there would hang the command.
 	if (n == ROOM_JUNGLE_PINNACLE || n == FOTAQ_LOGO) {
 		emitErr(Common::String::format("room %d cannot be entered by teleport", n));
 		return;
 	}
 	// A room the data lists but this version does not ship would assert in
-	// Resource::loadFile (probe nextJump).
+	// Resource::loadFile.
 	Common::String pcx = Common::String::format("%s.%s", l->roomName((uint16)n),
 		vm->resource()->getPlatform() == Common::kPlatformAmiga ? "LBM" : "PCX");
 	Common::String bbk = Common::String::format("%s.BBK", l->roomName((uint16)n));
@@ -1268,7 +1254,7 @@ void onIdle(QueenEngine *vm) {
 		emitInv(vm);
 
 	// 4. Idle branch reached: a layer command may run and the player is in
-	//    control, unless a cutaway is running (brief section 1, phase).
+	//    control, unless a cutaway is running.
 	bool inControl = !vm->input()->cutawayRunning();
 
 	// 5. Command file. Only here, at the idle branch, does a command start. A
