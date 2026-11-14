@@ -40,6 +40,8 @@ import {
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { splitA11yLines } from "../src/engine/a11y-lines.js";
+
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(HERE, "..");
 const VENDOR = resolve(ROOT, "vendor");
@@ -48,21 +50,10 @@ const GAME_DIR = resolve(VENDOR, "game", "drascula");
 const ENGINE_DATA = resolve(VENDOR, "scummvm", "dists", "engine-data");
 const FIXTURE_DIR = resolve(ROOT, "tests", "engine", "fixtures");
 
-const A11Y_PREFIXES = [
-  "A11Y_DIFF ",
-  "A11Y_CHOICES ",
-  "A11Y_CMD ",
-  "A11Y_ERR ",
-  "A11Y_TEXT ",
-  "A11Y_INV ",
-  "A11Y_SAVED ",
-  "A11Y_HOVER ",
-  "A11Y_SAY ",
-  "A11Y ",
-];
-
+// Every A11Y line the engine writes, whatever its prefix, so a new line type
+// (A11Y_PHASE, A11Y_VTEXT and so on) is recorded without a list to update.
 function isA11y(line: string): boolean {
-  return A11Y_PREFIXES.some((p) => line.startsWith(p));
+  return /^A11Y(_[A-Z_]+)?( |$)/.test(line);
 }
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -106,7 +97,7 @@ class Recorder {
   }
 
   private lines(): string[] {
-    return this.rawLog.split(/\r?\n/);
+    return splitA11yLines(this.rawLog);
   }
 
   private has(marker: string): boolean {

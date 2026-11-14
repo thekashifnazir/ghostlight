@@ -38,12 +38,6 @@
 #
 set -uo pipefail
 
-ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-VENDOR="$ROOT/vendor"
-SCUMMVM="$VENDOR/scummvm/scummvm"
-GAME_DIR="$VENDOR/game/drascula"
-ENGINE_DATA="$VENDOR/scummvm/dists/engine-data"
-
 SAVEPATH="/tmp/ghostlight-engine"
 OUT=""
 while [ $# -gt 0 ]; do
@@ -54,13 +48,10 @@ while [ $# -gt 0 ]; do
   shift
 done
 
-log() { printf '[over-skip] %s\n' "$*" >&2; }
-die() { printf '[over-skip] ERROR: %s\n' "$*" >&2; exit 1; }
-fail_guard() { printf '[over-skip] GUARD FAILED: %s\n' "$*" >&2; exit 2; }
+TAG=over-skip
+. "$(dirname "${BASH_SOURCE[0]}")/engine-lib.sh"
 
-[ -x "$SCUMMVM" ] || die "native binary missing: $SCUMMVM (run scripts/build-engine.sh)"
-[ -f "$GAME_DIR/Packet.001" ] || die "game data missing in $GAME_DIR (run scripts/fetch.sh)"
-[ -f "$ENGINE_DATA/drascula.dat" ] || die "drascula.dat missing in $ENGINE_DATA"
+need_engine
 
 mkdir -p "$SAVEPATH"
 CMD="$SAVEPATH/a11y-cmd.txt"
@@ -70,50 +61,13 @@ LOG="$SAVEPATH/over-skip.log"
 # Overall hard cap so a stuck crossing can never hang. The crossing legitimately
 # takes a couple of minutes under paced skips; this bounds the whole run.
 CAP=240
-DEADLINE=$(( $(date +%s) + CAP ))
-
-# Track the engine PID directly and kill -9 it (ScummVM ignores SIGTERM, gotcha
-# 12). We never pgrep for it, so a wait loop cannot match its own command line.
-ENGINE_PID=""
-cleanup() {
-  [ -n "$ENGINE_PID" ] || return 0
-  kill -0 "$ENGINE_PID" 2>/dev/null || return 0
-  kill -9 "$ENGINE_PID" 2>/dev/null || true
-  wait "$ENGINE_PID" 2>/dev/null || true
-}
-trap cleanup EXIT INT TERM
-
-"$SCUMMVM" --path="$GAME_DIR" --extrapath="$ENGINE_DATA" --savepath="$SAVEPATH" \
-  --subtitles drascula >"$LOG" 2>&1 &
-ENGINE_PID=$!
-
-app() { printf '%s\n' "$1" >> "$CMD"; }
-
-waitfor() {
-  local marker="$1"
-  while :; do
-    grep -qF "$marker" "$LOG" 2>/dev/null && return 0
-    kill -0 "$ENGINE_PID" 2>/dev/null || return 1
-    [ "$(date +%s)" -ge "$DEADLINE" ] && return 1
-    sleep 0.3
-  done
-}
+start_engine
 
 # 1) Engine up at the tavern (chapter 1, room 62).
 waitfor 'A11Y {"chapter":1,"room":62' || die "engine never reached the tavern"
 
-# 2) talk 52 sets flag 0 (unlocks door 105). Pace skips during the speech until
-#    the talk-52 diff lands.
-log "driving talk 52 (sets flag 0)"
-app 'talk 52'
-waitfor 'A11Y_CMD talk 52' || die "talk 52 was never echoed"
-while :; do
-  grep -qF 'A11Y_DIFF {"cmd":"talk 52"' "$LOG" 2>/dev/null && break
-  kill -0 "$ENGINE_PID" 2>/dev/null || die "engine died during talk 52"
-  [ "$(date +%s)" -ge "$DEADLINE" ] && die "talk 52 never settled within the cap"
-  app skip
-  sleep 1.2
-done
+# 2) talk 52 sets flag 0 (unlocks door 105), with paced skips.
+talk52_paced
 
 # 3) THE OVER-SKIP CROSSING. walk 105, then pace skips through animation_2_1 —
 #    but keep going for a fixed OVERSHOOT burst after the crossing diff appears,
@@ -155,8 +109,7 @@ waitfor 'A11Y_DIFF {"cmd":"dump"' || die "dump after the crossing never settled"
 app 'look 202'
 waitfor 'A11Y_DIFF {"cmd":"look 202"' || die "look 202 after the crossing never settled"
 
-cleanup
-ENGINE_PID=""
+stop_engine
 
 # --- report + guard assertions ----------------------------------------------
 

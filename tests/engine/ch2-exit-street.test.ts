@@ -150,9 +150,8 @@ describe("chapter-2 inn-bar -> street exit settles (no permanent busy)", () => {
       expect(start, "captured a starting room state").toBeDefined();
       expectExitSettled(start!, lines);
 
-      // The live run must end on `A11Y_PHASE control` (the parser drops phase
-      // lines, so assert on the raw stdout): the command settled and the web
-      // player returns to ready. Without the fix the last phase stays `busy`.
+      // The live run must end on `A11Y_PHASE control` (asserted on the raw
+      // stdout): the command settled and the web player returns to ready. Without the fix the last phase stays `busy`.
       const phases = (run.stdout ?? "")
         .split(/\r?\n/)
         .filter((l) => l.startsWith("A11Y_PHASE "));

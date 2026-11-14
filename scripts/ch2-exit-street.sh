@@ -40,12 +40,6 @@
 #
 set -uo pipefail
 
-ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-VENDOR="$ROOT/vendor"
-SCUMMVM="$VENDOR/scummvm/scummvm"
-GAME_DIR="$VENDOR/game/drascula"
-ENGINE_DATA="$VENDOR/scummvm/dists/engine-data"
-
 SAVEPATH="/tmp/ghostlight-engine"
 SLOT="9"
 OUT=""
@@ -61,19 +55,18 @@ while [ $# -gt 0 ]; do
   shift
 done
 
-log() { printf '[ch2-exit] %s\n' "$*" >&2; }
-die() { printf '[ch2-exit] ERROR: %s\n' "$*" >&2; exit 1; }
-fail_guard() { printf '[ch2-exit] GUARD FAILED: %s\n' "$*" >&2; exit 2; }
+TAG=ch2-exit
+POLL=0.2
+. "$(dirname "${BASH_SOURCE[0]}")/engine-lib.sh"
+
 
 # A clean SKIP (not a failure) when the build or data is absent, matching how the
 # live Playwright spec skips when the wasm build is missing. The vitest wrapper
 # turns exit 3 into a skipped test.
 skip() { printf '[ch2-exit] SKIP: %s\n' "$*" >&2; exit 3; }
 
-[ -x "$SCUMMVM" ] || skip "native binary missing: $SCUMMVM (run scripts/build-engine.sh)"
-[ -f "$GAME_DIR/Packet.001" ] || skip "game data missing in $GAME_DIR (run scripts/fetch.sh)"
-[ -f "$ENGINE_DATA/drascula.dat" ] || skip "drascula.dat missing in $ENGINE_DATA"
-case "$SLOT" in ''|*[!0-9]*) die "slot must be a whole number, got: $SLOT" ;; esac
+need_engine skip
+need_number slot "$SLOT"
 
 mkdir -p "$SAVEPATH"
 
@@ -95,35 +88,9 @@ LOG="$SAVEPATH/ch2-exit.log"
 # Overall hard cap. The run is a save load (~2s) plus one walk, so a 60s cap is
 # generous; it bounds a wedge so the test fails loudly instead of hanging.
 CAP=60
-DEADLINE=$(( $(date +%s) + CAP ))
-
-# Track the engine PID directly and kill -9 it (ScummVM ignores SIGTERM, gotcha
-# 12). We never pgrep for it, so a wait loop cannot match its own command line.
-ENGINE_PID=""
-cleanup() {
-  [ -n "$ENGINE_PID" ] || return 0
-  kill -0 "$ENGINE_PID" 2>/dev/null || return 0
-  kill -9 "$ENGINE_PID" 2>/dev/null || true
-  wait "$ENGINE_PID" 2>/dev/null || true
-}
-trap cleanup EXIT INT TERM
 
 # Launch LOADING the chapter-2 save (--save-slot), so the run starts in room 14.
-"$SCUMMVM" --path="$GAME_DIR" --extrapath="$ENGINE_DATA" --savepath="$SAVEPATH" \
-  --save-slot="$SLOT" --subtitles drascula >"$LOG" 2>&1 &
-ENGINE_PID=$!
-
-app() { printf '%s\n' "$1" >> "$CMD"; }
-
-waitfor() {
-  local marker="$1"
-  while :; do
-    grep -qF "$marker" "$LOG" 2>/dev/null && return 0
-    kill -0 "$ENGINE_PID" 2>/dev/null || return 1
-    [ "$(date +%s)" -ge "$DEADLINE" ] && return 1
-    sleep 0.2
-  done
-}
+start_engine --save-slot="$SLOT"
 
 # 1) Engine up in chapter 2, room 14 (the inn bar), from the loaded save.
 waitfor 'A11Y {"chapter":2,"room":14' \
@@ -148,8 +115,7 @@ while [ "$(date +%s)" -lt "$SETTLE_UNTIL" ] && [ "$(date +%s)" -lt "$DEADLINE" ]
   sleep 0.2
 done
 
-cleanup
-ENGINE_PID=""
+stop_engine
 
 # --- report + guard assertions ----------------------------------------------
 
