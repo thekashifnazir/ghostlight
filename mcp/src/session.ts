@@ -88,6 +88,21 @@ export class Session {
   }
 
   /**
+   * Send a raw engine command line (survey-only `room N`) and keep the tracked
+   * room in step. Errors if the transport has no raw channel (replay).
+   */
+  async sendRaw(line: string): Promise<CommandResult> {
+    const transport = this.requireTransport();
+    if (!transport.sendRaw) {
+      throw new Error("this transport cannot send raw engine commands (native only).");
+    }
+    const result = await transport.sendRaw(line);
+    this.applyRoomChange(result);
+    this.applyInventory(result);
+    return result;
+  }
+
+  /**
    * Rebuild currentRoom when a diff reports a room change. The engine includes
    * the new room's full object list in that diff (engine design; tavern.json's
    * walk-105 crossing carries room [62,14] + 12 objects), so we can refresh

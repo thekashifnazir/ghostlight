@@ -44,6 +44,13 @@ import type {
 const START_CAP_MS = 60_000;
 
 /**
+ * Queen's fresh start plays the intro and took about 9 minutes to reach the
+ * first playable room (process log entry 150), so it gets a longer start cap.
+ * Starting from a save slot is much faster.
+ */
+const QUEEN_START_CAP_MS = 15 * 60_000;
+
+/**
  * Settle cap for a single command. A command that truly does not settle returns
  * a clear error after this, carrying the last A11Y line seen, rather than
  * leaving the caller in 60 s of silence (transport-settle bugfix). This is well
@@ -174,25 +181,36 @@ export class NativeTransport implements Transport {
     mkdirSync(this.config.savePath, { recursive: true });
     writeFileSync(this.commandFile, "");
 
-    const args = [
-      `--path=${this.config.gamePath}`,
-      `--extrapath=${this.config.extraPath}`,
+    const game = this.config.game ?? "drascula";
+    const args = [`--path=${this.config.gamePath}`];
+    // Queen needs no --extrapath (one data file, hardcoded table); an empty
+    // extraPath means "omit the flag". Drascula always passes it, as before.
+    if (game === "drascula" || this.config.extraPath !== "") {
+      args.push(`--extrapath=${this.config.extraPath}`);
+    }
+    args.push(
       `--savepath=${this.config.savePath}`,
       "--subtitles", // mandatory or no text is drawn (gotcha 1 / R6.7)
-    ];
+    );
     if (this.config.slot !== undefined) {
       // Load a saved game so the session begins partway through (R6.2).
       args.push(`--save-slot=${this.config.slot}`);
     }
-    args.push("drascula");
+    args.push(game);
 
     this.log(
       `start` +
+        (game !== "drascula" ? ` (game ${game})` : "") +
         (this.config.slot !== undefined ? ` (save-slot ${this.config.slot})` : ""),
     );
 
+    // Queen's survey-only `room N` command needs GHOSTLIGHT_SURVEY=1 in the
+    // engine's environment. Drascula spawns exactly as before (no env option).
     const child = spawn(this.config.binary, args, {
       stdio: ["ignore", "pipe", "pipe"],
+      ...(game === "queen"
+        ? { env: { ...process.env, GHOSTLIGHT_SURVEY: "1" } }
+        : {}),
     });
     this.child = child;
     this.pid = child.pid;
@@ -206,6 +224,7 @@ export class NativeTransport implements Transport {
     child.stdout?.on("data", (d: Buffer) => this.onChunk("stdout", d));
     child.stderr?.on("data", (d: Buffer) => this.onChunk("stderr", d));
 
+    const startCapMs = game === "queen" ? QUEEN_START_CAP_MS : START_CAP_MS;
     return new Promise<RoomState>((resolve, reject) => {
       const timer = setTimeout(() => {
         this.awaitingRoom = undefined;
@@ -214,11 +233,11 @@ export class NativeTransport implements Transport {
         reject(
           new Error(
             `native transport: the engine did not reach a room state within ` +
-              `${START_CAP_MS / 1000}s. Check the build and game data ` +
+              `${startCapMs / 1000}s. Check the build and game data ` +
               `(scripts/build-engine.sh, scripts/fetch.sh).`,
           ),
         );
-      }, START_CAP_MS);
+      }, startCapMs);
 
       this.awaitingRoom = (room) => {
         clearTimeout(timer);
@@ -256,6 +275,18 @@ export class NativeTransport implements Transport {
   // --- send -----------------------------------------------------------------
 
   async send(cmd: Command): Promise<CommandResult> {
+    return this.sendLine(serializeCommand(cmd));
+  }
+
+  /**
+   * Send one already-serialised command line (used for engine commands that are
+   * not part of the shared Command union, such as the survey-only `room N`).
+   */
+  async sendRaw(line: string): Promise<CommandResult> {
+    return this.sendLine(line);
+  }
+
+  private async sendLine(expected: string): Promise<CommandResult> {
     if (this.gameEnded) return { events: [], error: GAME_ENDED_MESSAGE };
     if (!this.child || !this.pid) {
       throw new Error("native transport: not started; call start() first.");
@@ -264,7 +295,6 @@ export class NativeTransport implements Transport {
       throw new Error("native transport: a command is already in flight.");
     }
 
-    const expected = serializeCommand(cmd);
     // Flush a "sending" line BEFORE the write and the wait, so if the engine
     // never answers, the last line on stderr names the command that blocked.
     this.log(`send "${expected}"`);

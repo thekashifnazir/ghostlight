@@ -56,7 +56,7 @@ async function main(): Promise<void> {
   );
 
   const session = new Session();
-  const tools = new Tools(session, transportFactory(config));
+  const tools = new Tools(session, transportFactory(config), config.game);
 
   // Kill any spawned engine when the process goes down, so a disconnect or
   // crash never orphans a native child (Req 4.5). stop() is safe with no

@@ -52,6 +52,7 @@ One file per game, engine and language: `<gameId>-<lang>.json`, for example `dra
 - `game.engine` and `game.gameId` are ScummVM's ids (the engine name and the detection `gameId`). `game.language` is ScummVM's language code. `game.variant` is free text for which release the numbers were taken from.
 - `formatVersion` is the format (`1.x`); `pack.version` is this file's content (semver). A reader rejects a major `formatVersion` it does not know.
 - Numeric ids are JSON object keys, so they are strings of digits (`"62"`).
+- An engine with no chapters (Flight of the Amazon Queen) reports `chapter: 1` everywhere: use `"chapters": [1]` on every room and item, and `coverage.chapters: [1]`.
 
 The top-level required sections are `format`, `formatVersion`, `game`, `pack` and `rooms`. `textFixes`, `chapters`, `items`, `cutscenes` and `milestones` are optional.
 
