@@ -1,0 +1,313 @@
+{
+  "$schema": "../../../ghostlight/packs/schema.json",
+  "format": "scummvm-a11y-pack",
+  "formatVersion": "1.0",
+  "game": {
+    "engine": "queen",
+    "gameId": "queen",
+    "language": "en",
+    "platform": "dos",
+    "title": "Flight of the Amazon Queen",
+    "variant": "Floppy DOS English (queen.1, 22677657 bytes, md5 979a3395...), as detected by ScummVM as Floppy/DOS/English"
+  },
+  "pack": {
+    "version": "0.1.0",
+    "updated": "2026-11-12",
+    "coverage": {
+      "chapters": [
+        1
+      ]
+    },
+    "speechLocale": "en-GB",
+    "authors": [
+      "Ghostlight"
+    ],
+    "notes": "DRAFT for review, rooms 1 to 5 only. Hand survey from the Queen probe dump and one window capture per room. Queen has no chapters; chapter 1 is a placeholder so the v1 schema validates. Hotspot keys are the room-relative noun numbers from the probe (PROBE OBJ n), not the global object index."
+  },
+  "rooms": {
+    "1": {
+      "chapters": [
+        1
+      ],
+      "name": "Plane cabin",
+      "short": "Inside the wrecked plane. Waterlogged seats are on the left, crates in the middle, and a hatch on the right.",
+      "long": "The cabin of the plane, seen along its length. On the left, red seats stand in water. In the middle, wooden crates are strapped down, and Sparky stands beside them. A green duffle bag lies on the floor in front. Faye stands on the right, next to a hatch with a window in it.",
+      "seen": true,
+      "note": "Engine room code C1. Draft, not reviewed.",
+      "exits": {
+        "6": {
+          "label": "hatch out to the river",
+          "to": 2,
+          "direction": "right",
+          "note": "Engine name hatch, g=6. A closed door at game start (exit=closed->2); it must be opened first. Opening it changes only the object (entry -8 to 8), not a gs[] word, so v1 opensWhen cannot express it. Look line is the generic 'It looks nice'."
+        }
+      },
+      "objects": {
+        "1": {
+          "name": "duffle bag",
+          "type": "object",
+          "description": "A green duffle bag on the floor, in front of the crates."
+        },
+        "2": {
+          "name": "Sparky",
+          "type": "npc",
+          "description": "Sparky, a heavy-set man dressed in white."
+        },
+        "3": {
+          "name": "Faye",
+          "type": "npc",
+          "description": "Faye Russel, the film star, standing by the hatch."
+        },
+        "4": {
+          "name": "crates",
+          "type": "object",
+          "description": "Wooden crates strapped down in the middle of the cabin."
+        },
+        "5": {
+          "name": "waterlogged seats",
+          "type": "object",
+          "description": "A row of red seats on the left, standing in water."
+        }
+      }
+    },
+    "2": {
+      "chapters": [
+        1
+      ],
+      "name": "River beside the plane",
+      "short": "Outside the plane, which sits in a river. Its hatch is in the middle, lily pads float below, and piranhas swim on the left.",
+      "long": "The side of the plane fills the top of the screen, with AMAZON QUEEN painted on the left. Its round hatch is in the middle. Below, the river runs across the screen. Piranhas swim on the left. A giant lily pad floats under the hatch, with more lily pads to the right. A broken propeller lies in the water, right of centre.",
+      "seen": true,
+      "note": "Engine room code C2. The capture shows the hatch open because the probe jumps straight in. Smoke (5) is a hotspot at the top right but is not clear in the capture, so it is left out of the room text.",
+      "exits": {
+        "2": {
+          "label": "hatch back into the plane",
+          "to": 1,
+          "direction": "ahead",
+          "note": "Engine name inside airplane, g=8. Box covers the hatch and the right of the fuselage."
+        },
+        "10": {
+          "label": "plane's left side, back into the plane",
+          "to": 1,
+          "direction": "left",
+          "note": "Engine name inside airplane, g=16. Second exit to room 1, over the painted name. Same look line as exit 2."
+        }
+      },
+      "objects": {
+        "1": {
+          "name": "lily pad stem",
+          "type": "object",
+          "description": "The stem holding the giant lily pad in place."
+        },
+        "3": {
+          "name": "giant lily pad",
+          "type": "object",
+          "description": "A large lily pad floating under the hatch.",
+          "note": "Box is only 5 by 12 pixels; walk area 2 also points at it."
+        },
+        "4": {
+          "name": "piranhas",
+          "type": "object",
+          "description": "Piranhas in the water on the left."
+        },
+        "5": {
+          "name": "smoke",
+          "type": "object",
+          "description": "Smoke at the top right.",
+          "note": "From the engine name and box only (251,0 to 307,34). Not clear in the capture. Look line is generic."
+        },
+        "6": {
+          "name": "propeller",
+          "type": "object",
+          "description": "A broken propeller lying in the water, right of centre."
+        },
+        "7": {
+          "name": "lily pad, right of centre",
+          "type": "object",
+          "description": "A lily pad on the water, right of centre.",
+          "note": "Engine name lily pad, flagged person=1 (animated). Not a person."
+        },
+        "8": {
+          "name": "lily pad, far right",
+          "type": "object",
+          "description": "A lily pad on the water at the far right.",
+          "note": "Engine name lily pad, flagged person=1 (animated). Not a person."
+        },
+        "9": {
+          "name": "lily pad with paddle",
+          "type": "object",
+          "note": "Inactive at game start (active=0), box parked at the top left. No description until it is seen in play."
+        }
+      }
+    },
+    "3": {
+      "chapters": [
+        1
+      ],
+      "name": "Riverbank",
+      "short": "A sandy bank by the river. The wrecked plane is in the top left corner, Faye and Sparky stand on the bank, and a woman sits on a rock on the right.",
+      "long": "The river fills the top left, with the wrecked plane at its far end in the corner. Faye and Sparky stand on a sandy bank, left of centre. Rocks lie at the bottom left, where a path leads off. On the right, a woman with long black hair sits on a rock among the jungle plants. Thick jungle covers the top right, where a second path leads in.",
+      "seen": true,
+      "note": "Engine room code C3.",
+      "exits": {
+        "5": {
+          "label": "path to the rope bridge",
+          "to": 4,
+          "direction": "left",
+          "note": "Engine name path, g=21, bottom left. Look: 'I don't see anything special'."
+        },
+        "6": {
+          "label": "path into the jungle",
+          "to": 5,
+          "direction": "right",
+          "note": "Engine name path, g=22. Box covers most of the top of the screen (145,0 to 319,61)."
+        }
+      },
+      "objects": {
+        "1": {
+          "name": "woman on the rock",
+          "type": "npc",
+          "description": "A woman with long black hair, dressed in black, sitting on a rock on the right.",
+          "note": "Engine name Amazon, g=17, no default verb, look 'I don't see anything special'. Its box (278,104 to 294,119) sits at the woman's feet in the capture. Reviewer: confirm the hotspot is her and not the river."
+        },
+        "2": {
+          "name": "perfume",
+          "type": "object",
+          "note": "Inactive at game start (active=0). No description until it is seen in play."
+        },
+        "3": {
+          "name": "wrecked plane",
+          "type": "object",
+          "description": "The plane, at the far end of the river in the top left corner."
+        },
+        "4": {
+          "name": "lily pad with paddle",
+          "type": "object",
+          "note": "Inactive at game start (active=0). No description until it is seen in play."
+        },
+        "7": {
+          "name": "Sparky",
+          "type": "npc",
+          "description": "Sparky, a heavy-set man dressed in white, standing on the bank."
+        },
+        "8": {
+          "name": "Faye",
+          "type": "npc",
+          "description": "Faye Russel, the film star, standing on the bank."
+        }
+      }
+    },
+    "4": {
+      "chapters": [
+        1
+      ],
+      "name": "Rope bridge",
+      "short": "A dirt path above a river. A rope bridge crosses at the top left, a banana tree stands right of centre, and a banana lies on the ground.",
+      "long": "Mountains rise behind a misty valley across the top. On the left, a rope bridge crosses the river, with a support rope at its left end. The river runs down the middle of the screen. A banana tree stands right of centre, and a single banana lies on the ground at the bottom right. A dirt path runs along the right side, and the way back leads off at the bottom left.",
+      "seen": true,
+      "note": "Engine room code C4. The only engine exit is the path back to room 3.",
+      "exits": {
+        "3": {
+          "label": "path back to the riverbank",
+          "to": 3,
+          "direction": "left",
+          "note": "Engine name path, g=27. Look: 'I don't see anything special'."
+        }
+      },
+      "objects": {
+        "1": {
+          "name": "banana tree",
+          "type": "object",
+          "description": "A banana tree right of centre, with bananas high up."
+        },
+        "2": {
+          "name": "banana on the ground",
+          "type": "object",
+          "description": "A single banana on the ground at the bottom right."
+        },
+        "4": {
+          "name": "support rope",
+          "type": "object",
+          "description": "A worn rope holding the left end of the bridge."
+        },
+        "5": {
+          "name": "rope bridge",
+          "type": "object",
+          "description": "A rope bridge across the river, at the top left.",
+          "note": "Not an engine exit. Look: 'It looks too dangerous to cross'."
+        },
+        "6": {
+          "name": "support rope, mended",
+          "type": "object",
+          "note": "Inactive at game start (active=0); the later state of rope 4. Box parked at the top right. Name is a draft; reviewer to check it does not give away a puzzle."
+        },
+        "7": {
+          "name": "rope bridge, mended",
+          "type": "object",
+          "note": "Inactive at game start (active=0); the later state of bridge 5. Name is a draft; reviewer to check it does not give away a puzzle."
+        },
+        "8": {
+          "name": "second banana",
+          "type": "object",
+          "note": "Inactive at game start (active=0), default verb pick up. Box parked at the top right."
+        },
+        "9": {
+          "name": "valley",
+          "type": "object",
+          "description": "A misty valley with mountains behind it, across the top of the screen.",
+          "note": "In the capture, look at valley made Joe say 'The bridge isn't safe enough to cross...', not the data's look line. A scripted look overrides it."
+        }
+      }
+    },
+    "5": {
+      "chapters": [
+        1
+      ],
+      "name": "Jungle path",
+      "short": "A jungle path climbs from the foreground to the top of the screen. A stream runs on the left, and a vine hangs from a tree on the right.",
+      "long": "Big trees and ferns crowd both sides. On the left, a stream runs behind the trees. In the middle, a dirt path climbs from the foreground to the top of the screen, where it leads on. On the right, a thin vine hangs from a tree almost to the ground. The way back is through the plants at the bottom left.",
+      "seen": true,
+      "note": "Engine room code C5. Something red and yellow hangs at the bottom of the vine in the capture; it has no hotspot of its own and is not described.",
+      "exits": {
+        "1": {
+          "label": "path back to the riverbank",
+          "to": 3,
+          "direction": "back",
+          "note": "Engine name path, g=34, flagged person=1 (image -3). Not a person."
+        },
+        "3": {
+          "label": "path on up into the jungle",
+          "to": 6,
+          "direction": "ahead",
+          "note": "Engine name path, g=36. Small box (44 by 13) at the top edge."
+        }
+      },
+      "objects": {
+        "2": {
+          "name": "vine",
+          "type": "object",
+          "description": "A thin vine hanging from a tree on the right, almost to the ground."
+        }
+      }
+    }
+  },
+  "items": [
+    {
+      "id": 1,
+      "chapters": [
+        1
+      ],
+      "name": "bat",
+      "description": "Your lucky bat, from your days in the Majors."
+    },
+    {
+      "id": 2,
+      "chapters": [
+        1
+      ],
+      "name": "journal",
+      "description": "Your journal, for saving and loading the game.",
+      "note": "Look line is the generic 'I don't see anything special'."
+    }
+  ]
+}

@@ -10,6 +10,17 @@
         "DRASCULA_MCP_TRANSPORT": "replay",
         "DRASCULA_MCP_FIXTURE": "tavern"
       }
+    },
+    "queen": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "tsx", "src/server.ts"],
+      "cwd": "${PLUGIN_DATA}/drascula-mcp",
+      "env": {
+        "DRASCULA_MCP_TRANSPORT": "native",
+        "GHOSTLIGHT_GAME": "queen",
+        "GHOSTLIGHT_QUEEN_BINARY": "${GHOSTLIGHT_QUEEN_BINARY}"
+      }
     }
   }
 }

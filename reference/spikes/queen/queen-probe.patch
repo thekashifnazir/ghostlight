@@ -1,0 +1,715 @@
+diff --git a/engines/queen/grid.h b/engines/queen/grid.h
+index da1eab10ee..e61c91d508 100644
+--- a/engines/queen/grid.h
++++ b/engines/queen/grid.h
+@@ -92,6 +92,9 @@ public:
+ 	//! returns the number of objects in this room
+ 	uint16 objMax(int room) const { return _objMax[room]; }
+ 
++	//! static box of a global object number, as loaded from data (probe)
++	const Box *objectBox(uint16 obj) const { return &_objectBox[obj]; }
++
+ 	void saveState(byte *&ptr);
+ 	void loadState(uint32 ver, byte *&ptr);
+ 
+diff --git a/engines/queen/logic.cpp b/engines/queen/logic.cpp
+index 1b43a20ea7..27ae74390a 100644
+--- a/engines/queen/logic.cpp
++++ b/engines/queen/logic.cpp
+@@ -36,6 +36,7 @@
+ #include "queen/grid.h"
+ #include "queen/input.h"
+ #include "queen/journal.h"
++#include "queen/probe.h"
+ #include "queen/queen.h"
+ #include "queen/resource.h"
+ #include "queen/sound.h"
+@@ -1184,6 +1185,7 @@ void Logic::handlePinnacleRoom() {
+ 	// camera does not follow Joe anymore
+ 	_vm->graphics()->putCameraOnBob(-1);
+ 	displayRoom(ROOM_JUNGLE_PINNACLE, RDM_NOFADE_JOE, 100, 2, true);
++	Probe::onPinnacle(_vm);
+ 
+ 	BobSlot *joe   = _vm->graphics()->bob(6);
+ 	BobSlot *piton = _vm->graphics()->bob(7);
+diff --git a/engines/queen/logic.h b/engines/queen/logic.h
+index 4aa42ce5c2..95c2d49411 100644
+--- a/engines/queen/logic.h
++++ b/engines/queen/logic.h
+@@ -87,6 +87,9 @@ public:
+ 	GraphicData *graphicData(int index) const { return &_graphicData[index]; }
+ 	ItemData *itemData(int index) const { return &_itemData[index]; }
+ 	uint16 itemDataCount() const { return _numItems; }
++	uint16 numRooms() const { return _numRooms; }             // probe
++	uint16 numNames() const { return _numNames; }             // probe
++	uint16 numDescriptions() const { return _numDescriptions; } // probe
+ 
+ 	uint16 findBob(uint16 obj) const;
+ 	uint16 findFrame(uint16 obj) const;
+diff --git a/engines/queen/module.mk b/engines/queen/module.mk
+index de6ea49a4f..a2456fe454 100644
+--- a/engines/queen/module.mk
++++ b/engines/queen/module.mk
+@@ -16,6 +16,7 @@ MODULE_OBJS := \
+ 	midiadlib.o \
+ 	music.o \
+ 	musicdata.o \
++	probe.o \
+ 	queen.o \
+ 	resource.o \
+ 	restables.o \
+diff --git a/engines/queen/probe.cpp b/engines/queen/probe.cpp
+new file mode 100644
+index 0000000000..8c7df4b563
+--- /dev/null
++++ b/engines/queen/probe.cpp
+@@ -0,0 +1,540 @@
++/* ScummVM - Graphic Adventure Engine
++ *
++ * This program is free software: you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License as published by
++ * the Free Software Foundation, either version 3 of the License, or
++ * (at your option) any later version.
++ *
++ * THROWAWAY SPIKE: screen-reader feasibility probe for the Queen engine.
++ * Prints plain "PROBE ..." lines on stdout (OSystem::logMessage kInfo).
++ * Reads engine data only; never runs scripts to get text.
++ */
++
++#define FORBIDDEN_SYMBOL_EXCEPTION_getenv
++
++#include "common/array.h"
++#include "common/events.h"
++#include "common/str.h"
++#include "common/system.h"
++#include "common/tokenizer.h"
++
++#include "queen/probe.h"
++#include "queen/defs.h"
++#include "queen/display.h"
++#include "queen/graphics.h"
++#include "queen/grid.h"
++#include "queen/logic.h"
++#include "queen/queen.h"
++#include "queen/resource.h"
++#include "queen/state.h"
++#include "queen/structs.h"
++
++namespace Queen {
++namespace Probe {
++
++// ---------------------------------------------------------------- output
++
++static void out(const Common::String &s) {
++	if (!g_system)
++		return;
++	Common::String line = s + "\n";
++	g_system->logMessage(LogMessageType::kInfo, line.c_str());
++}
++
++// Text in QUEEN2.JAS / dialogue files carries "*NN" speech-animation codes between
++// segments (Talk::speak / getSpeakCommand); a screen reader wants them gone.
++static Common::String quote(const char *s) {
++	if (s == nullptr || *s == '\0')
++		return "\"?\"";
++	Common::String r;
++	for (const char *p = s; *p; ++p) {
++		if (*p == '*') {
++			if (p[1]) ++p;
++			if (p[1]) ++p;
++			if (!r.empty() && r.lastChar() != ' ' && p[1])
++				r += ' ';
++		} else if (*p == '"') {
++			r += '\'';
++		} else if (*p == '\n' || *p == '\r') {
++			r += ' ';
++		} else {
++			r += *p;
++		}
++	}
++	r.trim();
++	if (r.empty())
++		return "\"?\"";
++	return "\"" + r + "\"";
++}
++
++// ---------------------------------------------------------------- safe lookups
++
++static uint16 numObjects(Logic *l) {
++	return l->roomData(l->numRooms() + 1);
++}
++
++static Common::String nameText(Logic *l, int16 n) {
++	int a = ABS(n);
++	if (a < 1 || a > l->numNames())
++		return "\"?\"";
++	return quote(l->objectName(a));
++}
++
++static Common::String descText(Logic *l, uint16 d) {
++	if (d < 1 || d > l->numDescriptions())
++		return "\"?\"";
++	return quote(l->objectTextualDescription(d));
++}
++
++static Common::String roomText(Logic *l, uint16 r) {
++	if (r < 1 || r > l->numRooms())
++		return "\"?\"";
++	return quote(l->roomName(r));
++}
++
++static Common::String verbText(Logic *l, Verb v) {
++	if (v < 1 || v > 12)
++		return "-";
++	return quote(l->verbName(v));
++}
++
++// ---------------------------------------------------------------- state
++
++struct ObjSnap {
++	int16 name, image, entryObj;
++	uint16 state;
++};
++
++struct Snap {
++	uint16 room;
++	int16 gs[Logic::GAME_STATE_COUNT];
++	Common::Array<ObjSnap> objs;   // index = global object number
++	Common::Array<int16> items;    // index = item number, value = ItemData::name
++};
++
++// heap-allocated on first use (ScummVM forbids global constructors); leaked on exit, spike only
++static Common::Array<uint16> *g_roomsPtr = nullptr;
++static Snap *g_beforePtr = nullptr;
++#define g_rooms (*(g_roomsPtr ? g_roomsPtr : (g_roomsPtr = new Common::Array<uint16>())))
++#define g_before (*(g_beforePtr ? g_beforePtr : (g_beforePtr = new Snap())))
++static uint g_next = 0;
++static bool g_batch = false;
++static bool g_quitOnIdle = false;
++static uint16 g_expect = 0;
++static uint16 g_lastRoom = 0;
++static bool g_pending = false;
++
++// optional test driver (QUEEN_PROBE_CLICK / QUEEN_PROBE_PICKS): pushes ordinary input
++// events so the ACTION / CHOICES / DIFF hooks can be exercised without a human
++static uint16 g_clickNoun = 0;
++static int g_clickState = 0; // 0 armed, 1 clicked and waiting, 2 done
++static int g_clickWait = 0;
++static int g_picks = 0;
++
++static void takeSnap(QueenEngine *vm, Snap &s) {
++	Logic *l = vm->logic();
++	s.room = l->currentRoom();
++	for (int i = 0; i < Logic::GAME_STATE_COUNT; ++i)
++		s.gs[i] = l->gameState(i);
++	uint16 n = numObjects(l);
++	s.objs.resize(n + 1);
++	for (uint16 i = 1; i <= n; ++i) {
++		ObjectData *od = l->objectData(i);
++		s.objs[i].name = od->name;
++		s.objs[i].image = od->image;
++		s.objs[i].entryObj = od->entryObj;
++		s.objs[i].state = od->state;
++	}
++	uint16 ni = l->itemDataCount();
++	s.items.resize(ni + 1);
++	for (uint16 i = 1; i <= ni; ++i)
++		s.items[i] = l->itemData(i)->name;
++}
++
++static void emitDiff(QueenEngine *vm, const char *tag) {
++	Logic *l = vm->logic();
++	Snap now;
++	takeSnap(vm, now);
++	Common::Array<Common::String> lines;
++
++	for (int i = 0; i < Logic::GAME_STATE_COUNT; ++i) {
++		if (g_before.gs[i] != now.gs[i])
++			lines.push_back(Common::String::format("PROBE D gs[%d] %d->%d", i, g_before.gs[i], now.gs[i]));
++	}
++	for (uint i = 1; i < now.objs.size() && i < g_before.objs.size(); ++i) {
++		const ObjSnap &a = g_before.objs[i];
++		const ObjSnap &b = now.objs[i];
++		if (a.name == b.name && a.image == b.image && a.entryObj == b.entryObj && a.state == b.state)
++			continue;
++		ObjectData *od = l->objectData(i);
++		lines.push_back(Common::String::format(
++			"PROBE D obj g=%u room=%u n=%d %s name=%d->%d image=%d->%d entry=%d->%d state=0x%X->0x%X",
++			i, od->room, (int)i - (int)l->roomData(od->room), nameText(l, b.name ? b.name : a.name).c_str(),
++			a.name, b.name, a.image, b.image, a.entryObj, b.entryObj, a.state, b.state));
++	}
++	for (uint i = 1; i < now.items.size() && i < g_before.items.size(); ++i) {
++		bool had = g_before.items[i] > 0, has = now.items[i] > 0;
++		if (had != has)
++			lines.push_back(Common::String::format("PROBE D item %u %s %s", i,
++				nameText(l, now.items[i]).c_str(), has ? "got" : "lost"));
++	}
++
++	out(Common::String::format("PROBE DIFF %s room=%u->%u changes=%u", tag, g_before.room, now.room, lines.size()));
++	for (uint i = 0; i < lines.size(); ++i)
++		out(lines[i]);
++	out("PROBE DIFF_END");
++	g_pending = false;
++}
++
++// ---------------------------------------------------------------- room dump
++
++static void dumpVerbsAndInventory(QueenEngine *vm) {
++	Logic *l = vm->logic();
++	static const Verb verbs[] = {
++		VERB_OPEN, VERB_CLOSE, VERB_MOVE, VERB_GIVE, VERB_USE,
++		VERB_PICK_UP, VERB_TALK_TO, VERB_LOOK_AT, VERB_WALK_TO
++	};
++	Common::String v = "PROBE VERBS";
++	for (uint i = 0; i < ARRAYSIZE(verbs); ++i)
++		v += Common::String::format(" %d=%s", (int)verbs[i], verbText(l, verbs[i]).c_str());
++	out(v);
++
++	out(Common::String::format("PROBE INV slots=%u,%u,%u,%u",
++		l->findInventoryItem(0), l->findInventoryItem(1), l->findInventoryItem(2), l->findInventoryItem(3)));
++	for (uint16 i = 1; i <= l->itemDataCount(); ++i) {
++		ItemData *id = l->itemData(i);
++		if (id->name <= 0)
++			continue;
++		out(Common::String::format("PROBE ITEM %u %s defaultVerb=%s look=%s", i,
++			nameText(l, id->name).c_str(), verbText(l, State::findDefaultVerb(id->state)).c_str(),
++			descText(l, id->description).c_str()));
++	}
++}
++
++static void dumpRoom(QueenEngine *vm, uint16 room, bool live) {
++	Logic *l = vm->logic();
++	Grid *g = vm->grid();
++	if (room < 1 || room > l->numRooms()) {
++		out(Common::String::format("PROBE ROOM %u \"?\" invalid", room));
++		return;
++	}
++	uint16 first = l->roomData(room);
++	uint16 objMax = g->objMax(room);
++	uint16 dataMax = l->roomData(room + 1) - first;
++	uint16 nObj = numObjects(l);
++
++	Common::String head = Common::String::format("PROBE ROOM %u %s objects=%u mode=%s",
++		room, roomText(l, room).c_str(), objMax, live ? "live" : "static");
++	if (objMax != dataMax)
++		head += Common::String::format(" roomDataObjects=%u", dataMax);
++	if (live) {
++		BobSlot *joe = vm->graphics()->bob(0);
++		head += Common::String::format(" joe=%d,%d", joe->x, joe->y);
++	}
++	out(head);
++
++	for (uint16 k = 1; k <= objMax; ++k) {
++		uint16 gi = first + k;
++		if (gi > nObj)
++			break;
++		ObjectData *od = l->objectData(gi);
++		const Box *b = g->objectBox(gi);
++		Common::String line = Common::String::format(
++			"PROBE OBJ %u g=%u %s active=%d image=%d box=%d,%d,%d,%d walkto=%u,%u",
++			k, gi, nameText(l, od->name).c_str(),
++			od->name > 0 ? 1 : (od->name < 0 ? 0 : -1), od->image,
++			b->x1, b->y1, b->x2, b->y2, od->x, od->y);
++		if (od->image == -3 || od->image == -4)
++			line += " person=1";
++		if (od->entryObj != 0) {
++			uint16 t = ABS(od->entryObj);
++			if (t <= nObj) {
++				uint16 tr = l->objectData(t)->room;
++				line += Common::String::format(" exit=%s->%u %s", od->entryObj > 0 ? "open" : "closed",
++					tr, roomText(l, tr).c_str());
++			} else {
++				line += " exit=?";
++			}
++		}
++		line += Common::String::format(" defaultVerb=%s", verbText(l, State::findDefaultVerb(od->state)).c_str());
++		if (live && od->name != 0 && b->x2 > b->x1) {
++			// what the engine would select for a click at the box centre (overlap check)
++			uint16 zone = g->findZoneForPos(GS_ROOM, (b->x1 + b->x2) / 2, (b->y1 + b->y2) / 2);
++			line += Common::String::format(" hit=%u", zone ? g->findObjectNumber(zone) : 0);
++		}
++		if (od->room != room)
++			line += Common::String::format(" dataRoom=%u", od->room);
++		line += " look=" + descText(l, od->description);
++		out(line);
++	}
++
++	for (uint16 a = 1; a <= g->areaMax(room) && a < Grid::MAX_AREAS_NUMBER; ++a) {
++		Area *ar = g->area(room, a);
++		out(Common::String::format("PROBE AREA %u box=%d,%d,%d,%d obj=%d", a,
++			ar->box.x1, ar->box.y1, ar->box.x2, ar->box.y2, ar->object ? (int)ar->object - (int)first : 0));
++	}
++
++	dumpVerbsAndInventory(vm);
++	out(Common::String::format("PROBE ROOM_END %u", room));
++}
++
++// ---------------------------------------------------------------- batch
++
++static bool isSpecialRoom(uint16 r) {
++	// pinnacle loops waiting for a click; the logo room plays the whole intro
++	return r == ROOM_JUNGLE_PINNACLE || r == FOTAQ_LOGO;
++}
++
++static void jumpTo(QueenEngine *vm, uint16 room) {
++	// same as Debugger::Cmd_Room (debug.cpp)
++	Logic *l = vm->logic();
++	l->joePos(0, 0);
++	l->newRoom(room);
++	l->entryObj(l->roomData(room) + 1);
++	g_expect = room;
++	g_lastRoom = 0; // force a dump even if we land in the same room
++	out(Common::String::format("PROBE JUMP %u", room));
++}
++
++// returns true if a jump was queued, false if the list is exhausted
++static bool nextJump(QueenEngine *vm) {
++	while (g_next < g_rooms.size()) {
++		uint16 r = g_rooms[g_next++];
++		if (isSpecialRoom(r)) {
++			out(Common::String::format("PROBE NOTE room %u is special, static dump only", r));
++			dumpRoom(vm, r, false);
++			continue;
++		}
++		// a room the data lists but this version does not ship (floppy) would assert in Resource::loadFile
++		Logic *l = vm->logic();
++		Common::String pcx = Common::String::format("%s.%s", l->roomName(r),
++			vm->resource()->getPlatform() == Common::kPlatformAmiga ? "LBM" : "PCX");
++		Common::String bbk = Common::String::format("%s.BBK", l->roomName(r));
++		if (!vm->resource()->fileExists(pcx.c_str()) || !vm->resource()->fileExists(bbk.c_str())) {
++			out(Common::String::format("PROBE NOTE room %u has no %s/%s in this version, static dump only",
++				r, pcx.c_str(), bbk.c_str()));
++			dumpRoom(vm, r, false);
++			continue;
++		}
++		jumpTo(vm, r);
++		return true;
++	}
++	return false;
++}
++
++static void parseRooms(const char *spec, uint16 maxRoom) {
++	Common::String s(spec);
++	if (s.equalsIgnoreCase("all")) {
++		for (uint16 r = 1; r <= maxRoom; ++r)
++			g_rooms.push_back(r);
++		return;
++	}
++	Common::StringTokenizer tok(s, ",");
++	while (!tok.empty()) {
++		Common::String t = tok.nextToken();
++		const char *dash = strchr(t.c_str(), '-');
++		int a = atoi(t.c_str());
++		int b = dash ? atoi(dash + 1) : a;
++		for (int r = a; r <= b; ++r) {
++			if (r >= 1 && r <= maxRoom)
++				g_rooms.push_back(r);
++			else
++				out(Common::String::format("PROBE NOTE room %d out of range 1..%u", r, maxRoom));
++		}
++	}
++}
++
++// ---------------------------------------------------------------- test driver
++
++static void pushEvent(Common::Event &e) {
++	g_system->getEventManager()->pushEvent(e);
++}
++
++static void pushRightClick(int x, int y) {
++	Common::Event e;
++	e.type = Common::EVENT_MOUSEMOVE;
++	e.mouse = Common::Point(x, y);
++	pushEvent(e);
++	e.type = Common::EVENT_RBUTTONDOWN;
++	pushEvent(e);
++	e.type = Common::EVENT_RBUTTONUP;
++	pushEvent(e);
++}
++
++static void pushAction(int action) {
++	Common::Event e;
++	e.type = Common::EVENT_CUSTOM_ENGINE_ACTION_START;
++	e.customType = action;
++	pushEvent(e);
++	e.type = Common::EVENT_CUSTOM_ENGINE_ACTION_END;
++	pushEvent(e);
++}
++
++// returns true while the driver wants the batch to wait in this room
++static bool drive(QueenEngine *vm) {
++	if (g_clickNoun == 0 || g_clickState == 2)
++		return false;
++	Logic *l = vm->logic();
++	if (g_clickState == 1) {
++		if (!g_pending && ++g_clickWait > 300) {
++			out("PROBE NOTE click produced no action");
++			g_clickState = 2;
++			return false;
++		}
++		return true;
++	}
++	uint16 room = l->currentRoom();
++	uint16 gi = l->roomData(room) + g_clickNoun;
++	if (g_clickNoun > vm->grid()->objMax(room) || gi > numObjects(l)) {
++		out(Common::String::format("PROBE NOTE no object %u in room %u", g_clickNoun, room));
++		g_clickState = 2;
++		return false;
++	}
++	const Box *b = vm->grid()->objectBox(gi);
++	int x = (b->x1 + b->x2) / 2 - vm->display()->horizontalScroll();
++	int y = (b->y1 + b->y2) / 2;
++	out(Common::String::format("PROBE DRIVE right-click obj %u %s at %d,%d", g_clickNoun,
++		nameText(l, l->objectData(gi)->name).c_str(), x, y));
++	pushRightClick(x, y);
++	g_clickState = 1;
++	g_clickWait = 0;
++	return true;
++}
++
++// ---------------------------------------------------------------- hooks
++
++void init(QueenEngine *vm) {
++	Logic *l = vm->logic();
++	out(Common::String::format("PROBE INIT rooms=%u objects=%u items=%u names=%u descriptions=%u",
++		l->numRooms(), numObjects(l), l->itemDataCount(), l->numNames(), l->numDescriptions()));
++
++	const char *click = getenv("QUEEN_PROBE_CLICK");
++	if (click != nullptr && *click)
++		g_clickNoun = atoi(click);
++	const char *picks = getenv("QUEEN_PROBE_PICKS");
++	g_picks = (picks != nullptr && *picks) ? atoi(picks) : (g_clickNoun ? 3 : 0);
++
++	const char *spec = getenv("QUEEN_PROBE_ROOMS");
++	if (spec == nullptr || *spec == '\0')
++		return;
++	parseRooms(spec, l->numRooms());
++
++	const char *st = getenv("QUEEN_PROBE_STATIC");
++	if (st != nullptr && *st == '1') {
++		// data-only dump, no room jumps; then enter the hotel lobby once and quit
++		for (uint i = 0; i < g_rooms.size(); ++i)
++			dumpRoom(vm, g_rooms[i], false);
++		g_rooms.clear();
++		jumpTo(vm, ROOM_HOTEL_LOBBY);
++		g_quitOnIdle = true;
++		return;
++	}
++
++	g_batch = true;
++	if (!nextJump(vm)) {
++		jumpTo(vm, ROOM_HOTEL_LOBBY);
++		g_quitOnIdle = true;
++	}
++}
++
++void onIdle(QueenEngine *vm) {
++	if (g_quitOnIdle) {
++		g_quitOnIdle = false;
++		out("PROBE DONE");
++		Engine::quitGame();
++		return;
++	}
++	Logic *l = vm->logic();
++	uint16 room = l->currentRoom();
++	if (room != g_lastRoom) {
++		if (g_batch && g_expect != 0 && room != g_expect)
++			out(Common::String::format("PROBE NOTE jumped to %u but settled in %u", g_expect, room));
++		dumpRoom(vm, room, true);
++		g_lastRoom = room;
++		g_expect = 0;
++	}
++	if (g_pending) {
++		emitDiff(vm, "settled");
++		if (g_clickState == 1)
++			g_clickState = 2;
++	}
++
++	if (g_batch && drive(vm))
++		return;
++
++	if (g_batch) {
++		if (!nextJump(vm)) {
++			g_batch = false;
++			out("PROBE DONE");
++			Engine::quitGame();
++		}
++	}
++}
++
++void onBeforeAction(QueenEngine *vm) {
++	if (g_pending)
++		emitDiff(vm, "superseded");
++	takeSnap(vm, g_before);
++	g_pending = true;
++	out(Common::String::format("PROBE ACTION room=%u", vm->logic()->currentRoom()));
++}
++
++void onChoices(QueenEngine *vm, const char *o1, const char *o2, const char *o3, const char *o4) {
++	if (g_pending)
++		emitDiff(vm, "at-choices");
++	const char *opts[4] = { o1, o2, o3, o4 };
++	int n = 0;
++	for (int i = 0; i < 4; ++i)
++		if (opts[i] && opts[i][0])
++			++n;
++	out(Common::String::format("PROBE CHOICES n=%d room=%u", n, vm->logic()->currentRoom()));
++	int key = 0;
++	for (int i = 0; i < 4; ++i) {
++		if (!opts[i] || !opts[i][0])
++			continue;
++		++key; // Talk::selectSentence maps digit key N to the Nth non-empty option
++		out(Common::String::format("PROBE OPT %d slot=%d %s", key, i + 1, quote(opts[i]).c_str()));
++	}
++	out("PROBE CHOICES_END");
++	if (g_picks > 0) {
++		--g_picks;
++		out("PROBE DRIVE pick 1");
++		pushAction(kActionInvSlot1);
++	} else if (g_clickNoun) {
++		out("PROBE DRIVE right-click to leave the conversation");
++		pushRightClick(160, 100);
++	}
++	// whatever the chosen line triggers is reported by the next diff
++	takeSnap(vm, g_before);
++	g_pending = true;
++}
++
++void onSpeak(QueenEngine *vm, const char *speaker, const char *sentence) {
++	out(Common::String::format("PROBE TEXT room=%u speaker=%s %s", vm->logic()->currentRoom(),
++		quote(speaker).c_str(), quote(sentence).c_str()));
++}
++
++void onPinnacle(QueenEngine *vm) {
++	Logic *l = vm->logic();
++	Grid *g = vm->grid();
++	uint16 room = ROOM_JUNGLE_PINNACLE;
++	uint16 first = l->roomData(room);
++	uint16 nObj = numObjects(l);
++	out("PROBE CHOICES pinnacle (mouse-only destination chooser)");
++	for (uint16 k = 1; k <= g->objMax(room); ++k) {
++		uint16 gi = first + k;
++		if (gi > nObj)
++			break;
++		ObjectData *od = l->objectData(gi);
++		if (od->name <= 0 || od->entryObj <= 0 || (uint16)od->entryObj > nObj)
++			continue;
++		uint16 tr = l->objectData(od->entryObj)->room;
++		const Box *b = g->objectBox(gi);
++		out(Common::String::format("PROBE OPT %u %s ->%u %s box=%d,%d,%d,%d", k, nameText(l, od->name).c_str(),
++			tr, roomText(l, tr).c_str(), b->x1, b->y1, b->x2, b->y2));
++	}
++	out("PROBE CHOICES_END");
++}
++
++} // End of namespace Probe
++} // End of namespace Queen
+diff --git a/engines/queen/probe.h b/engines/queen/probe.h
+new file mode 100644
+index 0000000000..628f78bb44
+--- /dev/null
++++ b/engines/queen/probe.h
+@@ -0,0 +1,42 @@
++/* ScummVM - Graphic Adventure Engine
++ *
++ * This program is free software: you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License as published by
++ * the Free Software Foundation, either version 3 of the License, or
++ * (at your option) any later version.
++ *
++ * THROWAWAY SPIKE: screen-reader feasibility probe for the Queen engine.
++ * Prints plain "PROBE ..." lines on stdout. Not product code.
++ */
++
++#ifndef QUEEN_PROBE_H
++#define QUEEN_PROBE_H
++
++namespace Queen {
++
++class QueenEngine;
++
++namespace Probe {
++
++//! after Logic::start(): read QUEEN_PROBE_ROOMS / QUEEN_PROBE_STATIC, maybe redirect the first room
++void init(QueenEngine *vm);
++
++//! run loop idle branch (player in control): dump room on change, flush pending diff, drive batch
++void onIdle(QueenEngine *vm);
++
++//! run loop JWM_EXECUTE branch, just before Command::executeCurrentAction()
++void onBeforeAction(QueenEngine *vm);
++
++//! Talk::selectSentence() entry: the four Joe options (empty string = not offered)
++void onChoices(QueenEngine *vm, const char *o1, const char *o2, const char *o3, const char *o4);
++
++//! Talk::speak(): every spoken/subtitle line (Joe, NPCs, cutaways, look-at text)
++void onSpeak(QueenEngine *vm, const char *speaker, const char *sentence);
++
++//! Logic::handlePinnacleRoom(): the jungle destination chooser
++void onPinnacle(QueenEngine *vm);
++
++} // End of namespace Probe
++} // End of namespace Queen
++
++#endif
+diff --git a/engines/queen/queen.cpp b/engines/queen/queen.cpp
+index 1b5d2a8d24..9789389403 100644
+--- a/engines/queen/queen.cpp
++++ b/engines/queen/queen.cpp
+@@ -41,6 +41,7 @@
+ #include "queen/grid.h"
+ #include "queen/input.h"
+ #include "queen/logic.h"
++#include "queen/probe.h"
+ #include "queen/resource.h"
+ #include "queen/sound.h"
+ #include "queen/talk.h"
+@@ -351,6 +352,7 @@ Common::Error QueenEngine::run() {
+ 	syncSoundSettings();
+ 
+ 	_logic->start();
++	Probe::init(this);
+ 	_gameStarted = true;
+ 	if (ConfMan.hasKey("save_slot") && canLoadOrSave()) {
+ 		loadGameState(ConfMan.getInt("save_slot"));
+@@ -369,9 +371,11 @@ Common::Error QueenEngine::run() {
+ 			}
+ 		} else if (_logic->joeWalk() == JWM_EXECUTE) {
+ 			_logic->joeWalk(JWM_NORMAL);
++			Probe::onBeforeAction(this);
+ 			_command->executeCurrentAction();
+ 		} else {
+ 			_logic->joeWalk(JWM_NORMAL);
++			Probe::onIdle(this);
+ 			update(true);
+ 		}
+ 	}
+diff --git a/engines/queen/talk.cpp b/engines/queen/talk.cpp
+index 1484096e6a..954b060880 100644
+--- a/engines/queen/talk.cpp
++++ b/engines/queen/talk.cpp
+@@ -31,6 +31,7 @@
+ #include "queen/grid.h"
+ #include "queen/input.h"
+ #include "queen/logic.h"
++#include "queen/probe.h"
+ #include "queen/queen.h"
+ #include "queen/resource.h"
+ #include "queen/sound.h"
+@@ -541,6 +542,7 @@ bool Talk::speak(const char *sentence, Person *person, const char *voiceFilePref
+ 	if (sentence[0] == '\0') {
+ 		return personWalking;
+ 	}
++	Probe::onSpeak(_vm, person->name, sentence);
+ 
+ 	if (0 == strcmp(person->name, "FAYE-H") ||
+ 		0 == strcmp(person->name, "FRANK-H") ||
+@@ -1196,6 +1198,8 @@ int16 Talk::selectSentence() {
+ 	BobSlot *arrowBobDown = _vm->graphics()->bob(Graphics::ARROW_BOB_DOWN);
+ 	arrowBobDown->active  = false;
+ 
++	Probe::onChoices(_vm, _talkString[1], _talkString[2], _talkString[3], _talkString[4]);
++
+ 	bool rezone = true;
+ 
+ 	while (rezone) {

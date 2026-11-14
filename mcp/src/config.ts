@@ -14,7 +14,12 @@ import { existsSync } from "node:fs";
 
 export type TransportKind = "replay" | "native";
 
+/** The ScummVM game the server drives; also the game id passed to the engine. */
+export type GameId = "drascula" | "queen";
+
 export interface NativeConfig {
+  /** Which game to launch (default "drascula"). Optional so older callers compile. */
+  game?: GameId;
   /** The native ScummVM binary built by scripts/build-engine.sh. */
   binary: string;
   /** The Drascula game data directory (fetch.sh output). */
@@ -29,6 +34,8 @@ export interface NativeConfig {
 
 export interface Config {
   transport: TransportKind;
+  /** The selected game (flag --game or GHOSTLIGHT_GAME; default drascula). */
+  game: GameId;
   /** Replay fixture name under tests/engine/fixtures (replay transport). */
   fixture: string;
   /** Native launch config (always resolved; only used by the native transport). */
@@ -45,6 +52,16 @@ const DEFAULTS = {
   gamePath: "vendor/game/drascula",
   extraPath: "vendor/scummvm/dists/engine-data",
 } as const;
+
+/** Per-game path defaults. Queen needs no --extrapath (empty = omit the flag). */
+const GAME_DEFAULTS: Record<GameId, { gamePath: string; extraPath: string }> = {
+  drascula: { gamePath: DEFAULTS.gamePath, extraPath: DEFAULTS.extraPath },
+  queen: { gamePath: "vendor/game/queen", extraPath: "" },
+};
+
+function isGameId(v: string): v is GameId {
+  return v === "drascula" || v === "queen";
+}
 
 /** Parse `--key value` and `--key=value` flags into a map. */
 function parseFlags(argv: string[]): Map<string, string> {
@@ -119,17 +136,50 @@ export function resolveConfig(
     slot = n;
   }
 
+  // Game selection. `--game` is also the long-standing flag for the game DATA
+  // PATH, so a value that is exactly a game id selects the game and any other
+  // value is still a path (existing invocations keep working unchanged).
+  const gameFlag = flags.get("game");
+  const gameFlagIsId = gameFlag !== undefined && isGameId(gameFlag);
+  const flagPath = gameFlag !== undefined && !gameFlagIsId ? gameFlag : undefined;
+  const rawGame = gameFlagIsId ? gameFlag : (env.GHOSTLIGHT_GAME ?? "drascula");
+  if (!isGameId(rawGame)) {
+    throw new Error(
+      `drascula-mcp: unknown game "${rawGame}". Set GHOSTLIGHT_GAME (or ` +
+        `--game) to "drascula" or "queen".`,
+    );
+  }
+  const game: GameId = rawGame;
+  const gameDefaults = GAME_DEFAULTS[game];
+  // Drascula keeps its binary default and flag/env names. Queen takes --binary
+  // or GHOSTLIGHT_QUEEN_BINARY (--scummvm also works) and has no guessed path.
+  const binary =
+    game === "drascula"
+      ? pick(flags, "scummvm", "DRASCULA_MCP_SCUMMVM", DEFAULTS.binary)!
+      : (flags.get("binary") ??
+        env.GHOSTLIGHT_QUEEN_BINARY ??
+        flags.get("scummvm") ??
+        "");
+
   const native: NativeConfig = {
-    binary: pick(flags, "scummvm", "DRASCULA_MCP_SCUMMVM", DEFAULTS.binary)!,
-    gamePath: pick(flags, "game", "DRASCULA_MCP_GAME", DEFAULTS.gamePath)!,
-    extraPath: pick(flags, "extra", "DRASCULA_MCP_EXTRA", DEFAULTS.extraPath)!,
+    binary,
+    gamePath: flagPath ?? env.DRASCULA_MCP_GAME ?? gameDefaults.gamePath,
+    extraPath: pick(flags, "extra", "DRASCULA_MCP_EXTRA", gameDefaults.extraPath)!,
     savePath: pick(flags, "savepath", "DRASCULA_MCP_SAVEPATH", MCP_SAVE_PATH)!,
     slot,
+    game,
   };
 
   // For the native transport, fail loud now if the binary is absent, rather
   // than spawning a missing file on the first tool call (Req 1.4). The replay
   // transport validates its fixture at construction, so it needs no check here.
+  if (transport === "native" && game === "queen" && binary === "") {
+    throw new Error(
+      `drascula-mcp: native transport for queen needs a ScummVM binary built ` +
+        `with the Queen layer. Pass --binary or set GHOSTLIGHT_QUEEN_BINARY ` +
+        `(there is no default path).`,
+    );
+  }
   if (transport === "native" && !existsSync(native.binary)) {
     throw new Error(
       `drascula-mcp: native transport selected but the ScummVM binary was not ` +
@@ -138,5 +188,5 @@ export function resolveConfig(
     );
   }
 
-  return { transport, fixture, native };
+  return { transport, fixture, native, game };
 }

@@ -20,6 +20,7 @@ import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 
 import { Session } from "./session.js";
+import type { GameId } from "./config.js";
 import type { Command, RoomState, Transport } from "./transport.js";
 
 /** The engine target verbs that act on a single hotspot number (Req 2.3). */
@@ -76,6 +77,7 @@ export class Tools {
   constructor(
     private readonly session: Session,
     private readonly makeTransport: (slot?: number) => Transport,
+    private readonly game: GameId = "drascula",
   ) {}
 
   // --- session lifecycle (Req 4) --------------------------------------------
@@ -263,6 +265,32 @@ export class Tools {
   }
 
   /**
+   * `room N` - survey-only jump to a room (Queen only; needs GHOSTLIGHT_SURVEY=1,
+   * which the native transport sets for Queen). For Drascula this returns a
+   * clear error and sends nothing to the engine.
+   */
+  async room(n: number): Promise<ToolReply> {
+    if (this.game !== "queen") {
+      return err(
+        "room is survey-only and Queen only; this server is driving Drascula " +
+          "(set GHOSTLIGHT_GAME=queen). Nothing was sent.",
+      );
+    }
+    const guard = this.requireSession();
+    if (guard) return guard;
+    if (!Number.isInteger(n) || n < 0) {
+      return err(`room number must be a non-negative integer, got ${n}.`);
+    }
+    try {
+      const result = await this.session.sendRaw(`room ${n}`);
+      if (result.error) return err(result.error, { events: result.events });
+      return ok({ diff: result.diff, events: result.events });
+    } catch (e) {
+      return err(`room failed: ${messageOf(e)}`);
+    }
+  }
+
+  /**
    * Send a validated command and shape the reply. The full CommandResult
    * (events + diff) is returned so no engine output is lost (Req 3.1, 3.2); an
    * engine A11Y_ERR (no diff) comes back error-flagged with the message and the
@@ -297,6 +325,7 @@ export const schemas = {
   use: { item: z.number().int(), target: z.number().int() },
   choose: { n: z.number().int().min(1).max(4) },
   save: { slot: z.number().int().nonnegative() },
+  room: { n: z.number().int().nonnegative() },
   empty: {},
 } as const;
 
@@ -424,5 +453,17 @@ export function registerTools(
       inputSchema: schemas.save,
     },
     async ({ slot }) => reply(await tools.save(slot)),
+  );
+
+  server.registerTool(
+    "room",
+    {
+      description:
+        "Survey-only: jump to room N (sends `room N`). Queen only, and the engine " +
+        "needs GHOSTLIGHT_SURVEY=1 (the native transport sets it). For Drascula " +
+        "this returns an error and sends nothing.",
+      inputSchema: schemas.room,
+    },
+    async ({ n }) => reply(await tools.room(n)),
   );
 }

@@ -59,6 +59,12 @@ export interface Transport {
    */
   send(cmd: Command): Promise<CommandResult>;
   /**
+   * Optional: send one already-serialised engine command line that is not in
+   * the shared Command union (the Queen survey-only `room N`). Only the native
+   * transport implements it; the replay transport has no such step.
+   */
+  sendRaw?(line: string): Promise<CommandResult>;
+  /**
    * Ask the engine for a FRESH full room-state snapshot — the `state`/`dump`
    * command — and resolve with it. Unlike send(), this does not go through the
    * Command union (the player has no `state` verb); it drives the engine's own

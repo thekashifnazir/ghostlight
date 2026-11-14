@@ -22,6 +22,7 @@ Load this skill when adapting a new engine or debugging one, or when surveying a
 
 - [ ] You are adapting a new ScummVM engine, debugging one, or surveying a game
 - [ ] The bundled `drascula` MCP server is registered (see `mcp.json` and the power README)
+- [ ] To survey Flight of the Amazon Queen, the `queen` server entry is registered and `GHOSTLIGHT_QUEEN_BINARY` points at a ScummVM built with the Queen layer
 - [ ] For a new engine, you can read the engine's source and its accessibility layer
 
 ## The thirteen findings
@@ -41,6 +42,8 @@ Load this skill when adapting a new engine or debugging one, or when surveying a
 13. **The build needs the Ogg audio pack** and `--extrapath` for `drascula.dat`, or an MP3 pack triggers a blocking "missing CD audio" dialog. Launch with `--extrapath`, `--savepath` and `--subtitles`.
 
 ## Adapting a new engine
+
+Worked second answer: [queen.md](queen.md) answers the thirteen findings for Flight of the Amazon Queen.
 
 Treat the list above as the questions a new engine must answer before its pack can be trusted. For a new engine, work out, by surveying through the MCP server and reading the engine source:
 
