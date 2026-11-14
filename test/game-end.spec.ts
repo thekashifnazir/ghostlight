@@ -21,7 +21,7 @@ test("the ending is announced and focus lands on the way back to the start", asy
   await expect(page.locator("#start-gate")).toBeHidden({ timeout: 10_000 });
   await page.keyboard.press("/");
   await expect(page.locator("#command-box-input")).toBeFocused();
-  await page.locator("#command-box-input").fill("use crucifix on dracula");
+  await page.locator("#command-box-input").fill("use crucifix on drascula");
   await page.keyboard.press("Enter");
   const live = page.locator("#live-region");
   const said = () =>

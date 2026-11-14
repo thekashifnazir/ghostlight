@@ -3,9 +3,11 @@ import { defineConfig } from "vitest/config";
 export default defineConfig({
   test: {
     include: ["**/*.test.ts"],
-    // Replaying against the real native engine (once wired) is slower than a
-    // fixture read, so give each test room. Fixture replay is fast and well
-    // under this.
-    testTimeout: 120_000,
+    // Fixture replay is fast. Native runs play voiced lines in real time, so a
+    // tavern replay takes minutes.
+    testTimeout: process.env.GHOSTLIGHT_NATIVE === "1" ? 900_000 : 120_000,
+    // Native runs share one save path (its command file and log), so run the
+    // files one at a time; fixture runs stay parallel.
+    fileParallelism: process.env.GHOSTLIGHT_NATIVE !== "1",
   },
 });
