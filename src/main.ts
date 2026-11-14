@@ -24,6 +24,7 @@ import { Persistence, probeSaves } from "./engine/persistence.js";
 import { SaveManager } from "./engine/save-manager.js";
 import { setLoadIntent, takeLoadIntent } from "./engine/load-intent.js";
 import { buildHotspotList, type Hotspot } from "./model/hotspot-list.js";
+import { applySameRoomChanges, hasSameRoomChanges, openedDoors } from "./model/same-room.js";
 import { loadPack, type Pack, type PackData } from "./model/pack.js";
 import { GhostAudio } from "./hints/audio.js";
 import { HintEngine } from "./hints/engine.js";
@@ -1219,11 +1220,8 @@ export async function boot(): Promise<void> {
     }
 
     // Same-room visibility changes update the list in place.
-    if (diff.appeared || diff.disappeared) {
-      const present = new Map(state.objects.map((o) => [o.num, o]));
-      for (const o of diff.disappeared ?? []) present.delete(o.num);
-      for (const o of diff.appeared ?? []) present.set(o.num, o);
-      state.objects = [...present.values()];
+    if (hasSameRoomChanges(diff)) {
+      state.objects = applySameRoomChanges(state.objects, diff);
       const sameRoomState: RoomState = {
         chapter: state.chapter,
         room: state.room,
@@ -1261,6 +1259,15 @@ export async function boot(): Promise<void> {
     // normal case, not a failure to report. The narrator suppresses it for look
     // diffs.
     narrator.maybeNothingHappened(diff, isLookDiff);
+
+    // A door that opened with no line from the game would otherwise be silent:
+    // say so, using the hotspot's spoken name from the rebuilt list.
+    if (!diff.said?.length) {
+      for (const num of openedDoors(diff)) {
+        const name = currentList.find((h) => h.num === num)?.name;
+        if (name) live.announce(`${name[0]!.toUpperCase()}${name.slice(1)} is open now.`);
+      }
+    }
 
     // Re-announce the room once if this same-room diff changed which variant
     // resolves for the short or long description, so a passage opening (or any

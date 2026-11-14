@@ -2078,3 +2078,16 @@ Not committed (edit-only session, no shell): needs the native build, `npm --pref
 **Time taken:** a few minutes.
 **What went wrong or surprised you:** nothing in the edits. This session could not run tsc or the tests, so the result rests on the review's pre-verification, and the two emptied files still need deleting.
 **What was learned:** a pre-verified list of exact string replacements makes a trim safe to apply without exploring. Run tsc and vitest after it, and `git rm` the two empty files.
+
+## 155 · player · 2026-11-14 · Doors that open in the room: list update and a spoken line
+**What was asked:** the read-only trim review found that both engine layers send a `doors` array in `A11Y_DIFF` when a door opens or closes in the current room, and the player never read it. In the Queen opening fixture, `open 6` on the hatch gives `doors:[{"num":6,"name":"hatch",...,"door":true,"toRoom":2}]` with no said line, so the player said nothing and the hatch stayed an "object" (Enter would take, not walk) until the room was re-read. Edit-only session (no shell), exact edits supplied.
+**What Kiro did:**
+- `src/engine/adapter.ts`: added `doors?: RoomObject[]` to `Diff`, after `disappeared`.
+- `src/model/same-room.ts` (new): `hasSameRoomChanges`, `applySameRoomChanges` (applies disappeared, appeared, then doors, keyed by hotspot number) and `openedDoors` (doors that are now `door` and visible).
+- `src/main.ts`: imports the three helpers; the same-room block now uses `hasSameRoomChanges` and `applySameRoomChanges` in place of the inline map, so the list and sonar rebuild on a door change. After `narrator.maybeNothingHappened`, when the diff has no said line, each opened door is announced as "<Name> is open now." using the hotspot's spoken name from the rebuilt list.
+- `test/same-room.test.ts` (new): 4 unit tests on the real Queen "open 6" diff. The hatch is an object before; after the diff it is an exit with `toRoom` 2; the diff has no said line and `openedDoors` returns `[6]`; appeared and disappeared behave as before.
+**Also recorded:** Claude Code re-synced `powers/scummvm-access/packs/tools/src` (`coverage.ts`, `types.ts`, `validate.ts`), `packs/schema.json` and `packs/FORMAT.md` byte for byte from `packs/`, with no new code. The Power's old validator rejected today's Drascula and Queen packs because of variant descriptions in rooms 5 and 70.
+**Files changed:** `src/engine/adapter.ts`, `src/model/same-room.ts`, `src/main.ts`, `test/same-room.test.ts`, `docs/kiro-process.md`.
+**Time taken:** a few minutes.
+**What went wrong or surprised you:** nothing in the edits. This session could not run tsc or the tests, so the 4 new tests and the typecheck are unverified here.
+**What was learned:** a field the engine sends but the player ignores shows up as silence, so a fixture of a real diff is the quickest way to find it.

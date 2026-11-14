@@ -65,6 +65,11 @@ export interface Diff {
   /** Objects that stopped being visible within the current room. */
   disappeared?: RoomObject[];
   /**
+   * Objects in the current room whose door state changed (a passage opened or
+   * closed), carrying their new `door` flag and `toRoom`.
+   */
+  doors?: RoomObject[];
+  /**
    * The hero's NEW point, present only when the command moved the hero (a walk
    * to a free point or through a door). Same point and coordinate space as
    * RoomState.hero (curX + curWidth/2, curY + curHeight). Sonar pans object
