@@ -193,6 +193,7 @@ A11yLayer::A11yLayer(DrasculaEngine *engine)
 	  _choiceDiffPending(false), _choiceErrCount(0),
 	  _mainCmdDiffPending(false), _mainCmdOpenedConverse(false), _mainCmdErrCount(0),
 	  _queueHead(0), _inRunCommand(false), _lastSkipPollMs(0), _voicePlaying(false),
+	  _readPause(false), _inHold(false), _voiceLen(0), _cmdLinesRead(0),
 	  _clickState(kClickIdle), _lastPhase(kPhaseNone), _probe(nullptr),
 	  _lastPollMs(0), _watchdogStage(0), _watchdogBaseMs(0),
 	  _walkGuardArmed(false) {
@@ -260,8 +261,15 @@ void A11yLayer::onText(const char *message) {
 	emitLine(Common::String(voiced ? "A11Y_VTEXT " : "A11Y_TEXT ") + message);
 	// A voiced clip is now playing: remember it so checkVoiceEnd() can emit one
 	// A11Y_VEND when the sample stops (voice timing).
-	if (voiced)
+	if (voiced) {
 		_voicePlaying = true;
+		// Characters (not bytes) of this line, for the reading pause estimate.
+		_voiceLen = 0;
+		for (const char *p = message; *p; p++) {
+			if ((*p & 0xC0) != 0x80)
+				_voiceLen++;
+		}
+	}
 
 	// Task 17 (R4.7): while a command's dispatch window is open, attribute each
 	// distinct drawn line to that command's diff `said`, with the engine's own
@@ -846,6 +854,7 @@ void A11yLayer::readCommandFile() {
 			continue;
 
 		_commandQueue.push_back(line);
+		_cmdLinesRead++;
 		sawAny = true;
 	}
 	delete in;
@@ -954,6 +963,14 @@ bool A11yLayer::runCommand(const Common::String &cmd) {
 	// skip whether or not a cutscene is running.
 	if (verb == "skip") {
 		raiseSkip();
+		return false;
+	}
+
+	// Reading pause toggle: `readpause on` / `readpause off`. Reaching here
+	// means no talk loop is blocking poll(); the same line is also taken by
+	// onUpdateEvents() and the converse hook while one is.
+	if (verb == "readpause") {
+		applyReadPause(arg);
 		return false;
 	}
 
@@ -2354,6 +2371,19 @@ void A11yLayer::onConverseFrame(const char *phrase1, const char *phrase2,
 			continue;
 		}
 
+		// `readpause` is a setting, not a game action, so it is fine mid-
+		// conversation. Apply it, settle it with the same no-op diff the skip
+		// hook uses, and keep scanning.
+		if (verb == "readpause") {
+			emitLine(Common::String("A11Y_CMD ") + cmd);
+			const uint32 errBefore = g_errCount;
+			applyReadPause(arg);
+			if (g_errCount == errBefore)
+				emitLine(Common::String("A11Y_DIFF {\"cmd\":\"readpause ") + arg + "\",\"changed\":false}");
+			_queueHead++;
+			continue;
+		}
+
 		// Any other verb while a conversation is open is a command the player
 		// cannot run until the conversation ends (walk, take, use, look, …).
 		// The old code left it at the head with `break`, which — exactly like
@@ -3353,6 +3383,101 @@ void A11yLayer::checkVoiceEnd() {
 		return;
 	_voicePlaying = false;
 	emitLine("A11Y_VEND");
+	if (_readPause && !_inHold)
+		holdForReading();
+}
+
+// Reading pause: after a voiced clip ends, hold the engine for an estimated
+// reading time of the line (400 ms plus 65 ms per character, capped at 9000 ms)
+// so the player's screen reader can finish it before the next actor starts.
+// Runs entirely inside the layer: checkVoiceEnd() is reached from inside the
+// talk loops through updateEvents(), so blocking here holds the loop. Pumps
+// events and the screen in small steps, as the engine's own pause loops do, and
+// ends early on a key or mouse event, a new command-file line, or quit.
+void A11yLayer::holdForReading() {
+	if (!g_system || !_engine || _engine->shouldQuit())
+		return;
+
+	// A key already waiting (a skip) means the player is moving on: no hold.
+	if (_engine->_actionBufferHead != _engine->_actionBufferTail)
+		return;
+
+	uint32 ms = 400 + 65 * _voiceLen;
+	if (ms > 9000)
+		ms = 9000;
+
+	_inHold = true;
+	emitLine(Common::String::format("A11Y_VHOLD %u", (uint)ms));
+
+	const uint linesBefore = _cmdLinesRead;
+	const uint32 start = g_system->getMillis();
+	uint32 lastRead = start;
+	while (g_system->getMillis() - start < ms) {
+		g_system->delayMillis(10);
+		_engine->updateEvents();     // pumps events; its hook also reads the command file
+		g_system->updateScreen();
+
+		if (_engine->shouldQuit())
+			break;
+		// Key (queued as an action) or mouse button.
+		if (_engine->_actionBufferHead != _engine->_actionBufferTail ||
+		    _engine->_leftMouseButton || _engine->_rightMouseButton)
+			break;
+		// New command-file line, checked here about every 100 ms in case the
+		// hook's own throttled read has not run.
+		uint32 now = g_system->getMillis();
+		if (now - lastRead >= 100) {
+			lastRead = now;
+			readCommandFile();
+		}
+		if (_cmdLinesRead != linesBefore)
+			break;
+	}
+	_inHold = false;
+}
+
+// `readpause on` / `readpause off`. Anything else is an A11Y_ERR.
+bool A11yLayer::applyReadPause(const Common::String &arg) {
+	if (arg == "on") {
+		_readPause = true;
+		return true;
+	}
+	if (arg == "off") {
+		_readPause = false;
+		return true;
+	}
+	emitLine(Common::String("A11Y_ERR readpause needs on or off, got: ") + arg);
+	return false;
+}
+
+// Take every queued `readpause` line (see the header).
+bool A11yLayer::takeQueuedReadPause() {
+	bool took = false;
+	for (uint i = _queueHead; i < _commandQueue.size();) {
+		const Common::String cmd = _commandQueue[i];
+		uint sp = 0;
+		while (sp < cmd.size() && cmd[sp] != ' ')
+			sp++;
+		Common::String verb = (sp < cmd.size()) ? Common::String(cmd.c_str(), sp) : cmd;
+		if (verb != "readpause") {
+			i++;
+			continue;
+		}
+		Common::String arg;
+		if (sp < cmd.size())
+			arg = Common::String(cmd.c_str() + sp + 1);
+		arg.trim();
+		emitLine(Common::String("A11Y_CMD ") + cmd);
+		_commandQueue.remove_at(i);
+		const uint32 errBefore = g_errCount;
+		applyReadPause(arg);
+		// Settle like a skip with no command in flight; when a command is in
+		// flight its own diff covers this window.
+		if (!_inRunCommand && g_errCount == errBefore)
+			emitLine(Common::String("A11Y_DIFF {\"cmd\":\"readpause ") + arg + "\",\"changed\":false}");
+		took = true;
+	}
+	return took;
 }
 
 void A11yLayer::onUpdateEvents() {
@@ -3411,6 +3536,8 @@ void A11yLayer::onUpdateEvents() {
 		if (!_inRunCommand)
 			emitLine("A11Y_DIFF {\"cmd\":\"skip\",\"changed\":false}");
 	}
+	// A `readpause` queued while a talk or cutscene loop blocks poll().
+	takeQueuedReadPause();
 
 	// Reclaim a fully-drained queue so a long cutscene does not leave a growing
 	// spent prefix. Only when nothing is pending — a non-`skip` command left in

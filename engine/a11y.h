@@ -810,9 +810,40 @@ private:
 	// checkVoiceEnd() sees the voice sample stop and emits A11Y_VEND.
 	bool _voicePlaying;
 
+	// Reading pause (`readpause on` / `readpause off`, default off). When on,
+	// checkVoiceEnd() holds the engine after a voiced clip ends, for an
+	// estimated reading time of the line just spoken, so the player's screen
+	// reader can finish it before the next actor starts.
+	bool _readPause;
+
+	// True while holdForReading() runs, so the updateEvents() hook it pumps
+	// cannot start a second hold.
+	bool _inHold;
+
+	// Length in characters of the last voiced line drawn (set by onText()).
+	uint _voiceLen;
+
+	// Count of command-file lines read so far. The hold compares it to see
+	// whether a new line arrived while it waited.
+	uint _cmdLinesRead;
+
 	// Emits one A11Y_VEND if a voiced clip was playing and has now stopped.
 	// Called every frame from poll() and onUpdateEvents().
 	void checkVoiceEnd();
+
+	// Holds the engine for the reading time of the last voiced line, keeping
+	// events and the screen pumped. Ends early on a key or mouse event, a new
+	// command-file line, or quit. Emits A11Y_VHOLD <ms> when it starts.
+	void holdForReading();
+
+	// Applies the argument of `readpause`: "on" or "off". Emits A11Y_ERR for
+	// anything else and returns false.
+	bool applyReadPause(const Common::String &arg);
+
+	// Removes every queued `readpause` line from _queueHead onward and applies
+	// it, so it is honoured while a talk, cutscene or conversation loop blocks
+	// poll(). Returns true if one was taken.
+	bool takeQueuedReadPause();
 
 	// Synthetic click state machine (R8 / gotchas 2, 3). A real mouse click is
 	// a press event on one frame followed by a release event on a later frame;

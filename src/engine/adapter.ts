@@ -134,7 +134,10 @@ export type EngineEvent =
   | { type: "engineExit" }
   // An actor's recorded line has ended (`A11Y_VEND`): the voice sample stopped
   // or a skip cut it short. One per voiced clip.
-  | { type: "voiceEnd" };
+  | { type: "voiceEnd" }
+  // The engine began a reading pause of `ms` after a voiced line
+  // (`A11Y_VHOLD <ms>`, only when `readpause on` was sent).
+  | { type: "voiceHold"; ms: number };
 
 /** The engine verbs that target a single hotspot number. */
 export type TargetVerb =
@@ -157,6 +160,9 @@ export type Command =
   | { verb: "choices" }
   | { verb: "choose"; n: number }
   | { verb: "skip" }
+  // Reading pause after voiced lines (engine/a11y.cpp `readpause`). Off by
+  // default in the engine; the player sends it when D is on.
+  | { verb: "readpause"; on: boolean }
   | { verb: "save"; slot: number }
   // Re-request the engine's full room state. The engine re-emits the current
   // room as an `A11Y` line (engine/a11y.cpp `state`/`dump`), which the player
@@ -189,6 +195,8 @@ export function serializeCommand(cmd: Command): string {
       return `choose ${cmd.n}`;
     case "skip":
       return "skip";
+    case "readpause":
+      return cmd.on ? "readpause on" : "readpause off";
     case "save":
       return `save ${cmd.slot}`;
     case "state":
