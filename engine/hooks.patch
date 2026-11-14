@@ -1,128 +1,24 @@
-# engine/hooks.patch — hooks into the pinned ScummVM Drascula engine.
+# engine/hooks.patch: hooks into the pinned ScummVM Drascula engine.
 #
-# Small, readable edits to the engine's own sources, applied by
-# scripts/build-engine.sh with `git apply` against vendor/scummvm. The work
-# itself lives in engine/a11y.cpp (copied in by the build script); these hunks
-# are only the few lines that construct the A11yLayer and call into it.
+# Applied by scripts/build-engine.sh with `git apply` against vendor/scummvm.
+# The work lives in engine/a11y.cpp and a11y.h; these hunks only construct the
+# A11yLayer and call into it, each call guarded on _a11y so the engine runs
+# unchanged without a layer. Lines starting with `#` above the first `diff` are
+# comments and are ignored by git apply.
 #
-# Lines starting with `#` above the first `diff` line are comments and are
-# ignored by git apply. The build script treats a file with no diff hunks as
-# "nothing to apply".
-#
-# Task 3 hooks (drascula.cpp):
-#   * include drascula/a11y.h
-#   * construct A11yLayer on the stack at the top of runCurrentChapter(), so it
-#     is in scope for both chapter setup and the per-frame main loop
-#   * hard-code the intro skip: animation_1_1() is guarded out (R1.4)
-#   * call _a11y.onStartup() once the first playable room is entered, to assert
-#     subtitles and emit the first A11Y room-state line (R1.4, R6.1)
-#
-# Task 4 / 18 hook (drascula.cpp):
-#   * call _a11y.poll() once per frame at the top of the main loop, as
-#     `if (_a11y.poll()) return true;`. poll() reads the command file, runs one
-#     queued command, emits its A11Y_DIFF and watches for room/chapter changes
-#     (R1.1). The transition itself happens in exitRoom()/enterRoom() (rooms.cpp,
-#     not patched); control returns to the main loop once the move settles, so
-#     detecting the change in poll() keeps all engine hooks in drascula.cpp
-#     (R10.2).
-#   * poll() returns true when the command it ran ENDED the chapter — a `walk`
-#     through a chapter-ending door (chapter 1's door 105, which runs
-#     animation_2_1() and makes exitRoom() return true). The engine's own door
-#     path propagates exactly this signal: exitRoom()'s true flows out of
-#     verify1() (`if (exitRoom(l)) return true;`) to the main loop
-#     (`if (verify1()) return true;`), ending runCurrentChapter() so run()
-#     advances to the next chapter. Our `walk` dispatch calls exitRoom() directly
-#     (not via a pixel click through verify1()), so we must relay the SAME true:
-#     `if (_a11y.poll()) return true;`. Without it the chapter never ends and the
-#     hero walks past door 105 into invalid coordinates (the task 18 crossing
-#     bug). The crossing's single A11Y_DIFF is emitted by the NEXT chapter's
-#     onStartup() from a module-static carrier, since this layer is torn down
-#     before chapter 2's first room is set up.
-#
-# Task 13 hook (drascula.h):
-#   * declare `friend class A11yLayer;` on DrasculaEngine. The a11y layer reads
-#     the engine's own data to observe state and reproduce its actions. Most of
-#     what it needs is public (the room/inventory/flag arrays), but the `inv`
-#     listing's "look at it" line (R6.4) comes from the engine's text and
-#     room-action tables (`_text`, `_roomActions`, `_roomActionsSize`), which
-#     are private. One `friend` line lets the layer READ those exactly as the
-#     engine's own roomParse(200) does, rather than duplicating game data or
-#     fabricating look lines. It grants no new behaviour — the layer still only
-#     calls the engine's own methods — and keeps the patch a single readable
-#     line instead of widening the engine's public surface.
-#
-# Task 14 hooks (text capture, R6.2 / gotcha 11):
-#   * drascula.h: forward-declare `class A11yLayer;` (so the pointer member can
-#     be declared before a11y.h is included) and add a `A11yLayer *_a11y` member
-#     on DrasculaEngine. The layer lives on the stack in runCurrentChapter(),
-#     but graphics.cpp's text path (centerText) is a DrasculaEngine method with
-#     only `this` in scope, so the layer registers itself through this pointer
-#     in its constructor and clears it in its destructor. nullptr-initialised in
-#     the engine constructor so a text draw with no layer live is a safe no-op.
-#   * drascula.cpp: `_a11y = nullptr;` in the constructor (init before any layer
-#     exists).
-#   * graphics.cpp: include drascula/a11y.h, and at the top of centerText() —
-#     the single chokepoint every on-screen text line passes through (spoken
-#     dialogue in talk.cpp, narration in animation.cpp, system text in
-#     interface.cpp, hover/examine text in moveCursor) — hand the whole message
-#     to _a11y->onText() so the layer emits one `A11Y_TEXT <line>` per distinct
-#     line. centerText() is called every frame while a subtitle is on screen, so
-#     onText() de-duplicates against the last line it emitted; the string is the
-#     engine's own text (English subtitle data, or raw Spanish object names,
-#     gotcha 10), emitted verbatim. This captures the character replies that
-#     talk.cpp never routes through ScummVM's own TTS (gotcha 11).
-#
-# Task 15 hooks (conversations, R7.1 / R7.2 / R6.3 / gotcha 4):
-#   * converse.cpp: include drascula/a11y.h, and add three small hooks around
-#     the engine's own conversation loop. A Drascula conversation is a modal
-#     loop inside DrasculaEngine::converse() that pumps its own frames, so the
-#     main loop — and A11yLayer::poll() — never runs while it is open (gotcha 4).
-#     The hooks are the only way to describe the conversation and apply
-#     `choose`/`choices` from inside that loop:
-#       - onConverseBegin() just before the `while (breakOut == 0)` loop marks a
-#         conversation open and arms the first A11Y_CHOICES.
-#       - onConverseFrame(...) just after the four option lines are laid out
-#         (phraseN_bottom known) and before the engine tests the cursor against
-#         them. The layer caches the band bottoms, (re-)emits A11Y_CHOICES on the
-#         opening frame and after each choice (R6.3), and services a queued
-#         `choose <n>` by setting _mouseY into option n's band and pressing the
-#         left button — the SAME state a real click produces — so the engine's
-#         own selection below runs talk()+response() (options 1-3) or breakOut
-#         (option 4) for that option this frame (R7.1, R7.2).
-#       - onConverseEnd() just after the loop clears the conversation state so
-#         `choices`/`choose` typed outside a conversation are an A11Y_ERR again.
-#     All the logic lives in engine/a11y.cpp; these are just the call sites, each
-#     guarded on _a11y so the engine builds and runs unchanged with no layer.
-#
-# Task 16 hook (cutscene/speech skipping, drascula.cpp — R7.3 / R7.4 / gotcha 5):
-#   * one line at the END of DrasculaEngine::updateEvents(): `if (_a11y)
-#     _a11y->onUpdateEvents();`. updateEvents() is the engine's per-frame event
-#     pump and the ONE function that runs every frame inside BOTH the speech
-#     loops (talk.cpp's `do { ... } while (!isTalkFinished())`, which reach it
-#     via getScan()/getAction()) and the cutscene loops (animation.cpp, e.g.
-#     animation_2_1 the chapter 1->2 crossing and animation_3_1 the tavern
-#     first-visit talk, which call it directly and test `getAction() ==
-#     kActionSkip`). A cutscene or speech line runs the engine's OWN loop and
-#     does not return to the main loop until it finishes or is skipped, so
-#     A11yLayer::poll() — and the command reader it drives — never runs for the
-#     whole duration (gotcha 5). Hooking updateEvents() is therefore the only
-#     way to deliver a `skip` from the command file while a cutscene blocks
-#     poll(). onUpdateEvents() reads the command file (throttled to ~250 ms so a
-#     ~10 ms delay loop does not churn the FS) and, when a `skip` is queued,
-#     raises the engine's OWN skip input — kActionSkip pushed through
-#     addActionToBuffer(), exactly as the keymapper does for the player's skip
-#     key — so the engine's existing skip path fires with no new engine logic:
-#     a speech line ends (isTalkFinished() stopSound()), a cutscene aborts (its
-#     `getAction() == kActionSkip` break). Placed after the event-pump `while`
-#     so the injected action is not clobbered the same frame; guarded on _a11y.
-#
-# Game-end hook (animation.cpp):
-#   * in animation_9_6() (the chapter 6 ending), after the last spoken line
-#     `talk(301)` and before the credits FLIs: `if (_a11y) _a11y->onGameEnd();`.
-#     The whole ending and the credits run inside the `use 9 56` command (several
-#     minutes), and run() quits after chapter 6, so there is no next chapter to
-#     carry a diff. onGameEnd() emits one `A11Y_GAME_END` line with the ending's
-#     spoken lines as the credits start. Guarded on _a11y; includes a11y.h.
+#   drascula.h     friend class A11yLayer (read-only access to the text and
+#                  room-action tables) and an A11yLayer *_a11y member.
+#   drascula.cpp   construct the layer at the top of runCurrentChapter(); skip
+#                  the chapter 1 intro; onStartup() once the first room is live;
+#                  `if (_a11y.poll()) return true;` once per main-loop frame, so
+#                  a command that ends the chapter ends it the way a door click
+#                  does; onUpdateEvents() at the end of updateEvents(), the one
+#                  pump that runs inside speech and cutscene loops (for `skip`).
+#   graphics.cpp   onText() at the top of centerText(), the single chokepoint
+#                  every on-screen line passes through.
+#   converse.cpp   onConverseBegin/Frame/End around the modal conversation
+#                  loop, where poll() never runs.
+#   animation.cpp  onGameEnd() in animation_9_6(), before the credits.
 diff --git a/engines/drascula/animation.cpp b/engines/drascula/animation.cpp
 index 34526326dc..ef3d2c4238 100644
 --- a/engines/drascula/animation.cpp
