@@ -233,6 +233,7 @@ enum {
 	kStageScroll = 0,   // bring the item into one of the 4 visible slots
 	kStageVerb,         // push the verb action
 	kStageItem,         // push the inventory slot key
+	kStageItem2,        // item on item: push the second item's slot key
 	kStageClick,        // push mouse move and left click on the object
 	kStageWait          // click sent, waiting for JWM_EXECUTE (onBeforeAction)
 };
@@ -244,7 +245,8 @@ struct Run {
 	Common::String text;
 	int verbAction;     // kAction* to push, or -1 for none (walk)
 	uint16 item;        // item id for `use I N`, else 0
-	uint16 noun;        // room-relative object number
+	uint16 noun;        // room-relative object number (0 for item on item)
+	uint16 item2;       // second item id for `use I I2`, else 0
 	int wait;           // idle frames spent in kStageWait
 	int scrolls;        // inventory scroll steps taken
 	int scrollDir;      // +1 down, -1 up
@@ -252,7 +254,7 @@ struct Run {
 	uint32 lastSig;     // visible slots before the last scroll step
 
 	Run() : active(false), started(false), stage(kStageVerb), verbAction(-1),
-	        item(0), noun(0), wait(0), scrolls(0), scrollDir(1), flipped(false),
+	        item(0), noun(0), item2(0), wait(0), scrolls(0), scrollDir(1), flipped(false),
 	        lastSig(0) {}
 };
 
@@ -896,21 +898,27 @@ static void advanceRun(QueenEngine *vm) {
 		switch (r.stage) {
 		case kStageScroll: {
 			// Scroll before the verb: a scroll after it could reset the verb.
-			if (visibleSlot(l, r.item) >= 0) {
+			// For item on item both items must be in the 4 slots together,
+			// because neither slot key can be preceded by a scroll.
+			if (visibleSlot(l, r.item) >= 0 &&
+			    (r.item2 == 0 || visibleSlot(l, r.item2) >= 0)) {
 				r.stage = kStageVerb;
 				continue;
 			}
+			Common::String noView = (r.item2 != 0)
+				? Common::String::format("items %d and %d cannot be scrolled into view together", (int)r.item, (int)r.item2)
+				: Common::String::format("item %d cannot be scrolled into view", (int)r.item);
 			uint32 sig = slotSig(l);
 			if (r.scrolls > 0 && sig == r.lastSig) {
 				if (r.flipped) {
-					failRun(vm, Common::String::format("item %d cannot be scrolled into view", (int)r.item));
+					failRun(vm, noView);
 					return;
 				}
 				r.flipped = true;
 				r.scrollDir = -r.scrollDir;
 			}
 			if (++r.scrolls > kMaxScrolls) {
-				failRun(vm, Common::String::format("item %d cannot be scrolled into view", (int)r.item));
+				failRun(vm, noView);
 				return;
 			}
 			r.lastSig = sig;
@@ -932,7 +940,20 @@ static void advanceRun(QueenEngine *vm) {
 				return;
 			}
 			pushAction(kSlotActions[slot]);
-			r.stage = kStageClick;
+			r.stage = (r.item2 != 0) ? kStageItem2 : kStageClick;
+			return;
+		}
+		case kStageItem2: {
+			// The second slot key goes where the room click would, so the
+			// engine combines the two items (proved on a scratch build).
+			int slot = visibleSlot(l, r.item2);
+			if (slot < 0) {
+				failRun(vm, Common::String::format("item %d is not in a visible slot", (int)r.item2));
+				return;
+			}
+			pushAction(kSlotActions[slot]);
+			r.stage = kStageWait;
+			r.wait = 0;
 			return;
 		}
 		case kStageClick: {
@@ -986,6 +1007,33 @@ static void startVerb(QueenEngine *vm, const Common::String &text,
 	}
 
 	uint16 room = l->currentRoom();
+	// Item on item (`use I I2`): only when N is not a visible room object, so
+	// today's item-on-object behaviour is unchanged. The engine combines two
+	// items when a second slot key follows the first (a11y.cpp kStageItem2).
+	bool roomObj = noun >= 1 && noun <= (int)vm->grid()->objMax(room) &&
+	               l->roomData(room) + noun <= numObjects(l) &&
+	               l->objectData(l->roomData(room) + noun)->name > 0;
+	if (isUse && w.size() == 3 && !roomObj &&
+	    item >= 1 && item <= (int)l->itemDataCount() && isCarried(l, (uint16)item)) {
+		if (noun == item) {
+			emitErr(Common::String::format("cannot use item %d on itself", item));
+			return;
+		}
+		if (noun >= 1 && noun <= (int)l->itemDataCount() && isCarried(l, (uint16)noun)) {
+			vm->command()->clear(true);
+			s.run = Run();
+			s.run.active = true;
+			s.run.text = text;
+			s.run.verbAction = action;
+			s.run.item = (uint16)item;
+			s.run.item2 = (uint16)noun;
+			s.run.stage = kStageScroll;
+			emitPhase(s, kPhaseBusy);
+			advanceRun(vm);
+			return;
+		}
+	}
+
 	if (noun < 1 || noun > (int)vm->grid()->objMax(room) ||
 	    l->roomData(room) + noun > numObjects(l)) {
 		emitErr(Common::String::format("object %d is not in this room", noun));
