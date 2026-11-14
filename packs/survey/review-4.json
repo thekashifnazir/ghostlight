@@ -1,6 +1,6 @@
 {
   "chapter": 4,
-  "generated": "2026-11-13",
+  "generated": "2026-11-14",
   "units": [
     {
       "key": "room:21",
@@ -720,13 +720,13 @@
       "key": "room:29",
       "kind": "room",
       "room": 29,
-      "status": "pending",
+      "status": "accepted",
       "provenance": "drafted by Kiro from game text only",
       "alreadyCovered": false,
       "proposed": {
-        "name": "",
-        "short": "",
-        "long": "",
+        "name": "Kitchen",
+        "short": "A kitchen. A door on the far left leads out and a door on the right leads on. An oven stands in the middle.",
+        "long": "The castle kitchen. A door on the far left leads back to the landing. An oven stands in the middle, with a saucepan above it and another saucepan to its left. Drawers are right of the oven, and a bin is further right. A football team badge hangs high on the right wall, above a door that leads on to the pantry.",
         "seen": false,
         "chapters": [
           4
@@ -738,12 +738,14 @@
       "kind": "exit",
       "room": 29,
       "hotspot": 113,
-      "status": "pending",
+      "status": "accepted",
       "provenance": "drafted by Kiro from game text only",
       "alreadyCovered": false,
       "proposed": {
-        "label": "",
-        "to": 27
+        "label": "door on the far left, back to the landing",
+        "to": 27,
+        "direction": "left",
+        "note": "Look was silent. Destination from meta.json. Rect x 31 to 66."
       }
     },
     {
@@ -751,12 +753,14 @@
       "kind": "exit",
       "room": 29,
       "hotspot": 114,
-      "status": "pending",
+      "status": "accepted",
       "provenance": "drafted by Kiro from game text only",
       "alreadyCovered": false,
       "proposed": {
-        "label": "",
-        "to": 30
+        "label": "door on the right, to the pantry",
+        "to": 30,
+        "direction": "right",
+        "note": "Look gave only filler. Destination from meta.json. 'Pantry' comes from the coverage report, not the game; reviewer to confirm. Rect x 250 to 280."
       }
     },
     {
@@ -764,12 +768,14 @@
       "kind": "object",
       "room": 29,
       "hotspot": 152,
-      "status": "pending",
+      "status": "accepted",
       "provenance": "drafted by Kiro from game text only",
       "alreadyCovered": false,
       "proposed": {
-        "name": "",
-        "type": "object"
+        "name": "oven",
+        "type": "object",
+        "description": "An oven in the middle of the room. The game says it is a shame there is no roast lamb in it.",
+        "note": "Look line: IT'S A SHAME THERE ISN'T A ROASTED LAMB IN THERE. Paraphrased. Rect x 124 to 173."
       }
     },
     {
@@ -777,12 +783,19 @@
       "kind": "object",
       "room": 29,
       "hotspot": 153,
-      "status": "pending",
+      "status": "accepted",
       "provenance": "drafted by Kiro from game text only",
       "alreadyCovered": false,
       "proposed": {
-        "name": "",
-        "type": "object"
+        "name": "football badge",
+        "type": "object",
+        "description": "A badge high on the right wall. It is the badge of the Transylvanian football team.",
+        "textFixSuggestion": {
+          "from": "TRANSILVANIAN",
+          "to": "Transylvanian",
+          "reason": "spelling"
+        },
+        "note": "Engine name SHIELD. Look line: THAT'S THE TRANSILVANIAN FOOTBALL TEAMS BADGE. I renamed it 'football badge' so it makes sense when read aloud; reviewer may prefer 'shield'. The game spells Transylvanian with an i; I suggest a fix, reviewer to decide."
       }
     },
     {
@@ -790,12 +803,14 @@
       "kind": "object",
       "room": 29,
       "hotspot": 154,
-      "status": "pending",
+      "status": "accepted",
       "provenance": "drafted by Kiro from game text only",
       "alreadyCovered": false,
       "proposed": {
-        "name": "",
-        "type": "object"
+        "name": "saucepan",
+        "type": "object",
+        "description": "A saucepan. There are two: one above the oven and one left of the oven.",
+        "note": "Two hotspots share number 154 (x 149 and x 85). Look lines are only filler, so nothing more is claimed."
       }
     },
     {
@@ -803,12 +818,14 @@
       "kind": "object",
       "room": 29,
       "hotspot": 155,
-      "status": "pending",
+      "status": "accepted",
       "provenance": "drafted by Kiro from game text only",
       "alreadyCovered": false,
       "proposed": {
-        "name": "",
-        "type": "object"
+        "name": "bin",
+        "type": "object",
+        "description": "A small bin on the right, below the badge.",
+        "note": "Look line is only filler. Description is from name and position only."
       }
     },
     {
@@ -816,25 +833,27 @@
       "kind": "object",
       "room": 29,
       "hotspot": 156,
-      "status": "pending",
+      "status": "accepted",
       "provenance": "drafted by Kiro from game text only",
       "alreadyCovered": false,
       "proposed": {
-        "name": "",
-        "type": "object"
+        "name": "drawers",
+        "type": "object",
+        "description": "Kitchen drawers just right of the oven.",
+        "note": "Look line is only filler. Description is from name and position only."
       }
     },
     {
       "key": "room:30",
       "kind": "room",
       "room": 30,
-      "status": "pending",
+      "status": "accepted",
       "provenance": "drafted by Kiro from game text only",
       "alreadyCovered": false,
       "proposed": {
-        "name": "",
-        "short": "",
-        "long": "",
+        "name": "Pantry",
+        "short": "A small pantry. The door back to the kitchen is in the middle. A closet is on the left and a fridge on the right.",
+        "long": "A small pantry off the kitchen. The door back to the kitchen is in the back wall, in the middle. A tall shelf of small things stands on the far left, with a closet to its right. A fridge stands on the right, and a still-life painting hangs on the wall above it.",
         "seen": false,
         "chapters": [
           4
@@ -846,12 +865,14 @@
       "kind": "exit",
       "room": 30,
       "hotspot": 115,
-      "status": "pending",
+      "status": "accepted",
       "provenance": "drafted by Kiro from game text only",
       "alreadyCovered": false,
       "proposed": {
-        "label": "",
-        "to": 29
+        "label": "door in the middle, back to the kitchen",
+        "to": 29,
+        "direction": "back",
+        "note": "Look was silent. Destination from meta.json. Rect x 143 to 180."
       }
     },
     {
@@ -859,12 +880,14 @@
       "kind": "object",
       "room": 30,
       "hotspot": 144,
-      "status": "pending",
+      "status": "accepted",
       "provenance": "drafted by Kiro from game text only",
       "alreadyCovered": false,
       "proposed": {
-        "name": "",
-        "type": "object"
+        "name": "closet",
+        "type": "object",
+        "description": "A closet on the left, left of centre.",
+        "note": "Look line: IT'S NOT UNUSUAL (filler). The report calls this the puzzle closet, so it may matter; I claim nothing about it. Rect x 92 to 119."
       }
     },
     {
@@ -872,12 +895,14 @@
       "kind": "object",
       "room": 30,
       "hotspot": 157,
-      "status": "pending",
+      "status": "accepted",
       "provenance": "drafted by Kiro from game text only",
       "alreadyCovered": false,
       "proposed": {
-        "name": "",
-        "type": "object"
+        "name": "fridge",
+        "type": "object",
+        "description": "A fridge on the right side of the room.",
+        "note": "Look line is only filler. Description is from name and position only. Rect x 219 to 260."
       }
     },
     {
@@ -885,12 +910,14 @@
       "kind": "object",
       "room": 30,
       "hotspot": 158,
-      "status": "pending",
+      "status": "accepted",
       "provenance": "drafted by Kiro from game text only",
       "alreadyCovered": false,
       "proposed": {
-        "name": "",
-        "type": "object"
+        "name": "still-life painting",
+        "type": "object",
+        "description": "A still-life painting on the wall, high on the right, above the fridge. The game says it looks impressionist.",
+        "note": "Look line: IT LOOKS IMPRESSIONIST TO ME... Paraphrased. Reviewer: check a screenshot for the subject."
       }
     },
     {
@@ -898,25 +925,27 @@
       "kind": "object",
       "room": 30,
       "hotspot": 159,
-      "status": "pending",
+      "status": "accepted",
       "provenance": "drafted by Kiro from game text only",
       "alreadyCovered": false,
       "proposed": {
-        "name": "",
-        "type": "object"
+        "name": "things",
+        "type": "object",
+        "description": "A tall group of small things on the far left.",
+        "note": "Engine name THINGS. Look line is only filler, so nobody knows what they are. Rect x 46 to 86, tall. Reviewer: check a screenshot and give it a real name."
       }
     },
     {
       "key": "room:34",
       "kind": "room",
       "room": 34,
-      "status": "pending",
+      "status": "accepted",
       "provenance": "drafted by Kiro from game text only",
       "alreadyCovered": false,
       "proposed": {
-        "name": "",
-        "short": "",
-        "long": "",
+        "name": "Torch room",
+        "short": "A small room with a shelf on the left, a closet in the middle and a torch on the wall. The door on the right leads out.",
+        "long": "A small room off the landing. A door on the right leads back to the landing. A closet stands right of centre. A shelf is on the left, and a torch is fixed to the wall between the shelf and the closet. The game says the torch looks a little loose.",
         "seen": false,
         "chapters": [
           4
@@ -928,12 +957,14 @@
       "kind": "exit",
       "room": 34,
       "hotspot": 119,
-      "status": "pending",
+      "status": "accepted",
       "provenance": "drafted by Kiro from game text only",
       "alreadyCovered": false,
       "proposed": {
-        "label": "",
-        "to": 27
+        "label": "door on the right, back to the landing",
+        "to": 27,
+        "direction": "right",
+        "note": "Look gave only filler. Destination from meta.json. Rect x 236 to 269."
       }
     },
     {
@@ -941,12 +972,14 @@
       "kind": "object",
       "room": 34,
       "hotspot": 120,
-      "status": "pending",
+      "status": "accepted",
       "provenance": "drafted by Kiro from game text only",
       "alreadyCovered": false,
       "proposed": {
-        "name": "",
-        "type": "object"
+        "name": "closet",
+        "type": "object",
+        "description": "A closet right of centre, next to the door.",
+        "note": "Look line is only filler. The report says this is an exit to room 35, but the dump shows door 0 and no destination, so I kept it as an object. Reviewer: if it is an exit it needs moving to exits. Rect x 182 to 224."
       }
     },
     {
@@ -954,12 +987,14 @@
       "kind": "object",
       "room": 34,
       "hotspot": 122,
-      "status": "pending",
+      "status": "accepted",
       "provenance": "drafted by Kiro from game text only",
       "alreadyCovered": false,
       "proposed": {
-        "name": "",
-        "type": "object"
+        "name": "shelf",
+        "type": "object",
+        "description": "A shelf on the left side of the room.",
+        "note": "Look line is only filler. The report says this is an exit to room 36, but the dump shows door 0 and no destination, so I kept it as an object. Reviewer: if it is an exit it needs moving to exits. Rect x 86 to 147."
       }
     },
     {
@@ -967,12 +1002,14 @@
       "kind": "object",
       "room": 34,
       "hotspot": 146,
-      "status": "pending",
+      "status": "accepted",
       "provenance": "drafted by Kiro from game text only",
       "alreadyCovered": false,
       "proposed": {
-        "name": "",
-        "type": "object"
+        "name": "torch",
+        "type": "object",
+        "description": "A torch on the wall in the middle of the room. The game says it looks a little loose.",
+        "note": "Look line: IT SEEMS A LITTLE LOOSE ON THE WALL. Paraphrased. Rect x 149 to 162, small. Left as a plain description; no puzzle use is hinted."
       }
     },
     {
