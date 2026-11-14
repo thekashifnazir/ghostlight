@@ -1084,7 +1084,12 @@
     { "id": 8, "chapters": [2, 3], "name": "leaves", "description": "A handful of strange leaves." },
     { "id": 9, "chapters": [2, 3], "name": "crucifix", "description": "A carved wooden crucifix." },
     { "id": 10, "chapters": [2, 3], "name": "iron spike", "description": "A spike from a railing." },
-    { "id": 11, "chapters": [2, 3], "name": "earplugs", "description": "A pair of slightly waxy earplugs." },
+    {
+      "id": 11,
+      "chapters": [2, 3],
+      "name": "earplugs",
+      "description": "A pair of used earplugs. A bit waxy, but they'd still do their job."
+    },
     {
       "id": 12,
       "chapters": [2, 3],
@@ -1616,12 +1621,12 @@
       "title": "Passed Von Braun's test",
       "after": ["ch2.into-hut", "ch2.earplugs"],
       "when": { "flags": { "22": 1 } },
-      "rooms": [17, 18],
+      "rooms": [18],
       "recap": "You passed Von Braun's noise test and got your money back.",
       "hints": {
-        "nudge": "Von Braun's test is all about noise.",
-        "clue": "Wear the earplugs before you take the test. They only go in near Von Braun's.",
-        "answer": "At the hut or in the den, use the earplugs on yourself. Then talk to Von Braun and choose I AM READY TO FACE YOUR TEST."
+        "nudge": "Von Braun's test is all about noise. Nothing you carry needs fixing first.",
+        "clue": "Wear the earplugs for the test. They go in your own ears, and only once you're inside Von Braun's den.",
+        "answer": "In Von Braun's den, use the earplugs on yourself (type: use earplugs on yourself). Then talk to Von Braun and choose I AM READY TO FACE YOUR TEST."
       }
     },
     {
