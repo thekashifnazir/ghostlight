@@ -99,6 +99,20 @@ engine/ files, hooks.patch, the pinned ScummVM commit, the build script and the
 GPL text) is served on the live site at /source/.
 NOTE
 
+#    The Queen data gets the same treatment (Flight of the Amazon Queen freeware).
+cp vendor/game/queen/readme.txt web/public/data/games/queen/readme.txt 2>/dev/null || true
+cat > web/public/data/games/queen/MODIFIED.txt <<'NOTE'
+This copy of the Flight of the Amazon Queen freeware data is served by
+Ghostlight, an accessibility front-end for ScummVM. The ScummVM engine running
+it is modified (a small accessibility patch in engine/queen/, GPL-3.0-or-later);
+the game data itself is the unmodified ScummVM freeware distribution. See the
+game's own readme.txt in this folder, and https://www.scummvm.org/ for ScummVM.
+
+The complete corresponding source for the modified GPL ScummVM build (the
+engine/ files, both hooks.patch files, the pinned ScummVM commit, the build
+script and the GPL text) is served on the live site at /source/.
+NOTE
+
 # 5. GPL source offer. The served scummvm.wasm is a modified GPL ScummVM build,
 #    so the corresponding source must be offered alongside it. Assemble /source/
 #    from the committed landing page (web/source/) plus the actual modification
@@ -109,6 +123,10 @@ cp web/source/index.html         web/public/source/index.html
 cp engine/a11y.cpp               web/public/source/a11y.cpp
 cp engine/a11y.h                 web/public/source/a11y.h
 cp engine/hooks.patch            web/public/source/hooks.patch
+mkdir -p web/public/source/queen
+cp engine/queen/a11y.cpp         web/public/source/queen/a11y.cpp
+cp engine/queen/a11y.h           web/public/source/queen/a11y.h
+cp engine/queen/hooks.patch      web/public/source/queen/hooks.patch
 cp engine/COPYING                web/public/source/COPYING
 cp scripts/build-web.sh          web/public/source/build-web.sh
 

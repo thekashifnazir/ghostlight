@@ -54,11 +54,15 @@
 
     <h2>What the modification is</h2>
     <p>
-      Ghostlight adds a small, self-contained accessibility layer to ScummVM's
-      Drascula engine. It is new code (<code>engine/a11y.cpp</code>,
-      <code>engine/a11y.h</code>) plus a short patch that hooks it into the
-      engine's own sources (<code>engine/hooks.patch</code>). Nothing else in
-      the upstream engine is changed.
+      Ghostlight adds a small, self-contained accessibility layer to two of
+      ScummVM's engines: Drascula and Flight of the Amazon Queen (Queen). The
+      served <code>scummvm.wasm</code> contains both modified engines. For each
+      engine it is new code (Drascula: <code>engine/a11y.cpp</code>,
+      <code>engine/a11y.h</code>; Queen: <code>engine/queen/a11y.cpp</code>,
+      <code>engine/queen/a11y.h</code>) plus a short patch that hooks it into
+      that engine's own sources (<code>engine/hooks.patch</code> and
+      <code>engine/queen/hooks.patch</code>). Nothing else in the upstream
+      engines is changed.
     </p>
 
     <h2>The modification source</h2>
@@ -66,6 +70,9 @@
       <li><a href="a11y.cpp"><code>engine/a11y.cpp</code></a> — the accessibility layer</li>
       <li><a href="a11y.h"><code>engine/a11y.h</code></a> — its header</li>
       <li><a href="hooks.patch"><code>engine/hooks.patch</code></a> — the hooks into ScummVM's Drascula engine</li>
+      <li><a href="queen/a11y.cpp"><code>engine/queen/a11y.cpp</code></a> - the Queen accessibility layer</li>
+      <li><a href="queen/a11y.h"><code>engine/queen/a11y.h</code></a> - its header</li>
+      <li><a href="queen/hooks.patch"><code>engine/queen/hooks.patch</code></a> - the hooks into ScummVM's Queen engine</li>
       <li><a href="build-web.sh"><code>scripts/build-web.sh</code></a> — the reproducible WebAssembly build script</li>
     </ul>
 
@@ -93,14 +100,15 @@
     <ol>
       <li>Check out ScummVM at commit <code>ad351d1e</code> into <code>vendor/scummvm</code>.</li>
       <li>Copy <code>a11y.cpp</code> and <code>a11y.h</code> into <code>engines/drascula/</code> and add <code>a11y.o</code> to that engine's <code>module.mk</code>.</li>
-      <li>Apply <code>hooks.patch</code> to the ScummVM tree (<code>git apply hooks.patch</code>).</li>
-      <li>Configure and build with ScummVM's Emscripten port (Drascula engine, Ogg/Vorbis on), then <code>make dist-emscripten</code>.</li>
+      <li>Copy <code>queen/a11y.cpp</code> and <code>queen/a11y.h</code> into <code>engines/queen/</code> and add <code>a11y.o</code> to that engine's <code>module.mk</code>.</li>
+      <li>Apply <code>hooks.patch</code> to the ScummVM tree (<code>git apply hooks.patch</code>), then apply <code>queen/hooks.patch</code> the same way.</li>
+      <li>Configure with <code>--enable-engine=drascula,queen</code> and build with ScummVM's Emscripten port (both engines, Ogg/Vorbis on), then <code>make dist-emscripten</code>.</li>
     </ol>
     <p>
       <code>build-web.sh</code> above does all of this automatically. In short:
     </p>
     <pre>scripts/fetch.sh        # fetch ScummVM @ ad351d1e into vendor/
-scripts/build-web.sh    # copy engine/ in, apply hooks.patch, build scummvm.wasm</pre>
+scripts/build-web.sh    # copy engine/ in, apply both hooks.patch files, build scummvm.wasm</pre>
 
     <h2>Licence</h2>
     <p>
