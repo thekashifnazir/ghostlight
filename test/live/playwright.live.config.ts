@@ -21,7 +21,7 @@ export default defineConfig({
   // -> street exit regression (ch2-exit.spec.ts). All need the real wasm build
   // and skip with a clear message when it is absent. Per-project testMatch below
   // narrows WebKit to the sweep (the other specs are Chrome).
-  testMatch: /(live|save-continue|save-key|sweep|ch2-exit|choice-linger|queen-boot)\.spec\.ts$/,
+  testMatch: /(live|save-continue|save-key|sweep|ch2-exit|choice-linger|queen-boot|queen-escape)\.spec\.ts$/,
   fullyParallel: false,
   reporter: "list",
   // A cold wasm instantiation plus the game-data fetch can take well over the
