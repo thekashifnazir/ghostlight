@@ -134,8 +134,3 @@ export class ReplayAdapter implements EngineAdapter {
     });
   }
 }
-
-/** Convenience for tests and ?replay=: build an adapter from log text. */
-export function replayFromLog(log: string): ReplayAdapter {
-  return new ReplayAdapter(log);
-}
