@@ -67,7 +67,60 @@
     "slug": { "type": "string", "pattern": "^[a-z0-9][a-z0-9_-]*$" },
     "numKey": { "type": "string", "pattern": "^(0|[1-9][0-9]*)$" },
     "text": { "type": "string", "minLength": 1, "not": { "pattern": "—" } },
+    "shortText": { "type": "string", "minLength": 1, "maxLength": 300, "not": { "pattern": "—" } },
     "note": { "type": "string" },
+    "descriptionVariant": {
+      "type": "object",
+      "required": ["when", "text"],
+      "additionalProperties": false,
+      "patternProperties": { "^x-": {} },
+      "properties": {
+        "when": { "$ref": "#/$defs/condition" },
+        "text": { "$ref": "#/$defs/text" },
+        "note": { "$ref": "#/$defs/note" }
+      }
+    },
+    "shortDescriptionVariant": {
+      "type": "object",
+      "required": ["when", "text"],
+      "additionalProperties": false,
+      "patternProperties": { "^x-": {} },
+      "properties": {
+        "when": { "$ref": "#/$defs/condition" },
+        "text": { "$ref": "#/$defs/shortText" },
+        "note": { "$ref": "#/$defs/note" }
+      }
+    },
+    "describable": {
+      "oneOf": [
+        { "$ref": "#/$defs/text" },
+        {
+          "type": "object",
+          "required": ["default", "variants"],
+          "additionalProperties": false,
+          "patternProperties": { "^x-": {} },
+          "properties": {
+            "default": { "$ref": "#/$defs/text" },
+            "variants": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/descriptionVariant" } }
+          }
+        }
+      ]
+    },
+    "shortDescribable": {
+      "oneOf": [
+        { "$ref": "#/$defs/shortText" },
+        {
+          "type": "object",
+          "required": ["default", "variants"],
+          "additionalProperties": false,
+          "patternProperties": { "^x-": {} },
+          "properties": {
+            "default": { "$ref": "#/$defs/shortText" },
+            "variants": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/shortDescriptionVariant" } }
+          }
+        }
+      ]
+    },
     "chapter": {
       "type": "object",
       "required": ["name", "startRoom", "summary"],
@@ -88,8 +141,8 @@
       "properties": {
         "chapters": { "type": "array", "items": { "type": "integer", "minimum": 0 }, "minItems": 1, "uniqueItems": true },
         "name": { "$ref": "#/$defs/text", "maxLength": 40 },
-        "short": { "$ref": "#/$defs/text", "maxLength": 300 },
-        "long": { "$ref": "#/$defs/text" },
+        "short": { "$ref": "#/$defs/shortDescribable" },
+        "long": { "$ref": "#/$defs/describable" },
         "seen": { "type": "boolean" },
         "note": { "$ref": "#/$defs/note" },
         "exits": {
@@ -125,7 +178,7 @@
       "properties": {
         "name": { "$ref": "#/$defs/text", "maxLength": 40 },
         "type": { "enum": ["object", "exit", "npc"] },
-        "description": { "$ref": "#/$defs/text" },
+        "description": { "$ref": "#/$defs/describable" },
         "note": { "$ref": "#/$defs/note" }
       }
     },

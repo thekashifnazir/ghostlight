@@ -29,18 +29,42 @@ export interface Exit {
   note?: string;
 }
 
+/** One condition-guarded alternative for a room or object description. */
+export interface DescriptionVariant {
+  when: Condition;
+  text: string;
+  note?: string;
+}
+
+/**
+ * A description with a default and condition-guarded variants. The first
+ * variant whose `when` holds is chosen; otherwise `default`.
+ */
+export interface VariantList {
+  default: string;
+  variants: DescriptionVariant[];
+}
+
+/** A description field: a plain string, or the default-plus-variants object. */
+export type Describable = string | VariantList;
+
+/** Is this description the object (default-plus-variants) form, not a plain string? */
+export function isVariantList(d: Describable | undefined): d is VariantList {
+  return typeof d === "object" && d !== null && "default" in d && "variants" in d;
+}
+
 export interface RoomObject {
   name: string;
   type: HotspotType;
-  description?: string;
+  description?: Describable;
   note?: string;
 }
 
 export interface Room {
   chapters: number[];
   name: string;
-  short: string;
-  long: string;
+  short: Describable;
+  long: Describable;
   seen: boolean;
   note?: string;
   /** Keyed by hotspot number as a string of digits. */
