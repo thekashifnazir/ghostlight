@@ -102,6 +102,34 @@
         gap: 1rem;
       }
 
+      /* The "How to play" guide (src/ui/guide.ts) renders into #gate-actions. */
+      #guide {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+        max-width: 42rem;
+        text-align: left;
+      }
+
+      #guide h2 {
+        margin: 0;
+        font-size: 1.4rem;
+      }
+
+      #guide ul {
+        margin: 0;
+        padding-left: 1.25rem;
+        line-height: 1.5;
+      }
+
+      #guide-nav {
+        display: flex;
+        gap: 1rem;
+        flex-wrap: wrap;
+      }
+
+      #gate-actions > button,
+      #guide-nav button,
       #start-button,
       #resume-choice button {
         font: inherit;

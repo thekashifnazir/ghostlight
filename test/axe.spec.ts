@@ -29,6 +29,19 @@ test("start screen has no accessibility violations", async ({ page }) => {
   expect(results.violations).toEqual([]);
 });
 
+test("How to play guide pages have no accessibility violations", async ({ page }) => {
+  await page.goto("/?replay=tavern");
+  await page.locator("#guide-button").click();
+  for (let i = 1; i <= 5; i++) {
+    await expect(page.locator("#guide-title")).toContainText(`page ${i} of 5`);
+    // The gate's intro sentence is hidden while the guide is open.
+    await expect(page.locator("#start-gate > p")).toBeHidden();
+    const results = await analyze(page);
+    expect(results.violations).toEqual([]);
+    if (i < 5) await page.locator("#guide-next").click();
+  }
+});
+
 test("in-room play has no accessibility violations", async ({ page }) => {
   await start(page, "tavern");
   await page.keyboard.press("ArrowRight");

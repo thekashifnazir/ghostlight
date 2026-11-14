@@ -41,22 +41,12 @@ test.describe("spoken onboarding", () => {
     // (onboarding not repeated).
     await start(page, "leave-tavern");
 
-    // The first room's reading carries the one-time key orientation on the same
-    // line, so the room is still announced AND the controls are heard with it.
-    // The controls are kept clearly apart from the room (they open with
-    // "That's the room.") and each key is its own short sentence. The closing
-    // tip is platform-aware (VoiceOver on a Mac, NVDA/JAWS elsewhere), so this
-    // asserts the platform-independent core rather than the final sentence.
+    // The first room's reading ends with one short pointer to the keys. The
+    // keys themselves are taught by the "How to play" guide before the game
+    // starts, so the first room no longer lists them (tester feedback, 14 Nov).
     await expect(live(page)).toContainText("Inn bar");
-    await expect(live(page)).toContainText(
-      "That's the room. Now, how to play. " +
-        "Left and Right arrows move through the room. " +
-        "Enter talks to, uses or goes through what you're on. " +
-        "Down arrow examines it. " +
-        "H asks the ghost for a hint. " +
-        "Slash lets you type a command. " +
-        "F1 or question mark reads every key, at any time.",
-    );
+    await expect(live(page)).toContainText("F1 or question mark lists every key.");
+    await expect(live(page)).not.toContainText("Now, how to play");
 
     // Cross to the next room: the recording's one command is `walk 105`, the
     // curtained doorway to the guest rooms (hotspot 105). Cycle to it, then
@@ -73,7 +63,7 @@ test.describe("spoken onboarding", () => {
     // The new room is read (the replay's walk 105 diff changes the room), and
     // the onboarding must NOT appear again on this later room.
     await expect(live(page)).toContainText("Here:");
-    await expect(live(page)).not.toContainText("Now, how to play.");
+    await expect(live(page)).not.toContainText("lists every key");
   });
 });
 

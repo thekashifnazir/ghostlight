@@ -31,6 +31,18 @@ export default defineConfig({
   use: {
     baseURL: "http://127.0.0.1:5174",
     trace: "retain-on-failure",
+    // These specs press Enter on the start screen to begin. A first visit is
+    // offered the "How to play" guide instead, so mark it as already seen.
+    // guide-live.spec.ts clears this to check the first-visit offer itself.
+    storageState: {
+      cookies: [],
+      origins: [
+        {
+          origin: "http://127.0.0.1:5174",
+          localStorage: [{ name: "ghostlight.guideSeen", value: "1" }],
+        },
+      ],
+    },
   },
   projects: [
     {

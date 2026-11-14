@@ -51,6 +51,7 @@ import { LiveRegion } from "./ui/live-region.js";
 import { isMacPlatform } from "./ui/platform.js";
 import { addMacGameSurfaceText } from "./ui/game-surface.js";
 import { VerbMenu } from "./ui/verb-menu.js";
+import { Guide, guidePages, guideSeen, markGuideSeen } from "./ui/guide.js";
 import { loadReadVoiced, saveReadVoiced } from "./ui/voiced-lines.js";
 
 // Build stamp, replaced by Vite's define at build and dev-server start. A
@@ -114,7 +115,7 @@ const HELP_TEXT =
   "drunk, press Enter to send it, or Escape to close. " +
   "You can use an item on yourself: type use earplugs on yourself. " +
   "R repeats the last line; Shift plus R steps back through earlier lines. " +
-  "L reads the whole room and ends with a suggestion; H gives more help. " +
+  "L reads the whole room, starting with what's worth a look. " +
   "H asks the ghost for a hint; the ghost speaks the " +
   "hint aloud. " +
   "G turns the ghost voice on or off; if you turn it off the hint is read as " +
@@ -170,15 +171,7 @@ const NO_GAME_HINTS_TEXT = "There are no hints for this game yet.";
  * them out (screen-reader-output: one composed update, read as short
  * sentences). The closing sentence is the platform-aware tip.
  */
-const ONBOARDING_TEXT =
-  "That's the room. Now, how to play. " +
-  "Left and Right arrows move through the room. " +
-  "Enter talks to, uses or goes through what you're on. " +
-  "Down arrow examines it. " +
-  "H asks the ghost for a hint. " +
-  "Slash lets you type a command. " +
-  "F1 or question mark reads every key, at any time. " +
-  screenReaderTip();
+const ONBOARDING_TEXT = "F1 or question mark lists every key.";
 
 /** Minimal window.Module shape ScummVM expects; set up before boot. */
 declare global {
@@ -1402,7 +1395,79 @@ export async function boot(): Promise<void> {
    * focus it. No Continue button is in the DOM, so there is nothing else for a
    * screen reader to land on.
    */
+  // The "How to play" guide (src/ui/guide.ts). Offered first, with a skip, on
+  // a first visit to the live game; afterwards it is a button after Start or
+  // Continue. The replay/test paths and ?noguide never offer it first, so
+  // scripted runs that press Enter on the gate still start the game.
+  const storage = ((): Storage | undefined => {
+    try {
+      return window.localStorage;
+    } catch {
+      return undefined;
+    }
+  })();
+  const offerGuideFirst =
+    !replayName && !log && !params.has("noguide") && !guideSeen(storage);
+
+  const openGuide = (finishLabel: string, onDone: () => void): void => {
+    gateHandlesAnyKey = false; // the guide's buttons own the keys
+    // Hide the gate's intro sentence while the guide is open, so a screen
+    // reader meets the page heading first, not the same intro on every page.
+    const intro = startGate.querySelector("p");
+    if (intro) intro.hidden = true;
+    new Guide({
+      doc,
+      container: gateActions,
+      pages: guidePages(screenReaderTip()),
+      finishLabel,
+      onDone: () => {
+        markGuideSeen(storage);
+        onDone();
+      },
+    }).open();
+  };
+
+  const guideButton = (onClick: () => void): HTMLButtonElement => {
+    const b = doc.createElement("button");
+    b.id = "guide-button";
+    b.type = "button";
+    b.textContent = "How to play";
+    b.addEventListener("click", onClick);
+    return b;
+  };
+
+  /** First visit: offer the guide (focused) or skip straight into the game. */
+  const renderGuideOffer = (): void => {
+    gateHandlesAnyKey = false;
+    const text =
+      "New here? A short guide, 5 pages, explains the keys. Or skip it and start the game.";
+    const instruction = doc.getElementById("gate-instruction");
+    if (instruction) instruction.textContent = text;
+    const start = doc.createElement("button");
+    start.id = "guide-start";
+    start.type = "button";
+    start.textContent = "Start the guide";
+    start.addEventListener("click", () =>
+      openGuide("Start the game", () => void startPlaying()),
+    );
+    const skip = doc.createElement("button");
+    skip.id = "guide-skip-all";
+    skip.type = "button";
+    skip.textContent = "Skip to the game";
+    skip.addEventListener("click", () => {
+      markGuideSeen(storage);
+      void startPlaying();
+    });
+    gateActions.replaceChildren(start, skip);
+    live.announce(text);
+    start.focus();
+  };
+
   const renderStartAction = (): void => {
+    if (offerGuideFirst) {
+      renderGuideOffer();
+      return;
+    }
     // Match the gate's first sentence to this variant (web-build R4.1): a
     // fresh Start, dismissed by the button, or by Enter, Space or a letter.
     // (Not "any key": Tab, the arrows and screen-reader keys must not start it,
@@ -1417,7 +1482,10 @@ export async function boot(): Promise<void> {
     startButton.type = "button";
     startButton.textContent = "Start";
     startButton.addEventListener("click", () => void startPlaying());
-    gateActions.replaceChildren(startButton);
+    gateActions.replaceChildren(
+      startButton,
+      guideButton(() => openGuide("Start the game", () => void startPlaying())),
+    );
     startButton.focus();
   };
 
@@ -1466,7 +1534,17 @@ export async function boot(): Promise<void> {
 
     // Continue first, then New game: the reading and Tab order a returning
     // player meets.
-    resumeChoice.append(continueButton, newGameButton);
+    resumeChoice.append(
+      continueButton,
+      newGameButton,
+      guideButton(() =>
+        openGuide("Back to Continue", () => {
+          const intro = startGate.querySelector("p");
+          if (intro) intro.hidden = false;
+          renderResumeChoice(resumeSlot);
+        }),
+      ),
+    );
     gateActions.replaceChildren(resumeChoice);
 
     // Announce the choice as functional text (R3.3).
@@ -1555,7 +1633,9 @@ export async function boot(): Promise<void> {
   // paths the buttons own the keys, or boot is already under way, so the
   // document listener is never added — and gateKeydown stays undefined, which
   // is exactly what startPlaying's guarded removal expects.
-  if (gateHandlesAnyKey) {
+  // The guide offer turns the begin shortcut off but keeps F1 / ? working, as
+  // the gate text promises; the listener checks gateHandlesAnyKey for begin.
+  if (gateHandlesAnyKey || offerGuideFirst) {
     // Listen at the document level, not on #start-gate, so the shortcut works
     // no matter where focus sits. The gate's Start button is focused when
     // shown, but a click on the page background moves focus to <body>; a
@@ -1564,7 +1644,6 @@ export async function boot(): Promise<void> {
     // removes this listener once play begins, so it only lives while the gate
     // is up.
     gateKeydown = (ev: KeyboardEvent): void => {
-      if (!gateHandlesAnyKey) return; // handled by buttons or load-intent start
       if (ev.key === "F1" || ev.key === "?") {
         // Read the controls without starting; keep the gate up. '?' (a single
         // printable char) would otherwise be caught by startsTheGame and begin
@@ -1575,6 +1654,11 @@ export async function boot(): Promise<void> {
         helpReader.read();
         return;
       }
+      if (!gateHandlesAnyKey) return; // handled by buttons or load-intent start
+      // Enter or Space on another focused gate button (How to play) is that
+      // button's own click, not "begin".
+      const t = ev.target as HTMLElement | null;
+      if (t?.tagName === "BUTTON" && t.id !== "start-button") return;
       // Ignore the navigation and modifier keys a screen-reader user presses to
       // explore the page (Tab, Shift+Tab, arrows, Escape, modifiers, F-keys,
       // and any Ctrl/Alt/Meta chord): let them do their normal thing, do not

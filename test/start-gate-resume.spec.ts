@@ -135,7 +135,7 @@ test.describe("returning visit (save present): Continue, no Start", () => {
       );
       return ids;
     });
-    expect(order).toEqual(["continue-button", "new-game-button"]);
+    expect(order).toEqual(["continue-button", "new-game-button", "guide-button"]);
 
     // Continue holds focus, so Space/Enter resumes with no focus move required.
     const onContinue = await page.evaluate(
