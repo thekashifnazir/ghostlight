@@ -1,4 +1,4 @@
-/* Ghostlight - accessibility layer for the ScummVM Queen engine (read side)
+/* Ghostlight - accessibility layer for the ScummVM Queen engine
  *
  * Copyright (C) 2026 Ghostlight contributors
  *
@@ -69,10 +69,6 @@ void onChoices(QueenEngine *vm, const char *o1, const char *o2, const char *o3, 
 
 //! Talk::speak, after the empty-sentence check: one call per spoken line.
 void onSpeak(QueenEngine *vm, const char *speaker, const char *sentence);
-
-//! g_system->getMillis() of the last line written (0 before the first line).
-//! Read by the busy watchdog the command side will add.
-uint32 lastOutputMs();
 
 } // End of namespace A11y
 } // End of namespace Queen

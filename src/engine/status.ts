@@ -36,8 +36,8 @@
 // Settling: engine truth first, quiet-period fallback
 // ----------------------------------------------------
 // The engine a11y layer emits an `A11Y_PHASE` line straight from engine truth:
-// `control` when the engine can take a command (`canSaveGameStateCurrently()`
-// is true and nothing is running), `busy` while a command runs, and `choice`
+// `control` when the engine is idle in free play and can take a command,
+// `busy` while a command runs or a cutscene has the engine, and `choice`
 // while a conversation menu is open. When these arrive (the live engine, and
 // any recording made with the A11Y_PHASE-emitting build) they are AUTHORITATIVE:
 // `control` -> `ready`, `busy` -> `busy` (or `conversation` while dialogue text

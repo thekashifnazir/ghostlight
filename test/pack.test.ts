@@ -187,3 +187,17 @@ describe("Pack reader: state-aware description accessors (description-variants)"
     expect(pack.objectDescription(5, 213)).toBe("A second window, shut.");
   });
 });
+
+describe("Pack text fixes with context any", () => {
+  it("applies an `any` fix in every context, as the pack format allows", () => {
+    const pack = loadPack({
+      formatVersion: "1.0",
+      rooms: {},
+      items: [],
+      textFixes: [{ from: "HOLA", to: "hello", context: "any" }],
+    });
+    expect(pack.applyTextFixes("HOLA", "hotspot")).toBe("hello");
+    expect(pack.applyTextFixes("HOLA", "dialogue")).toBe("hello");
+    expect(pack.applyTextFixes("HOLA", "item")).toBe("hello");
+  });
+});

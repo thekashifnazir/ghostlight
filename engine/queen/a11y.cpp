@@ -51,6 +51,7 @@
 #include "common/str.h"
 #include "common/stream.h"
 #include "common/system.h"
+#include "common/tokenizer.h"
 #include "common/util.h"
 
 #include "queen/a11y.h"
@@ -80,14 +81,6 @@ enum {
 	kPhaseChoice
 };
 
-// Wall clock of the last line written, for the busy watchdog the command side
-// will add (same role as g_lastEngineOutputMs in engine/a11y.cpp).
-static uint32 g_lastOutputMs = 0;
-
-uint32 lastOutputMs() {
-	return g_lastOutputMs;
-}
-
 // All a11y output is one prefixed line on stderr, so a web page reads it via
 // Module.printErr and a native run reads it on fd 2. logMessage with the error
 // type goes to stderr on the SDL backend and adds no prefix of its own, which
@@ -95,7 +88,6 @@ uint32 lastOutputMs() {
 static void emitLine(const Common::String &line) {
 	if (!g_system)
 		return;
-	g_lastOutputMs = g_system->getMillis();
 	Common::String out = line + "\n";
 	g_system->logMessage(LogMessageType::kError, out.c_str());
 }
@@ -475,8 +467,8 @@ static bool carriedChanged(QueenEngine *vm, Layer &s) {
 // ---------------------------------------------------------------- diff
 
 // The command the engine is about to execute, as a short label such as
-// "open 2" or "use 3 on 5". There is no command file yet, so this is the
-// engine's own verb and nouns. A right click is resolved to the object's
+// "open 2" or "use 3 on 5", from the engine's own verb and nouns (this is what
+// the player's own clicks run, as well as file commands). A right click is resolved to the object's
 // default verb exactly as Command::executeCurrentAction does at its top.
 static Common::String describeAction(QueenEngine *vm) {
 	Logic *l = vm->logic();
@@ -724,18 +716,9 @@ static bool parseNum(const Common::String &s, int &out) {
 }
 
 static void splitWords(const Common::String &text, Common::Array<Common::String> &w) {
-	Common::String cur;
-	for (uint i = 0; i <= text.size(); ++i) {
-		char c = (i < text.size()) ? text[i] : ' ';
-		if (c == ' ' || c == '\t') {
-			if (!cur.empty()) {
-				w.push_back(cur);
-				cur.clear();
-			}
-		} else {
-			cur += c;
-		}
-	}
+	Common::StringTokenizer tok(text, " \t");
+	while (!tok.empty())
+		w.push_back(tok.nextToken());
 }
 
 static Common::String firstWord(const Common::String &text) {
