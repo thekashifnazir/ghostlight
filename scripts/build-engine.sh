@@ -23,6 +23,7 @@
 #   scripts/build-engine.sh --clean         # wipe engine source changes first
 #   scripts/build-engine.sh --reconfigure   # force a fresh ./configure
 #   scripts/build-engine.sh --jobs N        # parallel make jobs (default: ncpu)
+#   QUEEN=1 scripts/build-engine.sh         # also build the Queen engine + a11y layer
 #
 # Configure is run only when needed (pristine tree, changed engine sources, or
 # --reconfigure/--clean). On a tree already configured for the current sources
@@ -57,6 +58,11 @@ VENDOR="$ROOT/vendor"
 SCUMMVM_DIR="$VENDOR/scummvm"
 DRASCULA_DIR="$SCUMMVM_DIR/engines/drascula"
 HOOKS_PATCH="$ENGINE_SRC/hooks.patch"
+QUEEN_SRC="$ENGINE_SRC/queen"
+QUEEN_DIR="$SCUMMVM_DIR/engines/queen"
+QUEEN_HOOKS_PATCH="$QUEEN_SRC/hooks.patch"
+# QUEEN=1 adds the Queen engine and its a11y layer to the build (default: off).
+QUEEN="${QUEEN:-0}"
 
 # Stamp recording the engine sources configure last ran against. Lets us skip a
 # redundant (and intermittently flaky, see run_configure) re-configure when the
@@ -81,7 +87,7 @@ while [ $# -gt 0 ]; do
     --jobs)  shift; JOBS="${1:?--jobs needs a number}" ;;
     --jobs=*) JOBS="${1#--jobs=}" ;;
     -h|--help)
-      sed -n '2,48p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
+      sed -n '2,49p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
       exit 0 ;;
     *) echo "[build] ERROR: unknown option: $1" >&2; exit 2 ;;
   esac
@@ -113,9 +119,13 @@ engine_fingerprint() {
   local hasher
   if command -v shasum >/dev/null 2>&1; then hasher="shasum -a 256"
   else hasher="sha256sum"; fi
-  cat "$ENGINE_SRC/a11y.cpp" "$ENGINE_SRC/a11y.h" "$HOOKS_PATCH" \
-      "$DRASCULA_DIR/module.mk" 2>/dev/null \
-    | $hasher | awk '{print $1}'
+  { cat "$ENGINE_SRC/a11y.cpp" "$ENGINE_SRC/a11y.h" "$HOOKS_PATCH" \
+        "$DRASCULA_DIR/module.mk" 2>/dev/null
+    if [ "$QUEEN" = "1" ]; then
+      echo "queen=1"
+      cat "$QUEEN_SRC/a11y.cpp" "$QUEEN_SRC/a11y.h" "$QUEEN_HOOKS_PATCH" 2>/dev/null
+    fi
+  } | $hasher | awk '{print $1}'
 }
 
 # run_configure <web|native> -- run ./configure with two kinds of resilience.
@@ -195,6 +205,12 @@ require_vorbis() {
 [ -d "$DRASCULA_DIR" ] || die "Drascula engine missing in vendor/scummvm. Re-run scripts/fetch.sh."
 [ -f "$ENGINE_SRC/a11y.cpp" ] || die "engine/a11y.cpp missing."
 [ -f "$ENGINE_SRC/a11y.h" ]   || die "engine/a11y.h missing."
+if [ "$QUEEN" = "1" ]; then
+  [ -d "$QUEEN_DIR" ]          || die "Queen engine missing in vendor/scummvm. Re-run scripts/fetch.sh."
+  [ -f "$QUEEN_SRC/a11y.cpp" ] || die "engine/queen/a11y.cpp missing."
+  [ -f "$QUEEN_SRC/a11y.h" ]   || die "engine/queen/a11y.h missing."
+  [ -f "$QUEEN_HOOKS_PATCH" ]  || die "engine/queen/hooks.patch missing."
+fi
 
 if [ "$WEB" -eq 1 ]; then
   command -v emconfigure >/dev/null 2>&1 || die "emconfigure not found. Install and activate the Emscripten SDK for a --web build."
@@ -209,6 +225,10 @@ if [ "$CLEAN" -eq 1 ]; then
   log "cleaning previous engine source changes"
   rm -f "$DRASCULA_DIR/a11y.cpp" "$DRASCULA_DIR/a11y.h"
   rm -f "$CONFIG_STAMP" "$APPLIED_PATCH"
+  if [ "$QUEEN" = "1" ]; then
+    rm -f "$QUEEN_DIR/a11y.cpp" "$QUEEN_DIR/a11y.h"
+    git -C "$SCUMMVM_DIR" checkout -q -- engines/queen 2>/dev/null || true
+  fi
   git -C "$SCUMMVM_DIR" checkout -q -- engines/drascula/module.mk engines/drascula 2>/dev/null || true
   ( cd "$SCUMMVM_DIR" && make distclean >/dev/null 2>&1 || true )
 fi
@@ -272,6 +292,40 @@ else
   log "hooks.patch has no diff hunks yet; nothing to apply (placeholder)"
 fi
 
+# --- 3b. optional Queen layer (QUEEN=1) --------------------------------------
+#
+# Same flow as the web build: copy the sources, apply engine/queen/hooks.patch
+# (which already adds a11y.o to the Queen module.mk), then make sure a11y.o is
+# listed. Idempotent: an already-applied patch is detected and skipped.
+
+if [ "$QUEEN" = "1" ]; then
+  log "copying a11y.cpp / a11y.h into engines/queen"
+  cp "$QUEEN_SRC/a11y.cpp" "$QUEEN_DIR/a11y.cpp"
+  cp "$QUEEN_SRC/a11y.h"   "$QUEEN_DIR/a11y.h"
+
+  if grep -Eq '^(diff |--- |\+\+\+ |@@ )' "$QUEEN_HOOKS_PATCH"; then
+    log "applying engine/queen/hooks.patch"
+    if git -C "$SCUMMVM_DIR" apply --check "$QUEEN_HOOKS_PATCH" 2>/dev/null; then
+      git -C "$SCUMMVM_DIR" apply "$QUEEN_HOOKS_PATCH"
+    elif git -C "$SCUMMVM_DIR" apply --reverse --check "$QUEEN_HOOKS_PATCH" 2>/dev/null; then
+      log "queen hooks.patch already applied; skipping"
+    else
+      die "engine/queen/hooks.patch does not apply cleanly to the pinned checkout"
+    fi
+  fi
+
+  QUEEN_MODULE_MK="$QUEEN_DIR/module.mk"
+  if ! grep -q '[[:space:]]a11y\.o' "$QUEEN_MODULE_MK"; then
+    log "adding a11y.o to queen module.mk"
+    awk '
+      { print }
+      /^MODULE_OBJS := \\$/ && !done { print "\ta11y.o \\"; done=1 }
+    ' "$QUEEN_MODULE_MK" > "$QUEEN_MODULE_MK.tmp"
+    grep -q '[[:space:]]a11y\.o' "$QUEEN_MODULE_MK.tmp" || die "failed to inject a11y.o into queen module.mk"
+    mv "$QUEEN_MODULE_MK.tmp" "$QUEEN_MODULE_MK"
+  fi
+fi
+
 # --- 4. configure + build ----------------------------------------------------
 #
 # Drascula engine only, to keep the build fast and the wasm small. The same
@@ -291,6 +345,7 @@ fi
 cd "$SCUMMVM_DIR"
 
 CONFIGURE_ARGS=(--disable-all-engines --enable-engine=drascula)
+[ "$QUEEN" = "1" ] && CONFIGURE_ARGS=(--disable-all-engines --enable-engine=drascula,queen)
 # Native: do NOT pass --enable-vorbis. In this ScummVM, =yes skips the library
 # probe, so configure would not fail early on a missing libvorbis; it would set
 # USE_VORBIS anyway and only fail at link time, and it would defeat

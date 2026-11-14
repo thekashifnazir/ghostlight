@@ -8,6 +8,7 @@
 // the list after actions.
 
 import type { Command, Diff, EngineAdapter, EnginePhase } from "../engine/adapter.js";
+import { currentGame } from "../engine/game.js";
 import type { Hotspot } from "../model/hotspot-list.js";
 import type { Pack } from "../model/pack.js";
 import type { Sonar } from "../sonar/sonar.js";
@@ -572,13 +573,12 @@ export class Controller {
  * The signature of the engine's stock "no useful look" reply. The Drascula
  * engine answers an examine it has no special text for with a line of the form
  * "I can't see anything in particular", matched case-insensitively on this
- * distinctive phrase so authored pack descriptions are never caught.
+ * distinctive phrase so authored pack descriptions are never caught. The phrase
+ * comes from the active game's config (Queen's reply differs). True if `text`
+ * is that generic no-info look reply.
  */
-const GENERIC_LOOK_PHRASE = "anything in particular";
-
-/** True if `text` is the engine's generic no-info look reply. */
 export function isGenericLookLine(text: string): boolean {
-  return text.toLowerCase().includes(GENERIC_LOOK_PHRASE);
+  return text.toLowerCase().includes(currentGame().genericLookPhrase);
 }
 
 /**

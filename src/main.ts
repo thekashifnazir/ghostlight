@@ -35,8 +35,11 @@ import { Sonar } from "./sonar/sonar.js";
 import type { Pack as HintPack } from "../packs/tools/src/types.js";
 // The pack is imported read-only as a bundled JSON module, so the player never
 // writes it and no copy of it lives under src/. Vite resolves this to the real
-// packs/drascula-en.json at dev and build time.
-import packJson from "../packs/drascula-en.json";
+// packs/drascula-en.json and packs/queen-en.json at dev and build time; the
+// game setting (?game=) picks which one the page uses.
+import drasculaPackJson from "../packs/drascula-en.json";
+import queenPackJson from "../packs/queen-en.json";
+import { currentGame } from "./engine/game.js";
 import { CommandBox } from "./ui/command-box.js";
 import { ChoiceMenu } from "./ui/choice-menu.js";
 import { Controller } from "./ui/controller.js";
@@ -152,6 +155,9 @@ class HelpReader {
 /** Spoken when the player asks for a hint but nothing is offered yet. */
 const NO_HINT_TEXT = "There is nothing to hint at right now.";
 
+/** Spoken when the game's pack has no hints at all. */
+const NO_GAME_HINTS_TEXT = "There are no hints for this game yet.";
+
 /**
  * Spoken once, on the first room the player reaches after Start, as a short
  * orientation to the core keys (accessibility: keyboard only, functional text
@@ -195,8 +201,12 @@ interface PlayerState {
   inventory: number[];
 }
 
+/** The game this page load runs (?game=queen, Drascula otherwise). */
+const GAME = currentGame();
+const packJson = GAME.pack === "queen-en" ? queenPackJson : drasculaPackJson;
+
 function loadBundledPack(): Pack {
-  // packJson is the real packs/drascula-en.json, bundled read-only by Vite.
+  // packJson is the real pack for the chosen game, bundled read-only by Vite.
   return loadPack(packJson as unknown as PackData);
 }
 
@@ -225,7 +235,7 @@ async function fetchFixture(name: string): Promise<string> {
 }
 
 /** The tab title the page keeps, regardless of what ScummVM sets (R5). */
-const GHOSTLIGHT_TITLE = "Ghostlight: Drascula";
+const GHOSTLIGHT_TITLE = GAME.title;
 
 /**
  * Stop ScummVM's Web MIDI probe so Chrome never pops a "Control and reprogram
@@ -456,7 +466,7 @@ export async function boot(): Promise<void> {
   let hintState: EngineHintState = {
     chapter: 1,
     room: 0,
-    flags: new Array(50).fill(0),
+    flags: new Array(GAME.flagCount).fill(0),
     inventory: [],
   };
   // The ghost whisper player, created once the audio context exists (start
@@ -498,6 +508,11 @@ export async function boot(): Promise<void> {
   // (voice off with G, no cached file, or playback fails) the text is announced
   // so a hint is never silent. The "nothing to hint at" line is always spoken.
   const askHint = (): void => {
+    // A pack with no milestones (Queen so far) has no hints to give.
+    if (!hintPack.milestones || hintPack.milestones.length === 0) {
+      live.announce(NO_GAME_HINTS_TEXT);
+      return;
+    }
     void hintEngine.ask(state.room).then((r) => {
       // speakHint cuts the screen reader before a real hint (voiced or text).
       speakHint(r, {
