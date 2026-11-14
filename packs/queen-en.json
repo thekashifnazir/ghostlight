@@ -22,7 +22,7 @@
     "authors": [
       "Ghostlight"
     ],
-    "notes": "DRAFT for review: the hotel opening, rooms 70 to 73, where a new game starts. Hand survey by Claude Code on 14 Nov 2026 from the engine's own A11Y state line (engine/queen layer, survey-only room jumps) and one window capture per room. Only objects the engine reports as visible at the start are listed. Queen has no chapters; chapter 1 is a placeholder so the v1 schema validates (the engine layer also reports chapter 1). Hotspot keys are the room-relative object numbers in the A11Y state line. Replaces the 12 Nov draft of the plane rooms 1 to 5, which come later in the story."
+    "notes": "DRAFT for review: the hotel opening, rooms 70 to 73, where a new game starts. Hand survey by Claude Code on 14 Nov 2026 from the engine's own A11Y state line (engine/queen layer, survey-only room jumps) and one window capture per room. Only objects the engine reports as visible at the start are listed. Queen has no chapters; chapter 1 is a placeholder so the v1 schema validates (the engine layer also reports chapter 1). Hotspot keys are the room-relative object numbers in the A11Y state line. Replaces the 12 Nov draft of the plane rooms 1 to 5, which come later in the story. Milestones cover the room 70 escape only, played through natively by Claude Code on 14 Nov (pick up both sheets, use 52 on 51, use 53 on 14, use 14). Later goals aren't played yet, so rooms 71 to 73 have no hints."
   },
   "rooms": {
     "70": {
@@ -33,7 +33,7 @@
       "short": "A small room with a heavy metal door on the left. A chest stands in the middle, red stage curtains hang behind you, and a window and radiator are on the right. Sheets lie on the floor.",
       "long": "A small, dim room with purple walls. On the left is a heavy door studded with metal, and a black trunk sits in the bottom left corner. Magic show posters hang on the back wall above a chair and a small table. A purple chest stands in the middle. Behind it, red stage curtains with a gold star hang across the back right. On the right, a cord hangs beside a tall window, with a radiator under it. A pile of sheets lies across the floor at the front.",
       "seen": true,
-      "note": "Engine room code D1. The first playable room after the intro. No exit at the start: the door (13) is locked, and the way out is a puzzle with the sheets, radiator and a laundry chute hidden under a sheet (objects 5, 6, 7, 18 and 20 are hidden until then). The posters, chest and trunk belong to the Great Markam (look lines). Anderson (21) is hidden at the start. Room name is mine.",
+      "note": "Engine room code D1. The first playable room after the intro. No exit at the start: the door (13) is locked, and the way out is a puzzle with the sheets, radiator and a laundry chute hidden under a sheet (objects 5, 6, 7, 18 and 20 are hidden until then). The posters, chest and trunk belong to the Great Markam (look lines). Anderson (21) is hidden at the start. Room name is mine. Hotspots 8 and 11 (the sheets) have no pack entry on purpose: once the rope is tied the engine renames 8 to 'laundry chute' and 11 to 'radiator with sheet rope', and a pack name can't follow that, so the engine's names are spoken.",
       "exits": {},
       "objects": {
         "2": {
@@ -53,21 +53,10 @@
           "description": "A cord hanging beside the window.",
           "note": "Engine look line is the generic 'It looks nice'."
         },
-        "8": {
-          "name": "sheets",
-          "type": "object",
-          "description": "A pile of sheets across the front of the floor, left for washing."
-        },
         "9": {
           "name": "posters",
           "type": "object",
           "description": "Posters for the Great Markam's magic show, on the back wall."
-        },
-        "11": {
-          "name": "sheets",
-          "type": "object",
-          "description": "More sheets in the bottom right corner, by the radiator.",
-          "note": "Same engine name and look line as object 8."
         },
         "12": {
           "name": "trunk",
@@ -84,7 +73,17 @@
         "14": {
           "name": "radiator",
           "type": "object",
-          "description": "A radiator bolted to the wall under the window, on the right."
+          "description": {
+            "default": "A radiator bolted to the wall under the window, on the right.",
+            "variants": [
+              {
+                "when": {
+                  "milestone": "q.tied"
+                },
+                "text": "The radiator under the window, with the sheet rope tied to it. The rope runs across the floor and down the laundry chute."
+              }
+            ]
+          }
         }
       }
     },
@@ -309,6 +308,74 @@
       "name": "journal",
       "description": "Your journal, for saving and loading the game.",
       "note": "Look line is the generic 'I don't see anything special'."
+    }
+  ],
+  "milestones": [
+    {
+      "id": "q.rope",
+      "chapter": 1,
+      "title": "Made a sheet rope",
+      "when": {
+        "has": [
+          53
+        ]
+      },
+      "rooms": [
+        70
+      ],
+      "recap": "You knotted the two lots of sheets into a long sheet rope.",
+      "hints": {
+        "nudge": "The door won't budge. Look at what's lying around the room instead.",
+        "clue": "There are two lots of sheets, a pile at the front and more by the radiator. One on its own is too short.",
+        "answer": "Pick up both lots of sheets, then use the sheet on the other sheet."
+      }
+    },
+    {
+      "id": "q.tied",
+      "chapter": 1,
+      "title": "Tied the rope to the radiator",
+      "after": [
+        "q.rope"
+      ],
+      "when": {
+        "milestone": "q.rope",
+        "lacks": [
+          53
+        ]
+      },
+      "rooms": [
+        70
+      ],
+      "recap": "You tied the sheet rope to the radiator, and found a laundry chute where the sheets had been.",
+      "hints": {
+        "nudge": "A rope's only any use with one end fixed to something solid.",
+        "clue": "The radiator on the right is bolted firmly to the wall.",
+        "answer": "Use the sheet rope on the radiator."
+      }
+    },
+    {
+      "id": "q.down",
+      "chapter": 1,
+      "title": "Climbed down out of the locked room",
+      "after": [
+        "q.tied"
+      ],
+      "when": {
+        "room": [
+          71,
+          72,
+          73
+        ]
+      },
+      "rooms": [
+        70
+      ],
+      "recap": "You climbed down the sheet rope, through the laundry chute, into the prop store below.",
+      "hints": {
+        "nudge": "The rope's tied. Now it needs climbing.",
+        "clue": "With the sheets moved, there's a laundry chute in the floor, and the rope hangs down it from the radiator.",
+        "answer": "Use the radiator with the sheet rope to climb down."
+      }
     }
   ]
 }
