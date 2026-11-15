@@ -193,8 +193,8 @@ Matching is case-insensitive substring matching against the reduced NVDA
 utterances. A step that expected something spoken but got nothing fails.
 
 `waitForSpoken` makes a step deterministic when its line lands after a variable
-delay. The Start step uses it: onboarding ("Left and Right…") is appended to the
-first room reading, which arrives when the engine is ready, not at a fixed time.
+delay. The Start step uses it: the pointer to F1 ("F1 or question mark lists every
+key.") ends the first room reading, which arrives when the engine is ready, not at a fixed time.
 With `waitForSpoken` set, the runner presses the keys, then polls the page's live
 region over the bridge until that substring appears (bounded by `waitMs`), then
 captures NVDA's speech — instead of sleeping a guessed duration. The tavern Start

@@ -5,12 +5,12 @@
     {
       "keys": "start",
       "note": "Start — first room reading and onboarding, focus mode on its own",
-      "expectSpoken": ["Left and Right"],
+      "expectSpoken": ["lists every key"],
       "expectNotSpoken": [
         "Control and reprogram MIDI devices",
         "Drascula: The Vampire Strikes Back"
       ],
-      "waitForSpoken": "Left and Right",
+      "waitForSpoken": "lists every key",
       "waitMs": 15000
     },
     {

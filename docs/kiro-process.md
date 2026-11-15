@@ -2141,3 +2141,9 @@ What was asked: apply an approved patch, as written. Kash's design after his NVD
 What Kiro did: applied the patch to 10 files in one headless kiro-cli run (fs_read and fs_write only), then a one-line repair run for a hunk it missed in src/main.ts (the gate key listener also runs on the guide-offer path, so F1 and ? work there).
 Verification: Kiro's files byte-identical to the patch; tsc clean; unit 545/545; replay Playwright 70/70 (axe on all 5 pages); local Chromium live 16/16.
 Credits: 2.48 + 0.34 = 2.82.
+
+## 163 · player · 2026-11-15 · Guide: Enter on a page heading moves on
+What was asked: apply a verified diff, as written. The Edge + NVDA check on 15 Nov found that on a How to play page, focus lands on the heading (good: NVDA reads "page 1 of 5, heading level 2"), but Enter there did nothing until the player Tabbed to Next. Also update the NVDA timing scenarios to the current first room, which now ends "F1 or question mark lists every key." instead of reading the key list.
+What Kiro did: applied the diff to 6 files in one headless kiro-cli run (fs_read and fs_write only, no exploring). On a guide page, Enter or Space anywhere outside a button does what the page's one button does (Next, or Start the game on the last page), stopping the key so it never reaches the game; a click on the heading does the same, since NVDA and JAWS in browse mode turn Enter into a click. advancesGuide() holds the rule, with a unit test, and a replay spec walks all 5 pages with Enter and Space and finishes with a heading click. tavern.json and drunk.json now wait for "lists every key"; the scenario README matches.
+Verification: Kiro's files byte-identical to the dry-run diff; tsc clean; unit 546; tests/sr 23; replay Playwright 71/71; local Chromium live 16/16.
+Credits: 1.02.

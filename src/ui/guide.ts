@@ -82,6 +82,22 @@ export function markGuideSeen(storage: Storage | undefined): void {
   }
 }
 
+/**
+ * True when a key on a guide page should do what the page's one button does.
+ * Focus lands on the page heading, so Enter or Space there (or anywhere on the
+ * page outside a button) moves on, without a Tab to the button first (NVDA
+ * check, 15 Nov). A button's own Enter or Space is left to the button.
+ */
+export function advancesGuide(
+  key: string,
+  targetTag: string | undefined,
+  modified: boolean,
+): boolean {
+  if (modified) return false;
+  if (key !== "Enter" && key !== " ") return false;
+  return targetTag !== "BUTTON";
+}
+
 export interface GuideOptions {
   doc: Document;
   /** Where the pages render (the gate's actions container). */
@@ -136,6 +152,20 @@ export class Guide {
         ? this.button("guide-finish", this.o.finishLabel, () => this.o.onDone())
         : this.button("guide-next", "Next", () => this.show(this.index + 1)),
     );
+
+    const pageButton = nav.querySelector("button");
+    section.addEventListener("keydown", (ev) => {
+      const t = ev.target as HTMLElement | null;
+      if (!advancesGuide(ev.key, t?.tagName, ev.ctrlKey || ev.altKey || ev.metaKey)) return;
+      // Stop it here too: on the last page this starts the game, and the same
+      // Enter must not reach the game's own key handler.
+      ev.preventDefault();
+      ev.stopPropagation();
+      pageButton?.click();
+    });
+    // NVDA and JAWS in browse mode turn Enter on the heading into a click on it,
+    // not a keydown, so a click on the heading moves on too.
+    heading.addEventListener("click", () => pageButton?.click());
 
     section.append(heading, list, nav);
     container.replaceChildren(section);

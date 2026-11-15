@@ -2,7 +2,7 @@
   "name": "drunk",
   "fixture": "tavern",
   "steps": [
-    { "keys": "start", "note": "Start: room then the controls", "expectSpoken": ["how to play"], "waitForSpoken": "how to play", "waitMs": 15000 },
+    { "keys": "start", "note": "Start: the room, ending with the pointer to F1", "expectSpoken": ["lists every key"], "waitForSpoken": "lists every key", "waitMs": 15000 },
     { "keys": "right", "note": "bin", "expectSpoken": ["2 of"], "waitMs": 1500 },
     { "keys": "right", "note": "menu board", "expectSpoken": ["3 of"], "waitMs": 1500 },
     { "keys": "right", "note": "burger poster", "expectSpoken": ["4 of"], "waitMs": 1500 },

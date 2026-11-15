@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { GUIDE_SEEN_KEY, guidePages, guideSeen, markGuideSeen } from "../src/ui/guide.js";
+import {
+  GUIDE_SEEN_KEY,
+  advancesGuide,
+  guidePages,
+  guideSeen,
+  markGuideSeen,
+} from "../src/ui/guide.js";
 
 describe("How to play guide", () => {
   it("has 5 short pages and ends with the screen-reader tip", () => {
@@ -37,5 +43,18 @@ describe("How to play guide", () => {
     expect(guideSeen(broken)).toBe(false);
     expect(() => markGuideSeen(broken)).not.toThrow();
     expect(guideSeen(undefined)).toBe(false);
+  });
+
+  it("Enter or Space on the page (not on a button) moves on; chords and other keys do not", () => {
+    expect(advancesGuide("Enter", "H2", false)).toBe(true);
+    expect(advancesGuide(" ", "H2", false)).toBe(true);
+    expect(advancesGuide("Enter", "LI", false)).toBe(true);
+    expect(advancesGuide("Enter", undefined, false)).toBe(true);
+    expect(advancesGuide("Enter", "BUTTON", false)).toBe(false);
+    expect(advancesGuide(" ", "BUTTON", false)).toBe(false);
+    expect(advancesGuide("Enter", "H2", true)).toBe(false);
+    expect(advancesGuide("ArrowDown", "H2", false)).toBe(false);
+    expect(advancesGuide("Tab", "H2", false)).toBe(false);
+    expect(advancesGuide("h", "H2", false)).toBe(false);
   });
 });

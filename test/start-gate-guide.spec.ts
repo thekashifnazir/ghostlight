@@ -44,6 +44,28 @@ test.describe("How to play guide", () => {
     expect(await gameStarted(page)).toBe(true);
   });
 
+  test("Enter on a page heading moves on, without a Tab to the button", async ({ page }) => {
+    await page.goto("/?replay=tavern");
+    await expect(page.locator("#start-button")).toBeFocused();
+    await page.keyboard.press("Tab");
+    await expect(page.locator("#guide-button")).toBeFocused();
+    await page.keyboard.press("Enter");
+    await expect(page.locator("#guide-title")).toBeFocused();
+
+    const titles = ["Using things", "Talking", "Getting help", "Saving and more"];
+    for (const [i, t] of titles.entries()) {
+      await page.keyboard.press(i % 2 === 0 ? "Enter" : " ");
+      await expect(page.locator("#guide-title")).toHaveText(`${t}, page ${i + 2} of 5`);
+      await expect(page.locator("#guide-title")).toBeFocused();
+    }
+    expect(await gameStarted(page)).toBe(false);
+
+    // A screen reader in browse mode clicks the heading instead of sending Enter.
+    await page.locator("#guide-title").click();
+    await expect(page.locator("#start-gate")).toBeHidden();
+    expect(await gameStarted(page)).toBe(true);
+  });
+
   test("Enter on Start still starts the game straight away", async ({ page }) => {
     await page.goto("/?replay=tavern");
     await expect(page.locator("#start-button")).toBeFocused();
