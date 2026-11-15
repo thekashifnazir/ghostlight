@@ -1,0 +1,554 @@
+diff --git a/engine/scummvm/http-fs-ranges.patch b/engine/scummvm/http-fs-ranges.patch
+new file mode 100644
+index 0000000..cf4ec47
+--- /dev/null
++++ b/engine/scummvm/http-fs-ranges.patch
+@@ -0,0 +1,224 @@
++--- a/backends/fs/emscripten/http-fs.cpp
+++++ b/backends/fs/emscripten/http-fs.cpp
++@@ -212,42 +212,194 @@
++ 	return factory->makeFileNodePath(_parent_path);
++ }
++ 
++-Common::SeekableReadStream *HTTPFilesystemNode::createReadStream() {
++-	debug(5, "*HTTPFilesystemNode::createReadStream() %s (size %d) ", _path.c_str(), _size);
++-	Common::String fsCachePath = Common::normalizePath("/.cache/" + _path, '/');
++-	POSIXFilesystemNode *cacheFile = new POSIXFilesystemNode(fsCachePath);
++-	// todo: this should not be cached on the filesystem, but in memory
++-	// and support range requests
++-	// port https://github.com/emscripten-core/emscripten/blob/main/src/lib/libwasmfs_fetch.js over
++-	if (!cacheFile->exists() && _size > 0) {
++-		byte *buffer = new byte[_size];
++-		bool success = _httpFsFetchFile(_url.c_str(), buffer, _size);
++-		if (success) {
++-			Common::DumpFile *_localFile = new Common::DumpFile();
++-			if (!_localFile->open(Common::Path(fsCachePath), true)) {
++-				error("Storage: unable to open file to download into");
++-				return 0;
+++// Fetch bytes [start, start + length) of a file with an HTTP Range request,
+++// straight into dataPtr. Returns the number of bytes written, -1 on failure,
+++// or -2 if the server ignored the range (sent the whole file) so the caller
+++// can fall back to a single whole-file download.
+++EM_ASYNC_JS(int, _httpFsFetchRange, (const char *url, int start, int length, byte *dataPtr), {
+++	url = UTF8ToString(url);
+++	try {
+++		const response = await fetch(url, { headers: { Range: "bytes=" + start + "-" + (start + length - 1) } });
+++		if (response.status == 200) {
+++			response.body && response.body.cancel();
+++			return -2;
+++		}
+++		if (response.status != 206) {
+++			console.error("HTTPFilesystemNode: range request failed for %s: %s", url, response.statusText);
+++			return -1;
+++		}
+++		let bytes = new Uint8Array(await response.arrayBuffer());
+++		if (bytes.length > length)
+++			bytes = bytes.subarray(0, length);
+++		Module.writeArrayToMemory(bytes, dataPtr);
+++		return bytes.length;
+++	} catch (error) {
+++		console.error(error);
+++	}
+++	return -1;
+++});
+++
+++/**
+++ * A read stream over a file on the HTTP file system that fetches only the
+++ * bytes the engine reads, in chunks with a small cache, instead of
+++ * downloading the whole file when it is opened. Large reads go straight into
+++ * the caller's buffer. If the server doesn't support Range requests, the
+++ * stream downloads the whole file once, as before.
+++ */
+++class HTTPRangeReadStream : public Common::SeekableReadStream {
+++	static const uint32 kChunkSize = 256 * 1024;
+++	static const uint32 kDirectReadMin = 2 * kChunkSize;
+++	static const uint32 kDirectReadMax = 8 * 1024 * 1024;
+++	static const int kSlots = 8;
+++
+++	struct Slot {
+++		int64 start;
+++		uint32 length;
+++		uint32 lastUse;
+++		byte *data;
+++	};
+++
+++	Common::String _url;
+++	int64 _size;
+++	int64 _pos;
+++	bool _eos;
+++	bool _err;
+++	uint32 _clock;
+++	Slot _slots[kSlots];
+++	byte *_whole;
+++
+++	bool loadWhole() {
+++		_whole = (byte *)malloc(_size);
+++		if (!_whole || !_httpFsFetchFile(_url.c_str(), _whole, _size)) {
+++			free(_whole);
+++			_whole = nullptr;
+++			return false;
+++		}
+++		for (int i = 0; i < kSlots; i++) {
+++			free(_slots[i].data);
+++			_slots[i].data = nullptr;
+++		}
+++		return true;
+++	}
+++
+++	// Returns the cached chunk holding byte _pos, fetching it if needed.
+++	const Slot *chunkAt(int64 pos) {
+++		const int64 start = pos - pos % kChunkSize;
+++		Slot *victim = &_slots[0];
+++		for (int i = 0; i < kSlots; i++) {
+++			Slot &s = _slots[i];
+++			if (s.data && s.start == start) {
+++				s.lastUse = ++_clock;
+++				return &s;
++ 			}
++-			debug(5, "HTTPFilesystemNode::createReadStream() file downloaded %s", _path.c_str());
++-			_localFile->write(buffer, _size);
++-			_localFile->close();
++-			free(buffer);
++-		} else {
++-			warning("Storage: unable to download file %s", _url.c_str());
++-			free(buffer);
++-			return 0;
+++			if (!s.data || s.lastUse < victim->lastUse)
+++				victim = &s;
++ 		}
++-	} else if (_size == 0) {
++-		debug(5, "HTTPFilesystemNode::createReadStream() file empty %s", _path.c_str());
+++		if (!victim->data)
+++			victim->data = (byte *)malloc(kChunkSize);
+++		if (!victim->data)
+++			return nullptr;
+++		const uint32 wanted = (uint32)MIN<int64>(kChunkSize, _size - start);
+++		const int got = _httpFsFetchRange(_url.c_str(), (int)start, (int)wanted, victim->data);
+++		if (got == -2 && loadWhole())
+++			return nullptr;
+++		if (got <= 0)
+++			return nullptr;
+++		victim->start = start;
+++		victim->length = (uint32)got;
+++		victim->lastUse = ++_clock;
+++		return victim;
+++	}
+++
+++public:
+++	HTTPRangeReadStream(const Common::String &url, int64 size) : _url(url), _size(size), _pos(0), _eos(false), _err(false), _clock(0), _whole(nullptr) {
+++		for (int i = 0; i < kSlots; i++)
+++			_slots[i] = Slot{0, 0, 0, nullptr};
+++	}
+++
+++	~HTTPRangeReadStream() override {
+++		for (int i = 0; i < kSlots; i++)
+++			free(_slots[i].data);
+++		free(_whole);
+++	}
+++
+++	uint32 read(void *dataPtr, uint32 dataSize) override {
+++		byte *out = (byte *)dataPtr;
+++		uint32 total = 0;
+++		while (total < dataSize && _pos < _size) {
+++			const uint32 remaining = (uint32)MIN<int64>(dataSize - total, _size - _pos);
+++			uint32 n;
+++			if (_whole) {
+++				n = remaining;
+++				memcpy(out + total, _whole + _pos, n);
+++			} else if (remaining >= kDirectReadMin) {
+++				const int got = _httpFsFetchRange(_url.c_str(), (int)_pos, (int)MIN(remaining, kDirectReadMax), out + total);
+++				if (got == -2 && loadWhole())
+++					continue;
+++				if (got <= 0) {
+++					_err = true;
+++					break;
+++				}
+++				n = (uint32)got;
+++			} else {
+++				const Slot *s = chunkAt(_pos);
+++				if (!s) {
+++					if (_whole)
+++						continue;
+++					_err = true;
+++					break;
+++				}
+++				const uint32 offset = (uint32)(_pos - s->start);
+++				if (offset >= s->length) {
+++					_err = true;
+++					break;
+++				}
+++				n = MIN(remaining, s->length - offset);
+++				memcpy(out + total, s->data + offset, n);
+++			}
+++			_pos += n;
+++			total += n;
+++		}
+++		if (total < dataSize)
+++			_eos = true;
+++		return total;
+++	}
+++
+++	bool seek(int64 offset, int whence = SEEK_SET) override {
+++		int64 target = offset;
+++		if (whence == SEEK_CUR)
+++			target = _pos + offset;
+++		else if (whence == SEEK_END)
+++			target = _size + offset;
+++		if (target < 0 || target > _size)
+++			return false;
+++		_pos = target;
+++		_eos = false;
+++		return true;
+++	}
+++
+++	bool eos() const override { return _eos; }
+++	bool err() const override { return _err; }
+++	void clearErr() override { _err = false; _eos = false; }
+++	int64 pos() const override { return _pos; }
+++	int64 size() const override { return _size; }
+++};
+++
+++Common::SeekableReadStream *HTTPFilesystemNode::createReadStream() {
+++	debug(5, "*HTTPFilesystemNode::createReadStream() %s (size %d) ", _path.c_str(), _size);
+++	if (!_isValid || _isDirectory || _size < 0)
+++		return 0;
+++	if (_size == 0) {
+++		Common::String fsCachePath = Common::normalizePath("/.cache/" + _path, '/');
++ 		Common::DumpFile *_localFile = new Common::DumpFile();
++ 		if (!_localFile->open(Common::Path(fsCachePath), true)) {
++ 			warning("Storage: unable to open file to download into");
++ 			return 0;
++ 		}
++ 		_localFile->close();
+++		return PosixIoStream::makeFromPath(fsCachePath, StdioStream::WriteMode_Read);
++ 	}
++-
++-	return PosixIoStream::makeFromPath(fsCachePath, StdioStream::WriteMode_Read);
+++	return new HTTPRangeReadStream(_url, _size);
++ }
++ 
++ Common::SeekableWriteStream *HTTPFilesystemNode::createWriteStream(bool atomic) {
+diff --git a/scripts/build-web.sh b/scripts/build-web.sh
+index 8d136a5..8962b8a 100755
+--- a/scripts/build-web.sh
++++ b/scripts/build-web.sh
+@@ -55,6 +55,7 @@ HOOKS_PATCH="$ENGINE_SRC/hooks.patch"
+ QUEEN_SRC="$ENGINE_SRC/queen"            # the Queen a11y layer (own namespace)
+ QUEEN_GAME_SRC="$VENDOR/game/queen"      # Queen floppy data fetched by fetch.sh (gitignored)
+ QUEEN_HOOKS_PATCH="$QUEEN_SRC/hooks.patch"
++HTTP_FS_PATCH="$ENGINE_SRC/scummvm/http-fs-ranges.patch"  # web file system reads byte ranges on demand
+ 
+ EMSDK_VERSION="4.0.10"
+ EMSDK_DIR="$WEB_DIR/dists/emscripten/emsdk-$EMSDK_VERSION"
+@@ -188,6 +189,20 @@ fi
+ # module.mk, so the patch is applied BEFORE the idempotent module.mk check
+ # (injecting first would make the patch fail on its own module.mk hunk).
+ 
++# ScummVM's web file system: read files in byte ranges as the engine reads them,
++# instead of downloading a whole file when it's opened (applied to the web
++# tree only; vendor/scummvm stays untouched).
++if [ -f "$HTTP_FS_PATCH" ]; then
++  log "applying engine/scummvm/http-fs-ranges.patch"
++  if git -C "$WEB_DIR" apply --check "$HTTP_FS_PATCH" 2>/dev/null; then
++    git -C "$WEB_DIR" apply "$HTTP_FS_PATCH"
++  elif git -C "$WEB_DIR" apply --reverse --check "$HTTP_FS_PATCH" 2>/dev/null; then
++    log "http-fs-ranges.patch already applied; skipping"
++  else
++    die "engine/scummvm/http-fs-ranges.patch does not apply cleanly to the web tree"
++  fi
++fi
++
+ log "copying a11y.cpp / a11y.h into engines/queen"
+ cp "$QUEEN_SRC/a11y.cpp" "$QUEEN_DIR/a11y.cpp"
+ cp "$QUEEN_SRC/a11y.h"   "$QUEEN_DIR/a11y.h"
+diff --git a/test/live/serve-live.mjs b/test/live/serve-live.mjs
+index e4b7977..e99468d 100644
+--- a/test/live/serve-live.mjs
++++ b/test/live/serve-live.mjs
+@@ -80,6 +80,28 @@ const server = createServer(async (req, res) => {
+       return;
+     }
+     const body = await readFile(file);
++    // Single byte ranges, as ScummVM's web file system asks for them (the live
++    // Worker answers them from R2 for Packet.001 and queen.1).
++    const range = /^bytes=(\d*)-(\d*)$/.exec(req.headers.range ?? "");
++    if (range && (range[1] !== "" || range[2] !== "")) {
++      const size = body.length;
++      const start = range[1] === "" ? Math.max(0, size - Number(range[2])) : Number(range[1]);
++      const end = range[1] === "" || range[2] === "" ? size - 1 : Math.min(Number(range[2]), size - 1);
++      if (start >= size || start > end) {
++        res.writeHead(416, { "Content-Range": `bytes */${size}` });
++        res.end();
++        return;
++      }
++      res.writeHead(206, {
++        "Content-Type": contentType(file),
++        "Cache-Control": "no-store",
++        "Accept-Ranges": "bytes",
++        "Content-Range": `bytes ${start}-${end}/${size}`,
++        "Content-Length": String(end - start + 1),
++      });
++      res.end(body.subarray(start, end + 1));
++      return;
++    }
+     res.writeHead(200, {
+       "Content-Type": contentType(file),
+       "Cache-Control": "no-store",
+diff --git a/test/worker-range.test.ts b/test/worker-range.test.ts
+new file mode 100644
+index 0000000..a255d27
+--- /dev/null
++++ b/test/worker-range.test.ts
+@@ -0,0 +1,19 @@
++// The hosting Worker's Content-Range helper for R2 range reads of the big
++// game-data files (Packet.001, queen.1).
++import { describe, expect, it } from "vitest";
++import { contentRange } from "../web/src/range";
++
++describe("contentRange", () => {
++  it("gives offset and length as an inclusive byte range", () => {
++    expect(contentRange({ offset: 100, length: 100 }, 32847563)).toBe("bytes 100-199/32847563");
++  });
++  it("runs an open-ended range to the last byte", () => {
++    expect(contentRange({ offset: 262144 }, 1000000)).toBe("bytes 262144-999999/1000000");
++  });
++  it("clamps a range that runs past the end", () => {
++    expect(contentRange({ offset: 900, length: 500 }, 1000)).toBe("bytes 900-999/1000");
++  });
++  it("handles a suffix range", () => {
++    expect(contentRange({ suffix: 10 }, 1000)).toBe("bytes 990-999/1000");
++  });
++});
+diff --git a/web/DEPLOY.md b/web/DEPLOY.md
+index 0b53f3c..4b314f0 100644
+--- a/web/DEPLOY.md
++++ b/web/DEPLOY.md
+@@ -1,8 +1,9 @@
+ # Deploying Ghostlight hosting
+ 
+ The Ghostlight page and the ScummVM wasm build are hosted on a Cloudflare Worker
+-with static assets, with the one oversized game-data file (`Packet.001`, 32.8 MB,
+-over Cloudflare's 25 MiB static-asset limit) served from R2 through the Worker.
++with static assets, with the two big game-data files (Drascula's `Packet.001`,
++32.8 MB, over Cloudflare's 25 MiB static-asset limit, and Queen's `queen.1`,
++22.7 MB) served from R2 through the Worker, which answers Range requests for them.
+ 
+ **Nothing here embeds a secret, and no game data is committed.** Cloudflare
+ credentials are supplied at deploy time and referenced by name only; the build
+@@ -13,9 +14,9 @@ time from `vendor/` (produced by `scripts/fetch.sh` + `scripts/build-web.sh`).
+ 
+ - `wrangler.jsonc` — the Worker config: the `ASSETS` static-assets binding and
+   the `GAME_DATA` R2 bucket binding. Reviewable text, no secret.
+-- `src/index.ts` — the Worker: serves `Packet.001` from R2 (binary type, long
+-  immutable cache) and everything else from static assets, overriding the wasm
+-  content type to `application/wasm`.
++- `src/index.ts` — the Worker: serves `Packet.001` and `queen.1` from R2
++  (binary type, long immutable cache, 206 for Range requests) and everything
++  else from static assets, overriding the wasm content type to `application/wasm`.
+ - `public/` — **gitignored.** The static assets, assembled at deploy time from
+   two builds: the ScummVM wasm output of `scripts/build-web.sh` plus the
+   Ghostlight player page from `npm run build` at the repo root (dist/). Never
+@@ -83,6 +84,13 @@ cp -R dist/*     web/public/
+   --file "web/public/data/games/drascula/Packet.001" \
+   --content-type application/octet-stream
+ rm -f web/public/data/games/drascula/Packet.001
++# Queen's queen.1 goes to R2 too, so the Worker can answer Range requests for it
++# (static assets ignore Range). Its size stays in data/games/queen/index.json.
++"$WRANGLER" r2 object put --remote \
++  ghostlight-game-data/data/games/queen/queen.1 \
++  --file "web/public/data/games/queen/queen.1" \
++  --content-type application/octet-stream
++rm -f web/public/data/games/queen/queen.1
+ 
+ # 4. Ship the game readme and a modified-data notice alongside the data
+ #    (R5.6). The readme comes from the fetched game; MODIFIED.txt is written here.
+@@ -127,6 +135,8 @@ mkdir -p web/public/source/queen
+ cp engine/queen/a11y.cpp         web/public/source/queen/a11y.cpp
+ cp engine/queen/a11y.h           web/public/source/queen/a11y.h
+ cp engine/queen/hooks.patch      web/public/source/queen/hooks.patch
++mkdir -p web/public/source/scummvm
++cp engine/scummvm/http-fs-ranges.patch web/public/source/scummvm/http-fs-ranges.patch
+ cp engine/COPYING                web/public/source/COPYING
+ cp scripts/build-web.sh          web/public/source/build-web.sh
+ 
+diff --git a/web/source/index.html b/web/source/index.html
+index 884940c..e39a270 100644
+--- a/web/source/index.html
++++ b/web/source/index.html
+@@ -62,7 +62,10 @@
+       <code>engine/queen/a11y.h</code>) plus a short patch that hooks it into
+       that engine's own sources (<code>engine/hooks.patch</code> and
+       <code>engine/queen/hooks.patch</code>). Nothing else in the upstream
+-      engines is changed.
++      engines is changed. One more small patch,
++      <code>engine/scummvm/http-fs-ranges.patch</code>, changes ScummVM's web
++      file system so it reads game files in byte ranges as the engine reads
++      them, instead of downloading each file whole when it's opened.
+     </p>
+ 
+     <h2>The modification source</h2>
+@@ -73,6 +76,7 @@
+       <li><a href="queen/a11y.cpp"><code>engine/queen/a11y.cpp</code></a> - the Queen accessibility layer</li>
+       <li><a href="queen/a11y.h"><code>engine/queen/a11y.h</code></a> - its header</li>
+       <li><a href="queen/hooks.patch"><code>engine/queen/hooks.patch</code></a> - the hooks into ScummVM's Queen engine</li>
++      <li><a href="scummvm/http-fs-ranges.patch"><code>engine/scummvm/http-fs-ranges.patch</code></a> - byte-range reads in ScummVM's web file system</li>
+       <li><a href="build-web.sh"><code>scripts/build-web.sh</code></a> — the reproducible WebAssembly build script</li>
+     </ul>
+ 
+@@ -101,14 +105,14 @@
+       <li>Check out ScummVM at commit <code>ad351d1e</code> into <code>vendor/scummvm</code>.</li>
+       <li>Copy <code>a11y.cpp</code> and <code>a11y.h</code> into <code>engines/drascula/</code> and add <code>a11y.o</code> to that engine's <code>module.mk</code>.</li>
+       <li>Copy <code>queen/a11y.cpp</code> and <code>queen/a11y.h</code> into <code>engines/queen/</code> and add <code>a11y.o</code> to that engine's <code>module.mk</code>.</li>
+-      <li>Apply <code>hooks.patch</code> to the ScummVM tree (<code>git apply hooks.patch</code>), then apply <code>queen/hooks.patch</code> the same way.</li>
++      <li>Apply <code>hooks.patch</code> to the ScummVM tree (<code>git apply hooks.patch</code>), then apply <code>queen/hooks.patch</code> and <code>scummvm/http-fs-ranges.patch</code> the same way.</li>
+       <li>Configure with <code>--enable-engine=drascula,queen</code> and build with ScummVM's Emscripten port (both engines, Ogg/Vorbis on), then <code>make dist-emscripten</code>.</li>
+     </ol>
+     <p>
+       <code>build-web.sh</code> above does all of this automatically. In short:
+     </p>
+     <pre>scripts/fetch.sh        # fetch ScummVM @ ad351d1e into vendor/
+-scripts/build-web.sh    # copy engine/ in, apply both hooks.patch files, build scummvm.wasm</pre>
++scripts/build-web.sh    # copy engine/ in, apply the three patches, build scummvm.wasm</pre>
+ 
+     <h2>Licence</h2>
+     <p>
+diff --git a/web/src/index.ts b/web/src/index.ts
+index 0aec556..f265394 100644
+--- a/web/src/index.ts
++++ b/web/src/index.ts
+@@ -1,9 +1,11 @@
+ // Ghostlight hosting Worker (web-build Requirement 5).
+ //
+ // Serves the Ghostlight page and the ScummVM wasm build at near-zero cost:
+-//   * Packet.001 (32.8 MB, over Cloudflare's 25 MiB static-asset limit) is
+-//     streamed from the R2 bucket binding with a binary content type and a
+-//     long-lived immutable cache (R5.2, R5.3).
++//   * the two big game-data files, Drascula's Packet.001 (32.8 MB, over
++//     Cloudflare's 25 MiB static-asset limit) and Queen's queen.1 (22.7 MB),
++//     are streamed from the R2 bucket binding with a binary content type and a
++//     long-lived immutable cache (R5.2, R5.3). Both answer HTTP Range requests
++//     with 206, so the engine's web file system reads only the bytes it needs.
+ //   * everything else — the page, scummvm.js, scummvm.wasm, translations.dat,
+ //     themes, the index.json listings and the small game-data files — is served
+ //     by the static-assets binding. The Worker overrides the content type where
+@@ -13,23 +15,24 @@
+ // No secret lives here. Cloudflare credentials are supplied at deploy time and
+ // referenced by name only (R5.7).
+ 
++import { contentRange, type ByteRange } from "./range";
++
+ export interface Env {
+-  /** Static-assets binding (the ./public build output, minus Packet.001). */
++  /** Static-assets binding (the ./public build output, minus Packet.001 and queen.1). */
+   ASSETS: Fetcher;
+-  /** R2 bucket holding the one oversized game-data file, Packet.001. */
++  /** R2 bucket holding the big game-data files (Packet.001, queen.1). */
+   GAME_DATA: R2Bucket;
+ }
+ 
+ /**
+- * The HTTP-filesystem path the ScummVM Emscripten build requests for the game
+- * data blob. The build lays the game out under /data/games/drascula, so the
+- * loader fetches this exact path. The file is fetched whole (no range
+- * requests), so the Worker does a plain bucket.get and streams the body.
++ * The HTTP-filesystem paths the ScummVM Emscripten build requests for the big
++ * game-data files, mapped to the R2 keys they're stored under (see
++ * web/DEPLOY.md). The engine's web file system reads them in byte ranges.
+  */
+-const PACKET_PATH = "/data/games/drascula/Packet.001";
+-
+-/** The R2 object key Packet.001 is stored under (see web/DEPLOY.md). */
+-const PACKET_KEY = "data/games/drascula/Packet.001";
++const R2_FILES: Record<string, string> = {
++  "/data/games/drascula/Packet.001": "data/games/drascula/Packet.001",
++  "/data/games/queen/queen.1": "data/games/queen/queen.1",
++};
+ 
+ /** A long-lived immutable cache for the big, never-changing game-data blob. */
+ const IMMUTABLE_CACHE = "public, max-age=31536000, immutable";
+@@ -41,10 +44,11 @@ export default {
+   async fetch(request: Request, env: Env): Promise<Response> {
+     const url = new URL(request.url);
+ 
+-    // 1. Packet.001 comes from R2, not static assets (it is over the 25 MiB
+-    //    static-asset limit). Stream the whole object with a binary content
+-    //    type and a long immutable cache so repeat loads are cheap.
+-    if (url.pathname === PACKET_PATH) {
++    // 1. The big game-data files come from R2, not static assets. Stream the
++    //    object (or the requested byte range) with a binary content type and
++    //    a long immutable cache so repeat loads are cheap.
++    const key = R2_FILES[url.pathname];
++    if (key !== undefined) {
+       // GET/HEAD only; the HTTP filesystem never mutates it.
+       if (request.method !== "GET" && request.method !== "HEAD") {
+         return new Response("Method Not Allowed", {
+@@ -53,12 +57,26 @@ export default {
+         });
+       }
+ 
+-      const object = await env.GAME_DATA.get(PACKET_KEY);
++      const wantsRange = request.method === "GET" && request.headers.has("Range");
++      let object: R2Object | R2ObjectBody | null;
++      try {
++        object =
++          request.method === "HEAD"
++            ? await env.GAME_DATA.head(key)
++            : await env.GAME_DATA.get(key, wantsRange ? { range: request.headers } : undefined);
++      } catch {
++        // R2 rejects a range outside the object.
++        const head = await env.GAME_DATA.head(key);
++        return new Response(null, {
++          status: 416,
++          headers: head ? { "Content-Range": `bytes */${head.size}` } : {},
++        });
++      }
+       if (object === null) {
+         // A clear, specific error — not a static 404 that looks like a routing
+         // bug — so a missing R2 upload is obvious (design: error handling).
+         return new Response(
+-          `Game data not found in R2 (key "${PACKET_KEY}"). ` +
++          `Game data not found in R2 (key "${key}"). ` +
+             `Upload it with the deploy step in web/DEPLOY.md.`,
+           { status: 502, headers: { "Content-Type": "text/plain; charset=utf-8" } },
+         );
+@@ -71,9 +89,15 @@ export default {
+       headers.set("etag", object.httpEtag);
+       headers.set("Content-Type", "application/octet-stream");
+       headers.set("Cache-Control", IMMUTABLE_CACHE);
++      headers.set("Accept-Ranges", "bytes");
+ 
+       // HEAD gets the headers with no body.
+-      const body = request.method === "HEAD" ? null : object.body;
++      if (request.method === "HEAD") return new Response(null, { headers });
++      const body = (object as R2ObjectBody).body;
++      if (wantsRange && object.range) {
++        headers.set("Content-Range", contentRange(object.range as ByteRange, object.size));
++        return new Response(body, { status: 206, headers });
++      }
+       return new Response(body, { headers });
+     }
+ 
+diff --git a/web/src/range.ts b/web/src/range.ts
+new file mode 100644
+index 0000000..a24d637
+--- /dev/null
++++ b/web/src/range.ts
+@@ -0,0 +1,18 @@
++// Content-Range for an R2 range read (the shape of R2Range), kept free of
++// Workers types so the unit tests can import it.
++
++export type ByteRange = { offset?: number; length?: number } | { suffix: number };
++
++/** The Content-Range value for a range read of an object of `size` bytes. */
++export function contentRange(range: ByteRange, size: number): string {
++  let start: number;
++  let end: number;
++  if ("suffix" in range) {
++    start = Math.max(0, size - range.suffix);
++    end = size - 1;
++  } else {
++    start = range.offset ?? 0;
++    end = range.length !== undefined ? Math.min(size, start + range.length) - 1 : size - 1;
++  }
++  return `bytes ${start}-${end}/${size}`;
++}
