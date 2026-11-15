@@ -10,7 +10,9 @@ Live: [ghostlight.kashifnazir.com/?live](https://ghostlight.kashifnazir.com/?liv
 
 Built with Kiro · ScummVM Drascula engine · TypeScript · Web Audio · ElevenLabs voice · Cloudflare + R2 hosting
 
-> Ghostlight is a work in progress. All six chapters can be played to the final ending; room descriptions cover every room of chapters 1, 2, 3 and 5, and the rest of chapters 4 and 6 are being drafted.
+> Ghostlight is a work in progress. All six chapters can be played to the final ending, and every one of the 57 rooms has a description.
+>
+> Tested with NVDA in Chrome and Edge, JAWS in Edge (Windows 11), and VoiceOver in Chrome and Edge (macOS). Safari hasn't been tested yet.
 
 ## Try it in 60 seconds
 
