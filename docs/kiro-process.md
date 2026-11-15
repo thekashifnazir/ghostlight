@@ -2147,3 +2147,9 @@ What was asked: apply a verified diff, as written. The Edge + NVDA check on 15 N
 What Kiro did: applied the diff to 6 files in one headless kiro-cli run (fs_read and fs_write only, no exploring). On a guide page, Enter or Space anywhere outside a button does what the page's one button does (Next, or Start the game on the last page), stopping the key so it never reaches the game; a click on the heading does the same, since NVDA and JAWS in browse mode turn Enter into a click. advancesGuide() holds the rule, with a unit test, and a replay spec walks all 5 pages with Enter and Space and finishes with a heading click. tavern.json and drunk.json now wait for "lists every key"; the scenario README matches.
 Verification: Kiro's files byte-identical to the dry-run diff; tsc clean; unit 546; tests/sr 23; replay Playwright 71/71; local Chromium live 16/16.
 Credits: 1.02.
+
+## 164 · player · 2026-11-15 · Live regions without aria-atomic, so JAWS in Firefox speaks
+What was asked: apply a verified diff, as written. A JAWS 2027 + Firefox 160 check in the Windows VM on 15 Nov (live site, tavern steps) found JAWS read the start gate and echoed keys, but spoke nothing written to #live-region or #live-interrupt. The cause is Mozilla bug 1885011: JAWS in Firefox doesn't voice live regions marked aria-atomic="true". The same test on QuestAloud: JAWS in Firefox 0 of 4 lines with aria-atomic, 3 of 4 without; NVDA and VoiceOver 4 of 4 either way.
+What Kiro did: removed aria-atomic="true" from both live regions in src/index.html and rewrote the comment above #live-region to say why, in one headless kiro-cli run (fs_read and fs_write only). Lines are still read whole, because LiveRegion.setRegion replaces the region's whole textContent on every write, the repeat marker included.
+Verification: Kiro's file byte-identical to the dry-run diff; tsc clean; unit 546/546; replay Playwright 71/71.
+Credits: 0.36.
