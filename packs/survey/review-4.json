@@ -6,7 +6,7 @@
       "key": "room:21",
       "kind": "room",
       "room": 21,
-      "status": "accepted",
+      "status": "pending",
       "provenance": "drafted by Kiro from game text only",
       "alreadyCovered": false,
       "proposed": {
@@ -24,7 +24,7 @@
       "kind": "exit",
       "room": 21,
       "hotspot": 100,
-      "status": "accepted",
+      "status": "pending",
       "provenance": "drafted by Kiro from game text only",
       "alreadyCovered": false,
       "proposed": {
@@ -39,7 +39,7 @@
       "kind": "exit",
       "room": 21,
       "hotspot": 101,
-      "status": "accepted",
+      "status": "pending",
       "provenance": "drafted by Kiro from game text only",
       "alreadyCovered": false,
       "proposed": {
@@ -54,7 +54,7 @@
       "kind": "object",
       "room": 21,
       "hotspot": 141,
-      "status": "accepted",
+      "status": "pending",
       "provenance": "drafted by Kiro from game text only",
       "alreadyCovered": false,
       "proposed": {
@@ -69,7 +69,7 @@
       "kind": "object",
       "room": 21,
       "hotspot": 173,
-      "status": "accepted",
+      "status": "pending",
       "provenance": "drafted by Kiro from game text only",
       "alreadyCovered": false,
       "proposed": {
@@ -84,7 +84,7 @@
       "kind": "object",
       "room": 21,
       "hotspot": 179,
-      "status": "accepted",
+      "status": "pending",
       "provenance": "drafted by Kiro from game text only",
       "alreadyCovered": false,
       "proposed": {
@@ -98,7 +98,7 @@
       "key": "room:22",
       "kind": "room",
       "room": 22,
-      "status": "accepted",
+      "status": "pending",
       "provenance": "drafted by Kiro from game text only",
       "alreadyCovered": false,
       "proposed": {
@@ -116,7 +116,7 @@
       "kind": "exit",
       "room": 22,
       "hotspot": 102,
-      "status": "accepted",
+      "status": "pending",
       "provenance": "drafted by Kiro from game text only",
       "alreadyCovered": false,
       "proposed": {
@@ -131,7 +131,7 @@
       "kind": "object",
       "room": 22,
       "hotspot": 52,
-      "status": "accepted",
+      "status": "pending",
       "provenance": "drafted by Kiro from game text only",
       "alreadyCovered": false,
       "proposed": {
@@ -146,7 +146,7 @@
       "kind": "object",
       "room": 22,
       "hotspot": 140,
-      "status": "accepted",
+      "status": "pending",
       "provenance": "drafted by Kiro from game text only",
       "alreadyCovered": false,
       "proposed": {
@@ -161,7 +161,7 @@
       "kind": "object",
       "room": 22,
       "hotspot": 180,
-      "status": "accepted",
+      "status": "pending",
       "provenance": "drafted by Kiro from game text only",
       "alreadyCovered": false,
       "proposed": {
@@ -175,7 +175,7 @@
       "key": "room:23",
       "kind": "room",
       "room": 23,
-      "status": "accepted",
+      "status": "pending",
       "provenance": "drafted by Kiro from game text only",
       "alreadyCovered": false,
       "proposed": {
@@ -193,7 +193,7 @@
       "kind": "exit",
       "room": 23,
       "hotspot": 103,
-      "status": "accepted",
+      "status": "pending",
       "provenance": "drafted by Kiro from game text only",
       "alreadyCovered": false,
       "proposed": {
@@ -208,7 +208,7 @@
       "kind": "exit",
       "room": 23,
       "hotspot": 104,
-      "status": "accepted",
+      "status": "pending",
       "provenance": "drafted by Kiro from game text only",
       "alreadyCovered": false,
       "proposed": {
@@ -223,7 +223,7 @@
       "kind": "object",
       "room": 23,
       "hotspot": 142,
-      "status": "accepted",
+      "status": "pending",
       "provenance": "drafted by Kiro from game text only",
       "alreadyCovered": false,
       "proposed": {
@@ -243,7 +243,7 @@
       "kind": "object",
       "room": 23,
       "hotspot": 170,
-      "status": "accepted",
+      "status": "pending",
       "provenance": "drafted by Kiro from game text only",
       "alreadyCovered": false,
       "proposed": {
@@ -258,7 +258,7 @@
       "kind": "object",
       "room": 23,
       "hotspot": 171,
-      "status": "accepted",
+      "status": "pending",
       "provenance": "drafted by Kiro from game text only",
       "alreadyCovered": false,
       "proposed": {
@@ -273,7 +273,7 @@
       "kind": "object",
       "room": 23,
       "hotspot": 174,
-      "status": "accepted",
+      "status": "pending",
       "provenance": "drafted by Kiro from game text only",
       "alreadyCovered": false,
       "proposed": {
@@ -287,7 +287,7 @@
       "key": "room:24",
       "kind": "room",
       "room": 24,
-      "status": "accepted",
+      "status": "pending",
       "provenance": "drafted by Kiro from game text only",
       "alreadyCovered": false,
       "proposed": {
@@ -305,7 +305,7 @@
       "kind": "exit",
       "room": 24,
       "hotspot": 105,
-      "status": "accepted",
+      "status": "pending",
       "provenance": "drafted by Kiro from game text only",
       "alreadyCovered": false,
       "proposed": {
@@ -320,7 +320,7 @@
       "kind": "exit",
       "room": 24,
       "hotspot": 106,
-      "status": "accepted",
+      "status": "pending",
       "provenance": "drafted by Kiro from game text only",
       "alreadyCovered": false,
       "proposed": {
@@ -335,7 +335,7 @@
       "kind": "exit",
       "room": 24,
       "hotspot": 108,
-      "status": "accepted",
+      "status": "pending",
       "provenance": "drafted by Kiro from game text only",
       "alreadyCovered": false,
       "proposed": {
@@ -350,7 +350,7 @@
       "kind": "object",
       "room": 24,
       "hotspot": 151,
-      "status": "accepted",
+      "status": "pending",
       "provenance": "drafted by Kiro from game text only",
       "alreadyCovered": false,
       "proposed": {
@@ -369,7 +369,7 @@
       "key": "room:26",
       "kind": "room",
       "room": 26,
-      "status": "accepted",
+      "status": "pending",
       "provenance": "drafted by Kiro from game text only",
       "alreadyCovered": false,
       "proposed": {
@@ -387,7 +387,7 @@
       "kind": "exit",
       "room": 26,
       "hotspot": 107,
-      "status": "accepted",
+      "status": "pending",
       "provenance": "drafted by Kiro from game text only",
       "alreadyCovered": false,
       "proposed": {
@@ -402,7 +402,7 @@
       "kind": "object",
       "room": 26,
       "hotspot": 51,
-      "status": "accepted",
+      "status": "pending",
       "provenance": "drafted by Kiro from game text only",
       "alreadyCovered": false,
       "proposed": {
@@ -417,7 +417,7 @@
       "kind": "object",
       "room": 26,
       "hotspot": 143,
-      "status": "accepted",
+      "status": "pending",
       "provenance": "drafted by Kiro from game text only",
       "alreadyCovered": false,
       "proposed": {
@@ -432,7 +432,7 @@
       "kind": "object",
       "room": 26,
       "hotspot": 163,
-      "status": "accepted",
+      "status": "pending",
       "provenance": "drafted by Kiro from game text only",
       "alreadyCovered": false,
       "proposed": {
@@ -447,7 +447,7 @@
       "kind": "object",
       "room": 26,
       "hotspot": 164,
-      "status": "accepted",
+      "status": "pending",
       "provenance": "drafted by Kiro from game text only",
       "alreadyCovered": false,
       "proposed": {
@@ -462,7 +462,7 @@
       "kind": "object",
       "room": 26,
       "hotspot": 165,
-      "status": "accepted",
+      "status": "pending",
       "provenance": "drafted by Kiro from game text only",
       "alreadyCovered": false,
       "proposed": {
@@ -477,7 +477,7 @@
       "kind": "object",
       "room": 26,
       "hotspot": 167,
-      "status": "accepted",
+      "status": "pending",
       "provenance": "drafted by Kiro from game text only",
       "alreadyCovered": false,
       "proposed": {
@@ -492,7 +492,7 @@
       "kind": "object",
       "room": 26,
       "hotspot": 168,
-      "status": "accepted",
+      "status": "pending",
       "provenance": "drafted by Kiro from game text only",
       "alreadyCovered": false,
       "proposed": {
@@ -507,7 +507,7 @@
       "kind": "object",
       "room": 26,
       "hotspot": 169,
-      "status": "accepted",
+      "status": "pending",
       "provenance": "drafted by Kiro from game text only",
       "alreadyCovered": false,
       "proposed": {
@@ -521,7 +521,7 @@
       "key": "room:27",
       "kind": "room",
       "room": 27,
-      "status": "accepted",
+      "status": "pending",
       "provenance": "drafted by Kiro from game text only",
       "alreadyCovered": false,
       "proposed": {
@@ -539,7 +539,7 @@
       "kind": "exit",
       "room": 27,
       "hotspot": 109,
-      "status": "accepted",
+      "status": "pending",
       "provenance": "drafted by Kiro from game text only",
       "alreadyCovered": false,
       "proposed": {
@@ -554,7 +554,7 @@
       "kind": "exit",
       "room": 27,
       "hotspot": 110,
-      "status": "accepted",
+      "status": "pending",
       "provenance": "drafted by Kiro from game text only",
       "alreadyCovered": false,
       "proposed": {
@@ -569,7 +569,7 @@
       "kind": "exit",
       "room": 27,
       "hotspot": 112,
-      "status": "accepted",
+      "status": "pending",
       "provenance": "drafted by Kiro from game text only",
       "alreadyCovered": false,
       "proposed": {
@@ -584,7 +584,7 @@
       "kind": "exit",
       "room": 27,
       "hotspot": 118,
-      "status": "accepted",
+      "status": "pending",
       "provenance": "drafted by Kiro from game text only",
       "alreadyCovered": false,
       "proposed": {
@@ -599,7 +599,7 @@
       "kind": "object",
       "room": 27,
       "hotspot": 116,
-      "status": "accepted",
+      "status": "pending",
       "provenance": "drafted by Kiro from game text only",
       "alreadyCovered": false,
       "proposed": {
@@ -614,7 +614,7 @@
       "kind": "object",
       "room": 27,
       "hotspot": 150,
-      "status": "accepted",
+      "status": "pending",
       "provenance": "drafted by Kiro from game text only",
       "alreadyCovered": false,
       "proposed": {
@@ -629,7 +629,7 @@
       "kind": "object",
       "room": 27,
       "hotspot": 166,
-      "status": "accepted",
+      "status": "pending",
       "provenance": "drafted by Kiro from game text only",
       "alreadyCovered": false,
       "proposed": {
@@ -644,7 +644,7 @@
       "kind": "object",
       "room": 27,
       "hotspot": 175,
-      "status": "accepted",
+      "status": "pending",
       "provenance": "drafted by Kiro from game text only",
       "alreadyCovered": false,
       "proposed": {
@@ -658,7 +658,7 @@
       "key": "room:28",
       "kind": "room",
       "room": 28,
-      "status": "accepted",
+      "status": "pending",
       "provenance": "drafted by Kiro from game text only",
       "alreadyCovered": false,
       "proposed": {
@@ -676,7 +676,7 @@
       "kind": "exit",
       "room": 28,
       "hotspot": 111,
-      "status": "accepted",
+      "status": "pending",
       "provenance": "drafted by Kiro from game text only",
       "alreadyCovered": false,
       "proposed": {
@@ -691,7 +691,7 @@
       "kind": "object",
       "room": 28,
       "hotspot": 200,
-      "status": "accepted",
+      "status": "pending",
       "provenance": "drafted by Kiro from game text only",
       "alreadyCovered": false,
       "proposed": {
@@ -706,7 +706,7 @@
       "kind": "object",
       "room": 28,
       "hotspot": 999,
-      "status": "accepted",
+      "status": "pending",
       "provenance": "drafted by Kiro from game text only",
       "alreadyCovered": false,
       "proposed": {
@@ -720,7 +720,7 @@
       "key": "room:29",
       "kind": "room",
       "room": 29,
-      "status": "accepted",
+      "status": "pending",
       "provenance": "drafted by Kiro from game text only",
       "alreadyCovered": false,
       "proposed": {
@@ -738,7 +738,7 @@
       "kind": "exit",
       "room": 29,
       "hotspot": 113,
-      "status": "accepted",
+      "status": "pending",
       "provenance": "drafted by Kiro from game text only",
       "alreadyCovered": false,
       "proposed": {
@@ -753,7 +753,7 @@
       "kind": "exit",
       "room": 29,
       "hotspot": 114,
-      "status": "accepted",
+      "status": "pending",
       "provenance": "drafted by Kiro from game text only",
       "alreadyCovered": false,
       "proposed": {
@@ -768,7 +768,7 @@
       "kind": "object",
       "room": 29,
       "hotspot": 152,
-      "status": "accepted",
+      "status": "pending",
       "provenance": "drafted by Kiro from game text only",
       "alreadyCovered": false,
       "proposed": {
@@ -783,7 +783,7 @@
       "kind": "object",
       "room": 29,
       "hotspot": 153,
-      "status": "accepted",
+      "status": "pending",
       "provenance": "drafted by Kiro from game text only",
       "alreadyCovered": false,
       "proposed": {
@@ -803,7 +803,7 @@
       "kind": "object",
       "room": 29,
       "hotspot": 154,
-      "status": "accepted",
+      "status": "pending",
       "provenance": "drafted by Kiro from game text only",
       "alreadyCovered": false,
       "proposed": {
@@ -818,7 +818,7 @@
       "kind": "object",
       "room": 29,
       "hotspot": 155,
-      "status": "accepted",
+      "status": "pending",
       "provenance": "drafted by Kiro from game text only",
       "alreadyCovered": false,
       "proposed": {
@@ -833,7 +833,7 @@
       "kind": "object",
       "room": 29,
       "hotspot": 156,
-      "status": "accepted",
+      "status": "pending",
       "provenance": "drafted by Kiro from game text only",
       "alreadyCovered": false,
       "proposed": {
@@ -847,7 +847,7 @@
       "key": "room:30",
       "kind": "room",
       "room": 30,
-      "status": "accepted",
+      "status": "pending",
       "provenance": "drafted by Kiro from game text only",
       "alreadyCovered": false,
       "proposed": {
@@ -865,7 +865,7 @@
       "kind": "exit",
       "room": 30,
       "hotspot": 115,
-      "status": "accepted",
+      "status": "pending",
       "provenance": "drafted by Kiro from game text only",
       "alreadyCovered": false,
       "proposed": {
@@ -880,7 +880,7 @@
       "kind": "object",
       "room": 30,
       "hotspot": 144,
-      "status": "accepted",
+      "status": "pending",
       "provenance": "drafted by Kiro from game text only",
       "alreadyCovered": false,
       "proposed": {
@@ -895,7 +895,7 @@
       "kind": "object",
       "room": 30,
       "hotspot": 157,
-      "status": "accepted",
+      "status": "pending",
       "provenance": "drafted by Kiro from game text only",
       "alreadyCovered": false,
       "proposed": {
@@ -910,7 +910,7 @@
       "kind": "object",
       "room": 30,
       "hotspot": 158,
-      "status": "accepted",
+      "status": "pending",
       "provenance": "drafted by Kiro from game text only",
       "alreadyCovered": false,
       "proposed": {
@@ -925,7 +925,7 @@
       "kind": "object",
       "room": 30,
       "hotspot": 159,
-      "status": "accepted",
+      "status": "pending",
       "provenance": "drafted by Kiro from game text only",
       "alreadyCovered": false,
       "proposed": {
@@ -936,10 +936,102 @@
       }
     },
     {
+      "key": "room:31",
+      "kind": "room",
+      "room": 31,
+      "status": "accepted",
+      "provenance": "drafted by Claude Code from a native engine visit (state, look lines and a screenshot), 14 Nov",
+      "alreadyCovered": false,
+      "proposed": {
+        "name": "Living room",
+        "short": "A purple living room. A fireplace is in the middle, an old TV on the left and a window on the left wall. The doorway on the right leads back to the landing.",
+        "long": "A purple living room off the upstairs landing. A stone fireplace sits in the middle of the back wall, with an axe hung on the wall above it between two portraits. An old green TV stands on a cabinet on the left, below an arched window. A tall armchair and a lamp are to the right of the fireplace. The doorway on the right leads back to the landing.",
+        "seen": false,
+        "chapters": [
+          4
+        ]
+      }
+    },
+    {
+      "key": "exit:31:117",
+      "kind": "exit",
+      "room": 31,
+      "hotspot": 117,
+      "status": "accepted",
+      "provenance": "drafted by Claude Code from a native engine visit (state, look lines and a screenshot), 14 Nov",
+      "alreadyCovered": false,
+      "proposed": {
+        "label": "doorway on the right, back to the landing",
+        "to": 27,
+        "direction": "right",
+        "note": "Look was silent. Destination from engine state. Rect x 246 to 274."
+      }
+    },
+    {
+      "key": "object:31:145",
+      "kind": "object",
+      "room": 31,
+      "hotspot": 145,
+      "status": "accepted",
+      "provenance": "drafted by Claude Code from a native engine visit (state, look lines and a screenshot), 14 Nov",
+      "alreadyCovered": false,
+      "proposed": {
+        "name": "axe",
+        "type": "object",
+        "description": "An axe hung on the wall above the fireplace.",
+        "note": "Engine name AXE. Look gave filler. Hidden in slot 47 (visible false), where the axe is already in the inventory; the axe still shows in the background art, so when the hotspot is live is inferred. Rect x 126 to 168, high."
+      }
+    },
+    {
+      "key": "object:31:160",
+      "kind": "object",
+      "room": 31,
+      "hotspot": 160,
+      "status": "accepted",
+      "provenance": "drafted by Claude Code from a native engine visit (state, look lines and a screenshot), 14 Nov",
+      "alreadyCovered": false,
+      "proposed": {
+        "name": "TV",
+        "type": "object",
+        "description": "An old green TV on a cabinet on the left.",
+        "note": "Engine name T.V. Look gave filler (THERE IS NOTHING SPECIAL ABOUT IT). Colour and cabinet from the screenshot. Rect x 60 to 96."
+      }
+    },
+    {
+      "key": "object:31:161",
+      "kind": "object",
+      "room": 31,
+      "hotspot": 161,
+      "status": "accepted",
+      "provenance": "drafted by Claude Code from a native engine visit (state, look lines and a screenshot), 14 Nov",
+      "alreadyCovered": false,
+      "proposed": {
+        "name": "window",
+        "type": "object",
+        "description": "An arched window on the left wall. The game says night is falling.",
+        "note": "Look line: THE NIGHT IS FALLING OVER ALL OF US...THAT'S SCARY, ISN'T IT? Paraphrased. Rect x 36 to 62."
+      }
+    },
+    {
+      "key": "object:31:162",
+      "kind": "object",
+      "room": 31,
+      "hotspot": 162,
+      "status": "accepted",
+      "provenance": "drafted by Claude Code from a native engine visit (state, look lines and a screenshot), 14 Nov",
+      "alreadyCovered": false,
+      "proposed": {
+        "name": "fireplace",
+        "type": "object",
+        "description": "A stone fireplace in the middle of the back wall.",
+        "note": "Engine name CHIMENEA (Spanish for fireplace). Look gave filler (IT'S NOT UNUSUAL). Rect x 126 to 176."
+      }
+    },
+    {
       "key": "room:34",
       "kind": "room",
       "room": 34,
-      "status": "accepted",
+      "status": "pending",
       "provenance": "drafted by Kiro from game text only",
       "alreadyCovered": false,
       "proposed": {
@@ -957,7 +1049,7 @@
       "kind": "exit",
       "room": 34,
       "hotspot": 119,
-      "status": "accepted",
+      "status": "pending",
       "provenance": "drafted by Kiro from game text only",
       "alreadyCovered": false,
       "proposed": {
@@ -972,7 +1064,7 @@
       "kind": "object",
       "room": 34,
       "hotspot": 120,
-      "status": "accepted",
+      "status": "pending",
       "provenance": "drafted by Kiro from game text only",
       "alreadyCovered": false,
       "proposed": {
@@ -987,7 +1079,7 @@
       "kind": "object",
       "room": 34,
       "hotspot": 122,
-      "status": "accepted",
+      "status": "pending",
       "provenance": "drafted by Kiro from game text only",
       "alreadyCovered": false,
       "proposed": {
@@ -1002,7 +1094,7 @@
       "kind": "object",
       "room": 34,
       "hotspot": 146,
-      "status": "accepted",
+      "status": "pending",
       "provenance": "drafted by Kiro from game text only",
       "alreadyCovered": false,
       "proposed": {
@@ -1016,13 +1108,13 @@
       "key": "room:35",
       "kind": "room",
       "room": 35,
-      "status": "pending",
-      "provenance": "drafted by Kiro from game text only",
+      "status": "accepted",
+      "provenance": "drafted by Claude Code from a native engine visit (state, look lines and a screenshot), 14 Nov",
       "alreadyCovered": false,
       "proposed": {
-        "name": "",
-        "short": "",
-        "long": "",
+        "name": "Secret lab",
+        "short": "A hidden stone room behind the closet, with a cabinet of jars holding brains in the middle and a black cloak on the right. The archway on the left leads back.",
+        "long": "A hidden stone room behind the torch room's closet. A wooden cabinet full of glass jars holding brains stands in the middle. To its right are a skeleton on a stand and a black cloak hanging on a stand. A bookcase is on the left, and a desk of books and test tubes fills the front. The stone archway on the left leads back to the torch room.",
         "seen": false,
         "chapters": [
           4
@@ -1034,12 +1126,14 @@
       "kind": "exit",
       "room": 35,
       "hotspot": 121,
-      "status": "pending",
-      "provenance": "drafted by Kiro from game text only",
+      "status": "accepted",
+      "provenance": "drafted by Claude Code from a native engine visit (state, look lines and a screenshot), 14 Nov",
       "alreadyCovered": false,
       "proposed": {
-        "label": "",
-        "to": 34
+        "label": "archway on the left, back to the torch room",
+        "to": 34,
+        "direction": "left",
+        "note": "Engine name PASADIZO. Look was silent. Destination from engine state. Rect x 23 to 55."
       }
     },
     {
@@ -1047,12 +1141,14 @@
       "kind": "object",
       "room": 35,
       "hotspot": 147,
-      "status": "pending",
-      "provenance": "drafted by Kiro from game text only",
+      "status": "accepted",
+      "provenance": "drafted by Claude Code from a native engine visit (state, look lines and a screenshot), 14 Nov",
       "alreadyCovered": false,
       "proposed": {
-        "name": "",
-        "type": "object"
+        "name": "jars of brains",
+        "type": "object",
+        "description": "A wooden cabinet of glass jars in the middle of the room, each holding a brain.",
+        "note": "Engine name BRAINS. Look gave filler. Jars from the screenshot; that they hold brains is the engine name. Rect x 121 to 196."
       }
     },
     {
@@ -1060,12 +1156,14 @@
       "kind": "object",
       "room": 35,
       "hotspot": 148,
-      "status": "pending",
-      "provenance": "drafted by Kiro from game text only",
+      "status": "accepted",
+      "provenance": "drafted by Claude Code from a native engine visit (state, look lines and a screenshot), 14 Nov",
       "alreadyCovered": false,
       "proposed": {
-        "name": "",
-        "type": "object"
+        "name": "cloak",
+        "type": "object",
+        "description": "A black cloak hanging on a stand on the right, next to a skeleton.",
+        "note": "Engine name CLOAK. Look gave filler. Stand and skeleton from the screenshot. Rect x 257 to 294."
       }
     },
     {
@@ -1073,25 +1171,27 @@
       "kind": "object",
       "room": 35,
       "hotspot": 149,
-      "status": "pending",
-      "provenance": "drafted by Kiro from game text only",
+      "status": "accepted",
+      "provenance": "drafted by Claude Code from a native engine visit (state, look lines and a screenshot), 14 Nov",
       "alreadyCovered": false,
       "proposed": {
-        "name": "",
-        "type": "object"
+        "name": "lubricant",
+        "type": "object",
+        "description": "Something small on the left end of the jar cabinet.",
+        "note": "Engine name LUBRICANT. Hidden (visible false) on both visits from slot 42, so a player can't point at it at first; what reveals it isn't confirmed. Look gave filler. Rect x 119 to 130, small, at the top left of the cabinet. Description from position only."
       }
     },
     {
       "key": "room:36",
       "kind": "room",
       "room": 36,
-      "status": "pending",
-      "provenance": "drafted by Kiro from game text only",
+      "status": "accepted",
+      "provenance": "drafted by Claude Code from a native engine visit (state, look lines and a screenshot), 14 Nov",
       "alreadyCovered": false,
       "proposed": {
-        "name": "",
-        "short": "",
-        "long": "",
+        "name": "Secret passage, part 1",
+        "short": "A long passage of green stone. The way back is on the left, and the passage carries on to the right.",
+        "long": "Part 1 of the secret passage behind the torch room's shelf. It's a long tunnel of green stone, with cobwebs hanging in the top left corner and a small dark figure on the wall, like the rest of the passage. The way back is on the left, and the passage carries on to the right.",
         "seen": false,
         "chapters": [
           4
@@ -1103,12 +1203,14 @@
       "kind": "exit",
       "room": 36,
       "hotspot": 123,
-      "status": "pending",
-      "provenance": "drafted by Kiro from game text only",
+      "status": "accepted",
+      "provenance": "drafted by Claude Code from a native engine visit (state, look lines and a screenshot), 14 Nov",
       "alreadyCovered": false,
       "proposed": {
-        "label": "",
-        "to": 34
+        "label": "way back on the left, to the torch room",
+        "to": 34,
+        "direction": "left",
+        "note": "Look was silent. Destination from engine state."
       }
     },
     {
@@ -1116,25 +1218,27 @@
       "kind": "exit",
       "room": 36,
       "hotspot": 124,
-      "status": "pending",
-      "provenance": "drafted by Kiro from game text only",
+      "status": "accepted",
+      "provenance": "drafted by Claude Code from a native engine visit (state, look lines and a screenshot), 14 Nov",
       "alreadyCovered": false,
       "proposed": {
-        "label": "",
-        "to": 37
+        "label": "passage on to the right",
+        "to": 37,
+        "direction": "right",
+        "note": "Look was silent. Destination from engine state."
       }
     },
     {
       "key": "room:37",
       "kind": "room",
       "room": 37,
-      "status": "pending",
-      "provenance": "drafted by Kiro from game text only",
+      "status": "accepted",
+      "provenance": "drafted by Claude Code from a native engine visit (state, look lines and a screenshot), 14 Nov",
       "alreadyCovered": false,
       "proposed": {
-        "name": "",
-        "short": "",
-        "long": "",
+        "name": "Secret passage, part 2",
+        "short": "A long passage of green stone. The way back is on the left, and the passage carries on to the right.",
+        "long": "Part 2 of the secret passage behind the torch room's shelf. It's a long passage of green stone. The way back is on the left, and the passage carries on to the right. It looks almost the same as the stretch before.",
         "seen": false,
         "chapters": [
           4
@@ -1146,12 +1250,14 @@
       "kind": "exit",
       "room": 37,
       "hotspot": 125,
-      "status": "pending",
-      "provenance": "drafted by Kiro from game text only",
+      "status": "accepted",
+      "provenance": "drafted by Claude Code from a native engine visit (state, look lines and a screenshot), 14 Nov",
       "alreadyCovered": false,
       "proposed": {
-        "label": "",
-        "to": 36
+        "label": "way back on the left",
+        "to": 36,
+        "direction": "left",
+        "note": "Look was silent. Destination from engine state."
       }
     },
     {
@@ -1159,25 +1265,27 @@
       "kind": "exit",
       "room": 37,
       "hotspot": 126,
-      "status": "pending",
-      "provenance": "drafted by Kiro from game text only",
+      "status": "accepted",
+      "provenance": "drafted by Claude Code from a native engine visit (state, look lines and a screenshot), 14 Nov",
       "alreadyCovered": false,
       "proposed": {
-        "label": "",
-        "to": 38
+        "label": "passage on to the right",
+        "to": 38,
+        "direction": "right",
+        "note": "Look was silent. Destination from engine state."
       }
     },
     {
       "key": "room:38",
       "kind": "room",
       "room": 38,
-      "status": "pending",
-      "provenance": "drafted by Kiro from game text only",
+      "status": "accepted",
+      "provenance": "drafted by Claude Code from a native engine visit (state, look lines and a screenshot), 14 Nov",
       "alreadyCovered": false,
       "proposed": {
-        "name": "",
-        "short": "",
-        "long": "",
+        "name": "Secret passage, part 3",
+        "short": "A long passage of green stone, with a chain hanging on the left wall. The way back is on the left, and the passage carries on to the right.",
+        "long": "Part 3 of the secret passage behind the torch room's shelf. It's a long passage of green stone, with a chain hanging on the left wall. The way back is on the left, and the passage carries on to the right. A cobweb hangs in the top right corner.",
         "seen": false,
         "chapters": [
           4
@@ -1189,12 +1297,14 @@
       "kind": "exit",
       "room": 38,
       "hotspot": 127,
-      "status": "pending",
-      "provenance": "drafted by Kiro from game text only",
+      "status": "accepted",
+      "provenance": "drafted by Claude Code from a native engine visit (state, look lines and a screenshot), 14 Nov",
       "alreadyCovered": false,
       "proposed": {
-        "label": "",
-        "to": 37
+        "label": "way back on the left",
+        "to": 37,
+        "direction": "left",
+        "note": "Look was silent. Destination from engine state."
       }
     },
     {
@@ -1202,25 +1312,27 @@
       "kind": "exit",
       "room": 38,
       "hotspot": 128,
-      "status": "pending",
-      "provenance": "drafted by Kiro from game text only",
+      "status": "accepted",
+      "provenance": "drafted by Claude Code from a native engine visit (state, look lines and a screenshot), 14 Nov",
       "alreadyCovered": false,
       "proposed": {
-        "label": "",
-        "to": 39
+        "label": "passage on to the right",
+        "to": 39,
+        "direction": "right",
+        "note": "Look was silent. Destination from engine state."
       }
     },
     {
       "key": "room:39",
       "kind": "room",
       "room": 39,
-      "status": "pending",
-      "provenance": "drafted by Kiro from game text only",
+      "status": "accepted",
+      "provenance": "drafted by Claude Code from a native engine visit (state, look lines and a screenshot), 14 Nov",
       "alreadyCovered": false,
       "proposed": {
-        "name": "",
-        "short": "",
-        "long": "",
+        "name": "Secret passage, part 4",
+        "short": "A long passage of green stone, with a chain on the left wall and Km. 1 painted on the wall. The way back is on the left, and the passage carries on to the right.",
+        "long": "Part 4 of the secret passage behind the torch room's shelf. It's a long passage of green stone, with a chain on the left wall and Km. 1 painted on the wall. The way back is on the left, and the passage carries on to the right.",
         "seen": false,
         "chapters": [
           4
@@ -1232,12 +1344,14 @@
       "kind": "exit",
       "room": 39,
       "hotspot": 129,
-      "status": "pending",
-      "provenance": "drafted by Kiro from game text only",
+      "status": "accepted",
+      "provenance": "drafted by Claude Code from a native engine visit (state, look lines and a screenshot), 14 Nov",
       "alreadyCovered": false,
       "proposed": {
-        "label": "",
-        "to": 38
+        "label": "way back on the left",
+        "to": 38,
+        "direction": "left",
+        "note": "Look was silent. Destination from engine state."
       }
     },
     {
@@ -1245,25 +1359,27 @@
       "kind": "exit",
       "room": 39,
       "hotspot": 130,
-      "status": "pending",
-      "provenance": "drafted by Kiro from game text only",
+      "status": "accepted",
+      "provenance": "drafted by Claude Code from a native engine visit (state, look lines and a screenshot), 14 Nov",
       "alreadyCovered": false,
       "proposed": {
-        "label": "",
-        "to": 40
+        "label": "passage on to the right",
+        "to": 40,
+        "direction": "right",
+        "note": "Look was silent. Destination from engine state."
       }
     },
     {
       "key": "room:40",
       "kind": "room",
       "room": 40,
-      "status": "pending",
-      "provenance": "drafted by Kiro from game text only",
+      "status": "accepted",
+      "provenance": "drafted by Claude Code from a native engine visit (state, look lines and a screenshot), 14 Nov",
       "alreadyCovered": false,
       "proposed": {
-        "name": "",
-        "short": "",
-        "long": "",
+        "name": "Secret passage, part 5",
+        "short": "A long passage of green stone. The way back is on the left, and the passage carries on to the right.",
+        "long": "Part 5 of the secret passage behind the torch room's shelf. It's a long passage of green stone. The way back is on the left, and the passage carries on to the right. It looks almost the same as the stretches before.",
         "seen": false,
         "chapters": [
           4
@@ -1275,12 +1391,14 @@
       "kind": "exit",
       "room": 40,
       "hotspot": 131,
-      "status": "pending",
-      "provenance": "drafted by Kiro from game text only",
+      "status": "accepted",
+      "provenance": "drafted by Claude Code from a native engine visit (state, look lines and a screenshot), 14 Nov",
       "alreadyCovered": false,
       "proposed": {
-        "label": "",
-        "to": 39
+        "label": "way back on the left",
+        "to": 39,
+        "direction": "left",
+        "note": "Look was silent. Destination from engine state."
       }
     },
     {
@@ -1288,25 +1406,27 @@
       "kind": "exit",
       "room": 40,
       "hotspot": 132,
-      "status": "pending",
-      "provenance": "drafted by Kiro from game text only",
+      "status": "accepted",
+      "provenance": "drafted by Claude Code from a native engine visit (state, look lines and a screenshot), 14 Nov",
       "alreadyCovered": false,
       "proposed": {
-        "label": "",
-        "to": 41
+        "label": "passage on to the right",
+        "to": 41,
+        "direction": "right",
+        "note": "Look was silent. Destination from engine state."
       }
     },
     {
       "key": "room:41",
       "kind": "room",
       "room": 41,
-      "status": "pending",
-      "provenance": "drafted by Kiro from game text only",
+      "status": "accepted",
+      "provenance": "drafted by Claude Code from a native engine visit (state, look lines and a screenshot), 14 Nov",
       "alreadyCovered": false,
       "proposed": {
-        "name": "",
-        "short": "",
-        "long": "",
+        "name": "Secret passage, part 6",
+        "short": "A long passage of green stone, with a chain on the left wall, Km. 26 painted on the wall and a small barred grate low on the right. The way back is on the left, and the passage carries on to the right.",
+        "long": "Part 6 of the secret passage behind the torch room's shelf. It's a long passage of green stone, with a chain on the left wall, Km. 26 painted on the wall and a small barred grate low on the right. The way back is on the left, and the passage carries on to the right.",
         "seen": false,
         "chapters": [
           4
@@ -1318,12 +1438,14 @@
       "kind": "exit",
       "room": 41,
       "hotspot": 133,
-      "status": "pending",
-      "provenance": "drafted by Kiro from game text only",
+      "status": "accepted",
+      "provenance": "drafted by Claude Code from a native engine visit (state, look lines and a screenshot), 14 Nov",
       "alreadyCovered": false,
       "proposed": {
-        "label": "",
-        "to": 40
+        "label": "way back on the left",
+        "to": 40,
+        "direction": "left",
+        "note": "Look was silent. Destination from engine state."
       }
     },
     {
@@ -1331,25 +1453,27 @@
       "kind": "exit",
       "room": 41,
       "hotspot": 134,
-      "status": "pending",
-      "provenance": "drafted by Kiro from game text only",
+      "status": "accepted",
+      "provenance": "drafted by Claude Code from a native engine visit (state, look lines and a screenshot), 14 Nov",
       "alreadyCovered": false,
       "proposed": {
-        "label": "",
-        "to": 42
+        "label": "passage on to the right",
+        "to": 42,
+        "direction": "right",
+        "note": "Look was silent. Destination from engine state."
       }
     },
     {
       "key": "room:42",
       "kind": "room",
       "room": 42,
-      "status": "pending",
-      "provenance": "drafted by Kiro from game text only",
+      "status": "accepted",
+      "provenance": "drafted by Claude Code from a native engine visit (state, look lines and a screenshot), 14 Nov",
       "alreadyCovered": false,
       "proposed": {
-        "name": "",
-        "short": "",
-        "long": "",
+        "name": "Secret passage, part 7",
+        "short": "A long passage of green stone, with a chain on the left wall and a cobweb in the top right corner. The way back is on the left, and the passage carries on to the right.",
+        "long": "Part 7 of the secret passage behind the torch room's shelf. It's a long passage of green stone, with a chain on the left wall and a cobweb in the top right corner. The way back is on the left, and the passage carries on to the right.",
         "seen": false,
         "chapters": [
           4
@@ -1361,12 +1485,14 @@
       "kind": "exit",
       "room": 42,
       "hotspot": 135,
-      "status": "pending",
-      "provenance": "drafted by Kiro from game text only",
+      "status": "accepted",
+      "provenance": "drafted by Claude Code from a native engine visit (state, look lines and a screenshot), 14 Nov",
       "alreadyCovered": false,
       "proposed": {
-        "label": "",
-        "to": 41
+        "label": "way back on the left",
+        "to": 41,
+        "direction": "left",
+        "note": "Look was silent. Destination from engine state."
       }
     },
     {
@@ -1374,25 +1500,27 @@
       "kind": "exit",
       "room": 42,
       "hotspot": 136,
-      "status": "pending",
-      "provenance": "drafted by Kiro from game text only",
+      "status": "accepted",
+      "provenance": "drafted by Claude Code from a native engine visit (state, look lines and a screenshot), 14 Nov",
       "alreadyCovered": false,
       "proposed": {
-        "label": "",
-        "to": 43
+        "label": "passage on to the right",
+        "to": 43,
+        "direction": "right",
+        "note": "Look was silent. Destination from engine state."
       }
     },
     {
       "key": "room:43",
       "kind": "room",
       "room": 43,
-      "status": "pending",
-      "provenance": "drafted by Kiro from game text only",
+      "status": "accepted",
+      "provenance": "drafted by Claude Code from a native engine visit (state, look lines and a screenshot), 14 Nov",
       "alreadyCovered": false,
       "proposed": {
-        "name": "",
-        "short": "",
-        "long": "",
+        "name": "Secret passage, part 8",
+        "short": "A long passage of green stone, with Km. 134 painted on the wall and a small barred grate low on the right. The way back is on the left, and the passage carries on to the right.",
+        "long": "Part 8 of the secret passage behind the torch room's shelf. It's a long passage of green stone, with Km. 134 painted on the wall and a small barred grate low on the right. The way back is on the left, and the passage carries on to the right.",
         "seen": false,
         "chapters": [
           4
@@ -1404,12 +1532,14 @@
       "kind": "exit",
       "room": 43,
       "hotspot": 137,
-      "status": "pending",
-      "provenance": "drafted by Kiro from game text only",
+      "status": "accepted",
+      "provenance": "drafted by Claude Code from a native engine visit (state, look lines and a screenshot), 14 Nov",
       "alreadyCovered": false,
       "proposed": {
-        "label": "",
-        "to": 42
+        "label": "way back on the left",
+        "to": 42,
+        "direction": "left",
+        "note": "Look was silent. Destination from engine state."
       }
     },
     {
@@ -1417,25 +1547,27 @@
       "kind": "exit",
       "room": 43,
       "hotspot": 138,
-      "status": "pending",
-      "provenance": "drafted by Kiro from game text only",
+      "status": "accepted",
+      "provenance": "drafted by Claude Code from a native engine visit (state, look lines and a screenshot), 14 Nov",
       "alreadyCovered": false,
       "proposed": {
-        "label": "",
-        "to": 44
+        "label": "passage on to the right",
+        "to": 44,
+        "direction": "right",
+        "note": "Look was silent. Destination from engine state."
       }
     },
     {
       "key": "room:44",
       "kind": "room",
       "room": 44,
-      "status": "pending",
-      "provenance": "drafted by Kiro from game text only",
+      "status": "accepted",
+      "provenance": "drafted by Claude Code from a native engine visit (state, look lines and a screenshot), 14 Nov",
       "alreadyCovered": false,
       "proposed": {
-        "name": "",
-        "short": "",
-        "long": "",
+        "name": "End of the secret passage",
+        "short": "The end of the secret passage, darker than the rest. A poster is pinned on the right wall, and the way out on the left leads back to the torch room.",
+        "long": "The dead end of the secret passage. A barred grate is set low in the back wall, a chain hangs on the left and a poster is pinned on the right wall. The poster says the passage to the towers is closed for repairs and to use the main entrance. The only way out is on the left, and it comes out back in the torch room.",
         "seen": false,
         "chapters": [
           4
@@ -1447,12 +1579,14 @@
       "kind": "exit",
       "room": 44,
       "hotspot": 139,
-      "status": "pending",
-      "provenance": "drafted by Kiro from game text only",
+      "status": "accepted",
+      "provenance": "drafted by Claude Code from a native engine visit (state, look lines and a screenshot), 14 Nov",
       "alreadyCovered": false,
       "proposed": {
-        "label": "",
-        "to": 34
+        "label": "way out on the left, back to the torch room",
+        "to": 34,
+        "direction": "left",
+        "note": "Engine name DOOR. Look was silent. Destination from engine state (walked: 44 to 34). Rect x 0 to 31."
       }
     },
     {
@@ -1460,12 +1594,14 @@
       "kind": "object",
       "room": 44,
       "hotspot": 172,
-      "status": "pending",
-      "provenance": "drafted by Kiro from game text only",
+      "status": "accepted",
+      "provenance": "drafted by Claude Code from a native engine visit (state, look lines and a screenshot), 14 Nov",
       "alreadyCovered": false,
       "proposed": {
-        "name": "",
-        "type": "object"
+        "name": "poster",
+        "type": "object",
+        "description": "A poster pinned on the right wall. It says the passage to the towers is closed for repairs, please use the main entrance, sorry for the inconvenience.",
+        "note": "Look line: \"PASSAGE TO TOWERS CLOSED FOR REPAIRS. PLEASE USE THE MAIN ENTRANCE. SORRY FOR THE INCONVENIENCE\". Paraphrased. Rect x 252 to 282."
       }
     }
   ]
