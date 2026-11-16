@@ -109,8 +109,9 @@ const HELP_TEXT =
   "Controls. Left and Right cycle the things, people and exits in the room. " +
   "Up or Enter interacts with the focused thing. Down examines it. " +
   "Press V for more actions: open, close, talk, push. " +
-  "Tab opens your inventory; choose an item to make it active, then interact " +
-  "with a thing to use it. Backspace cancels. " +
+  "Tab opens your inventory; choose an item to make it active, press Tab " +
+  "again to go back to the room with the item kept, then interact with a " +
+  "thing to use it. Backspace cancels. " +
   "When someone offers you choices in a conversation, a choice menu opens: " +
   "use Up and Down to move, Enter or a number key to pick, and R to hear the " +
   "options again. " +

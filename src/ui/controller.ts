@@ -399,6 +399,10 @@ export class Controller {
       case "Enter":
         this.d.inventory.chooseCurrent();
         return true;
+      case "Tab":
+        // Back to the room, keeping an active item for a thing there.
+        this.d.inventory.toRoom();
+        return true;
       case "Backspace":
       case "Escape":
         this.d.inventory.cancel();

@@ -27,8 +27,9 @@ test("?game=queen: the two sheets tie into a rope from the inventory", async ({ 
   await key("Tab");
   await key("ArrowDown");
   await key("Enter");
-  await key("Tab");
-  // With an item active the menu also offers Yourself; walk to the other sheet by name.
+  // Stay in the inventory (Tab there now goes back to the room with the item
+  // kept). With an item active the menu also offers Yourself; walk to the
+  // other sheet by name.
   for (let i = 0; i < 6; i++) {
     const heard = await page.evaluate(() => { const a = document.activeElement as HTMLElement | null; return (a?.getAttribute("aria-label") || a?.textContent || "").trim(); });
     if (/item 52|sheet/i.test(heard) && !/active/i.test(heard)) break;

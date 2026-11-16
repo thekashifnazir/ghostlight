@@ -137,7 +137,7 @@ export class Inventory {
 
     if (this.activeId == null) {
       this.activeId = chosen.id;
-      this.cb.announce(`${chosen.name} is now active. Choose a target, or press Backspace to cancel.`);
+      this.cb.announce(`${chosen.name} is now active. Press Tab to pick something in the room, choose another item, or press Backspace to cancel.`);
       this.render();
       return;
     }
@@ -220,6 +220,24 @@ export class Inventory {
       return b;
     });
     this.focusCurrent();
+  }
+
+  /**
+   * Tab in the open inventory: back to the room's list. An active item stays
+   * active, so Enter on a thing in the room uses it there. Without one, this
+   * just closes, as Backspace does. Before this, the only ways out of the
+   * inventory (Backspace, Escape) cleared the item, so an item couldn't be used
+   * on a room thing with keys alone (found in QuestAloud, 16 Nov).
+   */
+  toRoom(): void {
+    if (!this.open) return;
+    this.close();
+    this.cb.announce(
+      this.activeId != null
+        ? `${this.nameOf(this.activeId)} is active. Pick something in the room and press Enter.`
+        : "Closed inventory.",
+    );
+    this.cb.returnToList();
   }
 
   private focusCurrent(): void {

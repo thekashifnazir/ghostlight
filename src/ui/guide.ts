@@ -32,7 +32,7 @@ export function guidePages(tip: string): GuidePage[] {
     {
       title: "Using things",
       lines: [
-        "Tab opens your inventory. Choose an item, then press Enter on something in the room to use the item on it. Backspace cancels.",
+        "Tab opens your inventory. Choose an item, press Tab to go back to the room, then press Enter on something there to use the item on it. Backspace cancels.",
         "V gives more actions, like open, close and push.",
         "Slash opens a box where you type a command, like use coins on machine, then press Enter.",
       ],

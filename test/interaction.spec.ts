@@ -256,4 +256,30 @@ test.describe("typed shortcut (via the parser through the page)", () => {
     await page.keyboard.press("Enter"); // make the first item (coins) active
     await expect(live(page)).toContainText("active");
   });
+
+  test("keys only: make the coins active, Tab back to the room, Enter on the machine", async ({ page }) => {
+    // Before 16 Nov the inventory's only ways out (Backspace, Escape) cleared
+    // the active item, so an item couldn't be used on a room thing by keys.
+    await start(page, "ch2-vending");
+    await page.keyboard.press("Tab");
+    await expect(live(page)).toContainText("Inventory");
+    await page.keyboard.press("Enter"); // coins active
+    await expect(live(page)).toContainText("Press Tab to pick something in the room");
+    await page.keyboard.press("Tab"); // back to the room, coins kept
+    await expect(live(page)).toContainText("is active. Pick something in the room and press Enter.");
+    let onMachine = false;
+    for (let i = 0; i < 12 && !onMachine; i++) {
+      await page.keyboard.press("ArrowRight");
+      if (/machine/i.test((await live(page).textContent()) ?? "")) onMachine = true;
+    }
+    expect(onMachine).toBe(true);
+    // The replay plays the fixture's commands in recorded order: look 188 first.
+    await page.keyboard.press("ArrowDown"); // look 188
+    await expect(live(page)).not.toContainText("vending machine, 4 of 4");
+    await page.keyboard.press("Enter"); // use 18 188, with the coins still active
+    // The coins are spent and the cigarettes received: the use went through.
+    await expect
+      .poll(() => page.evaluate(() => (window.__ghostlight?.lines ?? []).map((l) => l.text).join(" | ")))
+      .toMatch(/Received cigarettes[\s\S]*no longer have the two coins|no longer have the two coins[\s\S]*Received cigarettes/);
+  });
 });

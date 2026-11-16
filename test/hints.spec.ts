@@ -67,7 +67,9 @@ test.describe("hint key: chapter 3 and later have hints", () => {
     await start(page, "ch3-no-hints");
 
     await page.keyboard.press("h");
-    await expect(live(page)).toContainText("Keep going. Something is waiting further on.");
+    // Every hint is voiced since 16 Nov, so the ghost speaks it and the line is
+    // recorded (lastLine) rather than written to the live region.
+    await expectHint(page, "Keep going. Something is waiting further on.");
     await expect(live(page)).not.toContainText("There is nothing to hint at right now.");
   });
 });
