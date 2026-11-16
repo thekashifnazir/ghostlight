@@ -12,7 +12,7 @@ Built with Kiro · ScummVM Drascula engine · TypeScript · Web Audio · ElevenL
 
 > Ghostlight is a work in progress. All six chapters can be played to the final ending, and every one of the 57 rooms has a description.
 >
-> Tested with NVDA in Chrome and Edge, JAWS in Chrome, Edge and Firefox (Windows 11), and VoiceOver in Chrome, Edge and Safari (macOS).
+> Tested with NVDA in Chrome, Edge and Firefox, JAWS in Chrome, Edge and Firefox (Windows 11), and VoiceOver in Chrome, Edge and Safari (macOS).
 
 ## Try it in 60 seconds
 
