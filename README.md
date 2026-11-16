@@ -10,9 +10,9 @@ Live: [ghostlight.kashifnazir.com/?live](https://ghostlight.kashifnazir.com/?liv
 
 Built with Kiro · ScummVM Drascula engine · TypeScript · Web Audio · ElevenLabs voice · Cloudflare + R2 hosting
 
-> Ghostlight is a work in progress. All six chapters can be played to the final ending, and every one of the 57 rooms has a description.
+> Ghostlight is a work in progress. All six chapters can be played to the final ending, every one of the 57 rooms has a description, and every chapter has hints (16 Nov).
 >
-> Tested with NVDA in Chrome, Edge and Firefox, JAWS in Chrome, Edge and Firefox (Windows 11), and VoiceOver in Chrome, Edge and Safari (macOS).
+> Tested with NVDA in Chrome, Edge and Firefox, JAWS in Chrome, Edge and Firefox (Windows 11), and VoiceOver in Chrome, Edge, Safari and Firefox (macOS).
 
 ## Try it in 60 seconds
 
@@ -38,6 +38,8 @@ List mode is the primary interface and works from the keyboard alone. No mouse i
 | **R** | repeat the last line |
 | **S / N / P / M** | sonar: sweep, next, previous, summary |
 | **F1** | Ghostlight's own help |
+| **C / O** | save now / load your latest save |
+| **Q** (twice) | save and go back to the start screen, where you can choose any chapter you've reached |
 
 Typing plain English (`look`, `use the coins on the machine`, `go through the back door`) is a shortcut for players who prefer it, and it feeds the same commands as list mode.
 
@@ -56,7 +58,7 @@ Typing plain English (`look`, `use the coins on the machine`, `go through the ba
 
 **The pack.** An accessibility pack (in `packs/`) is a per-game JSON file that supplies what the engine cannot: names and descriptions for rooms and exits, spoken names for hotspots, item names, fixes for leftover engine strings, cutscene descriptions, and progress milestones. The format is documented in `packs/FORMAT.md` with a JSON Schema and a cross-reference validator. `drascula-en.json` is the first pack and covers every one of the game's 57 rooms (chapter 1: rooms 62 and 63; chapter 2: 17 rooms; chapter 3: rooms 13 and 20; chapter 4: 21 rooms; chapter 5: 10 rooms; chapter 6: 5 rooms).
 
-**Hints and the ghost voice.** Each milestone in the pack carries three hint tiers: a nudge that points at the area, a clue that names the place and the thing, and an answer that gives the exact action in game verbs. A hint is only offered once its prerequisites are reached and the milestone is not yet done, so it never reveals a puzzle the player has not got to. The hints are also voiced as an interruptible whisper, generated with the ElevenLabs API (the Alice voice on the `eleven_v4` model), layered on top of the text, which already works on its own.
+**Hints and the ghost voice.** Each milestone in the pack carries three hint tiers: a nudge that points at the area, a clue that names the place and the thing, and an answer that gives the exact action in game verbs. A hint is only offered once its prerequisites are reached and the milestone is not yet done, so it never reveals a puzzle the player has not got to. The hints are also voiced as an interruptible whisper, generated with the ElevenLabs API (the Alice voice on the `eleven_v4` model), layered on top of the text, which already works on its own. Chapters 1 and 2 are voiced; the hints for chapters 3 to 6 (added 16 Nov after a tester got stuck in chapter 4) are read as text for now.
 
 **Sonar.** On a key press the player sweeps the current room: each object and exit is played in turn, panned left to right by screen position, with pitch for height and a filter for distance, followed by one summary line to a polite live region. All of it is synthesised with Web Audio, with no audio files.
 
@@ -146,7 +148,8 @@ The player and pack suites use property-based tests (fast-check) alongside examp
 
 ## Known limits
 
-- The pack covers **every room in all six chapters**, 57 of 57 (14 Nov). Every chapter can be played to the final ending.
+- The pack covers **every room in all six chapters**, 57 of 57 (14 Nov), and has hints for every chapter (16 Nov). Every chapter can be played to the final ending.
+- The hints for chapters 3 to 6 were written from the engine's own code and haven't all been played through by a tester yet.
 - Music is **made quieter** under the ghost's voice and the narration, but it is not ducked out of the way with proper sidechaining yet.
 - The hosted engine build will be **rebuilt after the engine spec closes**, so the live link can lag behind the engine patch in this repository.
 
