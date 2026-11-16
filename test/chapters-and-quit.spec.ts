@@ -71,7 +71,9 @@ test.describe("Q quits to the start screen", () => {
     await expect(page.locator("#live-region")).toContainText("Inn bar");
 
     await page.keyboard.press("q");
-    await expect(page.locator("#live-region")).toContainText("Press Q again to save and go back to the start screen");
+    await expect(page.locator("#live-region")).toContainText(
+      "Press Q again to save here and go back to the start screen. This replaces your last C save.",
+    );
     await page.keyboard.press("l"); // another key: disarmed
     await expect(page.locator("#live-region")).not.toContainText("Press Q again");
     await page.keyboard.press("q");
@@ -83,6 +85,9 @@ test("the first F1 page mentions the inventory", async ({ page }) => {
   await page.goto("/?replay=tavern");
   await page.keyboard.press("Enter");
   await expect(page.locator("#start-gate")).toBeHidden({ timeout: 10_000 });
+  // Wait for the first room, so F1 isn't pressed while the game is starting.
+  await expect(page.locator("#live-region")).toContainText("Inn bar");
   await page.keyboard.press("F1");
   await expect(page.locator("#live-region")).toContainText("Tab opens your inventory.");
+  await expect(page.locator("#live-region")).toContainText("Q twice goes back to the start screen.");
 });

@@ -90,7 +90,7 @@ export class GhostAudio {
    * silent (R6.5). The disabled / no-file cases resolve quietly because
    * `willPlay` already returned false for them, so `askHint` announced the text.
    */
-  async play(key: string): Promise<void> {
+  async play(key: string, onEnded?: () => void): Promise<void> {
     if (!this.enabled) return;
     const url = this.urls[`./ghost/${cacheFileName(key)}`];
     if (!url) return; // no cached file: willPlay already said so; silent here.
@@ -102,7 +102,11 @@ export class GhostAudio {
     source.buffer = buffer;
     source.connect(this.master);
     source.onended = () => {
-      if (this.current === source) this.current = undefined;
+      // Only a whisper that played to its end: stop() clears `current` first,
+      // so a cut-off whisper never calls onEnded.
+      if (this.current !== source) return;
+      this.current = undefined;
+      onEnded?.();
     };
     source.start();
     this.current = source;

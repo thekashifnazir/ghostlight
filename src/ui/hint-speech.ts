@@ -3,6 +3,9 @@
 
 import type { HintResult } from "../hints/engine.js";
 
+/** Said after a clue: the next H gives the answer. */
+export const ANSWER_NEXT = "Press H again for the answer.";
+
 export interface HintSpeechDeps {
   live: {
     announce(text: string): void;
@@ -10,7 +13,9 @@ export interface HintSpeechDeps {
     interrupt(): boolean;
   };
   /** Undefined before the start gate. */
-  audio: { willPlay(key: string): boolean; play(key: string): Promise<unknown> } | undefined;
+  audio:
+    | { willPlay(key: string): boolean; play(key: string, onEnded?: () => void): Promise<unknown> }
+    | undefined;
   readVoicedLines: boolean;
   noHintText: string;
   recordStatus(text: string): void;
@@ -31,6 +36,11 @@ export function speakHint(r: HintResult, d: HintSpeechDeps): void {
     d.live.announce(d.noHintText);
     return;
   }
+  // After a clue, say that the next H gives the answer, so the player chooses
+  // how much is spoiled (prior art, 16 Nov: Game Developer on low-spoiler
+  // hints, the intfiction.org hint thread). Never part of r.text, which keys
+  // the ghost's recording.
+  const warn = r.tier === "clue";
   d.live.interrupt();
   const audio = d.audio;
   const voiced = audio?.willPlay(r.audioKey) === true;
@@ -40,12 +50,14 @@ export function speakHint(r: HintResult, d: HintSpeechDeps): void {
     d.live.record(r.text);
     d.recordStatus(r.text);
     d.logVoiced(r.text);
-    audio.play(r.audioKey).catch(() => {
-      d.live.announce(r.text);
+    // The warning waits for the ghost to finish, so it never talks over it.
+    const after = warn ? () => d.live.announce(ANSWER_NEXT) : undefined;
+    audio.play(r.audioKey, after).catch(() => {
+      d.live.announce(warn ? `${r.text} ${ANSWER_NEXT}` : r.text);
     });
     return;
   }
-  d.live.announce(r.text);
+  d.live.announce(warn ? `${r.text} ${ANSWER_NEXT}` : r.text);
   if (audio) {
     audio.play(r.audioKey).catch(() => {
       /* text is already spoken; the whisper is flavour only. */

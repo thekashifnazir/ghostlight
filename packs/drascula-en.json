@@ -2104,7 +2104,7 @@
       "hints": {
         "nudge": "Von Braun takes you seriously now. Ask how he survived Drascula.",
         "clue": "Talk to Von Braun about why Drascula didn't kill him.",
-        "answer": "Talk to Von Braun and choose WHY WOULDN'T DRASCULA KILL YOU?"
+        "answer": "Von Braun sends you outside after the test. Walk back in through the front door, then talk to Von Braun and choose WHY WOULDN'T DRASCULA KILL YOU?"
       },
       "note": "Flag 33 is also set by talking to the blind man a second time (animation_4_2), so the condition includes flag 22."
     },
@@ -2133,7 +2133,7 @@
       "hints": {
         "nudge": "You've got everything Von Braun asked for.",
         "clue": "Talk to Von Braun. There's a new thing to tell him.",
-        "answer": "Talk to Von Braun and choose I HAVE ALL THE INGREDIENTS OF THAT BREW."
+        "answer": "If you're outside the hut, walk back in through the front door. Talk to Von Braun and choose I HAVE ALL THE INGREDIENTS OF THAT BREW."
       }
     },
     {
@@ -2373,7 +2373,7 @@
       "hints": {
         "nudge": "Not everything outside the castle is scenery. Something there is worth carrying.",
         "clue": "There's a rope lying in the castle grounds.",
-        "answer": "In the castle grounds, take the rope."
+        "answer": "In the castle grounds, take the rope. If you closed the entrance hall's door on the far right, open it again to get back outside."
       },
       "note": "Placed after ch4.axe so its hint doesn't compete with the castle steps. It still latches whenever the rope is taken, which most players do on arrival."
     },
@@ -2388,7 +2388,7 @@
       "hints": {
         "nudge": "Back outside, something was too tough to take by hand. Now you have a blade.",
         "clue": "The branch behind the small tree. You couldn't pull it off, but the axe can cut it.",
-        "answer": "Go back out to the castle grounds and behind the small tree. Use the axe on the branch."
+        "answer": "Go back out to the castle grounds and behind the small tree. Use the axe on the branch. If you closed the entrance hall's door on the far right, open it again first."
       }
     },
     {
@@ -2587,7 +2587,7 @@
       "hints": {
         "nudge": "You're past the gate at last. Drascula sleeps somewhere close by.",
         "clue": "The door ahead leads to his bedroom. Vampires sleep in one place only.",
-        "answer": "Go through the door to Drascula's bedroom, then open the coffin."
+        "answer": "Go through the door to Drascula's bedroom, then open the coffin. When Drascula catches you, choose WAIT A SECOND!, WHAT ABOUT MY LAST WISH? to go on."
       }
     },
     {

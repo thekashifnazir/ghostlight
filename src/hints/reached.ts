@@ -72,6 +72,11 @@ export function satisfiedMilestones(
   const out = new Set<string>();
   for (const m of pack.milestones ?? ([] as Milestone[])) {
     if (m.when === undefined) continue;
+    // `when` is evaluated only while the current chapter is the milestone's
+    // chapter (packs/FORMAT.md). Drascula reuses flag numbers in every
+    // chapter, so without this, chapter 5's flags 2, 6, 7 and 8 marked
+    // chapter 6's steps done before chapter 6 began (16 Nov walkthrough).
+    if (m.chapter !== state.chapter) continue;
     if (evaluate(m.when, state, reached)) out.add(m.id);
   }
   return out;

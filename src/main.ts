@@ -101,6 +101,7 @@ const HELP_SHORT =
   "Slash opens a command box to type a plain command. " +
   "L reads the whole room. H asks the ghost for a hint. " +
   "Tab opens your inventory. " +
+  "Q twice goes back to the start screen. " +
   "F1 or question mark reads this help. " +
   "Press F1 again for more.";
 
@@ -867,7 +868,7 @@ export async function boot(): Promise<void> {
     if (!quitArmed) {
       quitArmed = true;
       live.announce(
-        "Press Q again to save and go back to the start screen, where you can pick a chapter you've reached.",
+        "Press Q again to save here and go back to the start screen. This replaces your last C save.",
       );
       return;
     }

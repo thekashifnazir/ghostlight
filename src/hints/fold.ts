@@ -29,7 +29,14 @@ export interface EngineHintState {
  * - Chapter/room: take a change's `to` value, else keep `prev`'s (R11.4).
  */
 export function foldDiff(prev: EngineHintState, diff: Diff): EngineHintState {
-  const flags = prev.flags.slice();
+  // A chapter change starts from cleared flags. Drascula resets all 50 at each
+  // chapter start (packs/FORMAT.md), but the crossing diff is taken after the
+  // reset, so it lists only flags the new chapter set, never the old chapter's
+  // flags going back to 0. Without this, chapter 5's flags 2, 6, 7 and 8 made
+  // chapter 6's hints skip four steps (16 Nov walkthrough). Queen never changes
+  // chapter, so this never fires there.
+  const newChapter = diff.chapter !== undefined && diff.chapter[1] !== prev.chapter;
+  const flags = newChapter ? prev.flags.map(() => 0) : prev.flags.slice();
   if (diff.flags) {
     for (const [index, change] of Object.entries(diff.flags)) {
       const i = Number(index);
