@@ -103,7 +103,7 @@ const HELP_SHORT =
   "Tab opens your inventory. " +
   "Q twice goes back to the start screen. " +
   "F1 or question mark reads this help. " +
-  "Press F1 again for more.";
+  "Press F1 again for every other key, including V for more actions like push and open, S, N and P for the sonar, and D for reading what characters say.";
 
 const HELP_TEXT =
   "Controls. Left and Right cycle the things, people and exits in the room. " +

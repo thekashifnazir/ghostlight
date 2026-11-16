@@ -113,7 +113,23 @@ function bestHotspots(
       top.push(h);
     }
   }
-  return { top, score: best };
+  return { top: preferWholeName(top, queryWords), score: best };
+}
+
+/**
+ * Break a tie in favour of the one name the query covers completely: "push
+ * torch" means the torch, not "secret door to B.J.'s bedroom, opens after the
+ * torch" (a tester, 16 Nov: chapter 6's torch couldn't be pushed by typing).
+ * Still ambiguous when no single name is covered best.
+ */
+function preferWholeName(top: Hotspot[], queryWords: string[]): Hotspot[] {
+  if (top.length < 2) return top;
+  const q = new Set(queryWords.filter((w) => !STOP_WORDS.has(w)));
+  const extra = (h: Hotspot): number =>
+    normalise(h.name).filter((w) => !STOP_WORDS.has(w) && !q.has(w)).length;
+  const least = Math.min(...top.map(extra));
+  const best = top.filter((h) => extra(h) === least);
+  return best.length === 1 ? best : top;
 }
 
 function bestItem(

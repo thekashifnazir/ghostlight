@@ -31,7 +31,7 @@ const HELP_OPENING = "Left and Right cycle the things, people and exits in the r
 // The updated tail that names the '?' alias (present on both pages).
 const HELP_QUESTION_MARK = "F1 or question mark reads this help.";
 // The short page ends by inviting a second press; the full page does not.
-const HELP_MORE = "Press F1 again for more.";
+const HELP_MORE = "Press F1 again for every other key";
 // A line only the full page carries (the sonar keys), so it tells the two
 // pages apart.
 const HELP_FULL_ONLY = "scans the room as sound";
