@@ -42,11 +42,11 @@ function KeyUp($k) {
 
 $log = Join-Path $env:TEMP "nvda.log"
 
-# Focus the browser (Chrome or Edge, whichever this run started) by the process
+# Focus the browser (Chrome, Edge or Firefox, whichever this run started) by the process
 # that owns a visible window. Edge's title has a zero-width space in
 # "Microsoft Edge", so activate by process id rather than by title.
 $sh = New-Object -ComObject WScript.Shell
-$bw = Get-Process chrome, msedge -ErrorAction SilentlyContinue | Where-Object { $_.MainWindowHandle -ne 0 } | Select-Object -First 1
+$bw = Get-Process firefox, chrome, msedge -ErrorAction SilentlyContinue | Where-Object { $_.MainWindowHandle -ne 0 } | Select-Object -First 1
 if ($bw) { [void]$sh.AppActivate($bw.Id) } else { [void]$sh.AppActivate("Google Chrome") }
 Start-Sleep -Milliseconds 600
 

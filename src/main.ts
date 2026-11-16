@@ -52,6 +52,7 @@ import { isMacPlatform } from "./ui/platform.js";
 import { addMacGameSurfaceText } from "./ui/game-surface.js";
 import { VerbMenu } from "./ui/verb-menu.js";
 import { Guide, guidePages, guideSeen, markGuideSeen } from "./ui/guide.js";
+import { holdFocusThroughLoad } from "./ui/hold-focus.js";
 import { loadReadVoiced, saveReadVoiced } from "./ui/voiced-lines.js";
 
 // Build stamp, replaced by Vite's define at build and dev-server start. A
@@ -1390,6 +1391,15 @@ export async function boot(): Promise<void> {
   // intent turns it off because it auto-starts.
   let gateHandlesAnyKey = true;
 
+  // The main button of the Continue / New game choice and of the guide offer
+  // (Continue, Start the guide). On those gates Enter pressed while focus is
+  // NOT on a button does what this button does, as Enter already begins the
+  // game anywhere on the fresh Start gate. Safari + VoiceOver (15 Nov): when
+  // VoiceOver is on as the page loads, its automatic page reading moves
+  // keyboard focus along the page, ending on the Source code link, so Enter
+  // opened the link instead of continuing. Undefined while no such gate shows.
+  let gateDefault: HTMLButtonElement | undefined;
+
   /**
    * Render a single Start button into the gate (the fresh-visit variant) and
    * focus it. No Continue button is in the DOM, so there is nothing else for a
@@ -1459,8 +1469,9 @@ export async function boot(): Promise<void> {
       void startPlaying();
     });
     gateActions.replaceChildren(start, skip);
+    gateDefault = start;
     live.announce(text);
-    start.focus();
+    holdFocusThroughLoad(start);
   };
 
   const renderStartAction = (): void => {
@@ -1486,7 +1497,7 @@ export async function boot(): Promise<void> {
       startButton,
       guideButton(() => openGuide("Start the game", () => void startPlaying())),
     );
-    startButton.focus();
+    holdFocusThroughLoad(startButton);
   };
 
   /**
@@ -1546,12 +1557,13 @@ export async function boot(): Promise<void> {
       ),
     );
     gateActions.replaceChildren(resumeChoice);
+    gateDefault = continueButton;
 
     // Announce the choice as functional text (R3.3).
     live.announce(
       "You have a saved game. Press Continue to resume, or New game to start over.",
     );
-    continueButton.focus();
+    holdFocusThroughLoad(continueButton);
   };
 
   // The gate's "press a key to begin" shortcut, kept for a fresh start.
@@ -1635,7 +1647,9 @@ export async function boot(): Promise<void> {
   // is exactly what startPlaying's guarded removal expects.
   // The guide offer turns the begin shortcut off but keeps F1 / ? working, as
   // the gate text promises; the listener checks gateHandlesAnyKey for begin.
-  if (gateHandlesAnyKey || offerGuideFirst) {
+  // The Continue gate and the guide offer also get it, for F1 / ? and for
+  // Enter off their buttons (see gateDefault).
+  if (gateHandlesAnyKey || offerGuideFirst || gateDefault) {
     // Listen at the document level, not on #start-gate, so the shortcut works
     // no matter where focus sits. The gate's Start button is focused when
     // shown, but a click on the page background moves focus to <body>; a
@@ -1654,7 +1668,25 @@ export async function boot(): Promise<void> {
         helpReader.read();
         return;
       }
-      if (!gateHandlesAnyKey) return; // handled by buttons or load-intent start
+      if (!gateHandlesAnyKey) {
+        // Continue gate or guide offer: Enter off the buttons (the page body,
+        // the Source code link) does the main button's action. Any other key,
+        // and Enter on a button, is left to the buttons.
+        const target = ev.target as HTMLElement | null;
+        if (
+          ev.key === "Enter" &&
+          !ev.ctrlKey &&
+          !ev.altKey &&
+          !ev.metaKey &&
+          !ev.shiftKey &&
+          target?.tagName !== "BUTTON" &&
+          gateDefault?.isConnected
+        ) {
+          ev.preventDefault();
+          gateDefault.click();
+        }
+        return;
+      }
       // Enter or Space on another focused gate button (How to play) is that
       // button's own click, not "begin".
       const t = ev.target as HTMLElement | null;
