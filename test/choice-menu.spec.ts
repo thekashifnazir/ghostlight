@@ -187,22 +187,22 @@ test.describe("conversation choice menu (replay)", () => {
   test("the game surface is named after the room, so returning focus says where the player is", async ({
     page,
   }) => {
-    // Issue 2: when the choice menu closes, focus returns to #game. Its
-    // accessible name must name the room (not a bare "Ghostlight game, empty
-    // application"), so a screen reader says where the player is in one short
-    // phrase. The drunk fixture is in the Inn bar (room 62).
+    // When a menu that takes focus closes (here the inventory), focus returns
+    // to #game, and its accessible name must name the room (not a bare
+    // "Ghostlight game, empty application"), so a screen reader says where the
+    // player is in one short phrase. While #game keeps focus its name doesn't
+    // change: JAWS announces a name change on the focused element, and the room
+    // reading already says "Inn bar" (15 Nov). The reply menu never moves
+    // focus, so it doesn't rename anything. The drunk fixture is in the Inn bar
+    // (room 62).
     await start(page, "drunk-choices");
-    await focusDrunk(page);
-
     const game = page.locator("#game");
-    await expect(game).toHaveAttribute("aria-label", "Ghostlight game, Inn bar");
+    await expect(game).toBeFocused();
+    await expect(game).toHaveAttribute("aria-label", "Ghostlight game");
 
-    // Pick option 1: the menu closes and focus returns to #game, whose name now
-    // reads the room — a short phrase, not the full room text.
-    await page.keyboard.press("Enter"); // open the menu (option 1 focused)
-    await expect(page.locator(CHOICE_MENU)).toBeVisible();
-    await page.keyboard.press("Enter"); // pick option 1
-    await expect(page.locator(CHOICE_MENU)).toBeHidden();
+    await page.keyboard.press("Tab"); // open the inventory: focus moves to it
+    await expect(game).not.toBeFocused();
+    await page.keyboard.press("Escape"); // close it: focus returns to #game
     await expect(game).toBeFocused();
     await expect(game).toHaveAttribute("aria-label", "Ghostlight game, Inn bar");
   });

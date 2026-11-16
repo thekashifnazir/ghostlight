@@ -677,6 +677,10 @@ export async function boot(): Promise<void> {
   // is read by L, not on every focus return (screen-reader-output: focus return
   // must not speak a long text). No live-region write: a focus change adds no
   // line (screen-reader-focus R2.6); this only updates the element's name.
+  // The name is set as focus moves to #game (focusGame), not while #game has
+  // focus: JAWS announces a name change on the focused element, so a room
+  // change while playing said "Ghostlight game, Inn bar" and then the room
+  // reading's own "Inn bar" (JAWS 2027 + Edge, 15 Nov).
   const updateGameLabel = (): void => {
     const name = pack.roomName(state.room);
     gameEl.setAttribute(
@@ -693,6 +697,7 @@ export async function boot(): Promise<void> {
   // here: focus changes must not add a line (R2.6).
   const focusGame = (): void => {
     activateGameSurface();
+    updateGameLabel();
     gameEl.focus({ preventScroll: true });
   };
 
@@ -1076,8 +1081,9 @@ export async function boot(): Promise<void> {
     currentList = buildHotspotList(s, pack);
     rebuildRoomLabels();
     // Name the game surface after this room, so returning focus to #game (after
-    // a menu or the command box closes) says where the player is.
-    updateGameLabel();
+    // a menu or the command box closes) says where the player is. Not while
+    // #game has focus: focusGame names it as focus comes back.
+    if (doc.activeElement !== gameEl) updateGameLabel();
     list.rebuild(currentList);
     inventory.setItems(s.inventory);
     // On the first room after Start, append the one-time key orientation to the
@@ -1149,8 +1155,9 @@ export async function boot(): Promise<void> {
       if (diff.chapter) state.chapter = diff.chapter[1];
       if (diff.room) state.room = diff.room[1];
       // Re-name the game surface after the new room, so returning focus to
-      // #game names where the player is now (one short phrase).
-      updateGameLabel();
+      // #game names where the player is now (one short phrase). Not while
+      // #game has focus: focusGame names it as focus comes back.
+      if (doc.activeElement !== gameEl) updateGameLabel();
       // A chapter change settles any pending crossing: the engine advanced on
       // its own, so the scheduler disarms and sends no skip.
       if (diff.chapter) crossingSkip?.noteChapter(diff.chapter[1]);
