@@ -57,6 +57,7 @@ export function guidePages(tip: string): GuidePage[] {
       title: "Saving and more",
       lines: [
         "The game saves by itself each time you enter a new room. C saves now, and O loads your latest save.",
+        "Q, pressed twice, saves and takes you back to the start screen, where you can pick any chapter you've reached.",
         "F1 or question mark lists every key at any time.",
         tip,
       ],

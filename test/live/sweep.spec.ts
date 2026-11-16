@@ -325,6 +325,46 @@ test.describe("live sweep (Chrome + WebKit)", () => {
     await expect(live).toContainText("Chapter 2: The village.", {
       timeout: 120_000,
     });
+
+    // 4. Reaching chapter 2 also saved the chapter's start (slot 92) for the
+    //    start screen's chapter list (tester feedback, 16 Nov).
+    await expect
+      .poll(
+        () =>
+          page.evaluate(
+            () =>
+              new Promise<string[]>((resolve) => {
+                const open = indexedDB.open("/saves");
+                open.onerror = () => resolve([]);
+                open.onsuccess = () => {
+                  const db = open.result;
+                  if (!db.objectStoreNames.contains("FILE_DATA")) return resolve([]);
+                  const r = db.transaction("FILE_DATA").objectStore("FILE_DATA").getAllKeys();
+                  r.onsuccess = () => resolve((r.result as IDBValidKey[]).map(String));
+                  r.onerror = () => resolve([]);
+                };
+              }),
+          ),
+        { timeout: 30_000 },
+      )
+      .toContain("/saves/drascula.092");
+
+    // 5. Q twice saves and goes back to the start screen.
+    await waitReady(page, 30_000);
+    await page.keyboard.press("q");
+    await expect(live).toContainText("Press Q again");
+    const reloaded = page.waitForEvent("load", { timeout: 30_000 });
+    await page.keyboard.press("q");
+    await expect(live).toContainText("Saved. Back to the start screen.", { timeout: 15_000 });
+    await reloaded;
+
+    // 6. The start screen offers Choose a chapter; chapter 2 boots its save.
+    await expect(page.locator("#continue-button")).toBeVisible({ timeout: 30_000 });
+    await page.locator("#chapters-button").click();
+    await expect(page.locator("#chapter-2")).toHaveText("Chapter 2: The village");
+    await page.locator("#chapter-2").click();
+    await expect(page.locator("#start-gate")).toBeHidden({ timeout: 90_000 });
+    await expect(live).toContainText("Loaded:", { timeout: 90_000 });
   });
 
   test("impatient player: five quick Escapes during the conversation never wedge the engine", async ({

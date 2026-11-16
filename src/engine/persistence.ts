@@ -45,6 +45,23 @@ export const AUTOSAVE_SLOT = 99;
 
 /** The single manual quick-save slot this feature writes with the save key. */
 export const MANUAL_SLOT = 1;
+/**
+ * Chapter saves (tester feedback, 16 Nov: "how do you go back to a previous
+ * chapter?"). The first time the player reaches chapter N (2 and up), the game
+ * also saves into slot CHAPTER_SLOT_BASE + N, so the start screen can offer
+ * every chapter reached. Slots 92 to 96 for Drascula's chapters 2 to 6: clear
+ * of the manual slot (1) and the autosave (99).
+ */
+export const CHAPTER_SLOT_BASE = 90;
+/** The save slot for the start of a chapter (2 and up). */
+export function chapterSlot(chapter: number): number {
+  return CHAPTER_SLOT_BASE + chapter;
+}
+/** The chapter a slot holds the start of, or undefined for any other slot. */
+export function chapterOfSlot(slot: number): number | undefined {
+  const n = slot - CHAPTER_SLOT_BASE;
+  return n >= 2 && n <= 8 ? n : undefined;
+}
 
 /**
  * ScummVM names Drascula saves "drascula.NNN" where NNN is the zero-padded
@@ -82,6 +99,8 @@ export function slotForSave(kind: SaveKind): number {
 export interface ProbeResult {
   hasSave: boolean;
   latestSlot?: number;
+  /** Chapters (2 and up) with a chapter save, in order. */
+  chapters?: number[];
 }
 
 /**
@@ -152,10 +171,21 @@ export function probeSaves(
             // so Continue resumes a real quick-save when there is one. Picking
             // the plain Math.max here would instead favour the high-numbered
             // autosave slot (AUTOSAVE_SLOT = 99) over any low manual slot.
-            const manual = slots.filter((s) => s !== AUTOSAVE_SLOT);
+            // Chapter saves are neither: they're where a chapter began, so
+            // Continue never picks one over the player's own progress.
+            const progress = slots.filter((s) => chapterOfSlot(s) === undefined);
+            const manual = progress.filter((s) => s !== AUTOSAVE_SLOT);
+            const chapters = slots
+              .map(chapterOfSlot)
+              .filter((c): c is number => c !== undefined)
+              .sort((a, b) => a - b);
             const latestSlot =
-              manual.length > 0 ? Math.max(...manual) : Math.max(...slots);
-            resolve({ hasSave: true, latestSlot });
+              manual.length > 0
+                ? Math.max(...manual)
+                : progress.length > 0
+                  ? Math.max(...progress)
+                  : chapterSlot(chapters[chapters.length - 1]);
+            resolve({ hasSave: true, latestSlot, chapters });
           }
         };
       } catch {

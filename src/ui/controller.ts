@@ -140,6 +140,14 @@ export interface ControllerDeps {
    * Bound to O.
    */
   load?: () => void;
+  /**
+   * The quit key (Q): the first press asks for a second, the second saves and
+   * goes back to the start screen (tester feedback, 16 Nov). Optional like
+   * `save`.
+   */
+  quit?: () => void;
+  /** Disarm a pending quit; called on every key that isn't Q. */
+  resetQuit?: () => void;
 }
 
 export class Controller {
@@ -181,6 +189,8 @@ export class Controller {
     // are left to toggle the page (readHelp advances it).
     const isHelpKey = key === "F1" || key === "?";
     if (!isHelpKey) this.d.resetHelp?.();
+    // Likewise the quit key needs two presses in a row.
+    if (key !== "q" && key !== "Q") this.d.resetQuit?.();
 
     // Mode-specific routing first. The choice menu is modal — the engine is
     // blocked waiting for a pick — so it owns the keyboard ahead of the verb
@@ -319,6 +329,13 @@ export class Controller {
         // manager's single-update path ("Saved." or a failure line).
         if (!this.d.save) return false;
         this.d.save();
+        return true;
+      case "q":
+      case "Q":
+        // Quit to the start screen, saving first (two presses; main.ts asks
+        // for the second).
+        if (!this.d.quit) return false;
+        this.d.quit();
         return true;
       case "o":
       case "O":

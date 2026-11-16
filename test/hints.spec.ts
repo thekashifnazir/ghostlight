@@ -55,20 +55,20 @@ test.describe("hint key: tiers in order", () => {
   });
 });
 
-test.describe("hint key: nothing to hint at", () => {
-  test("H with nothing offered speaks the 'nothing to hint at' line", async ({
+test.describe("hint key: chapter 3 and later have hints", () => {
+  test("H in a chapter-3 room gives a chapter-3 hint, not 'nothing to hint at'", async ({
     page,
   }) => {
-    // The ch3-no-hints fixture boots into a chapter-3 room. The pack has no
-    // chapter-3 milestones and selectTarget drops earlier-chapter ones, so the
-    // offered set is empty: pressing H returns { kind: "none" } and the player
-    // speaks NO_HINT_TEXT end to end (R2.6, R5.3).
+    // Tester feedback, 16 Nov: stuck in chapter 4, where H used to say "There
+    // is nothing to hint at right now." because the pack stopped at chapter 2.
+    // The ch3-no-hints fixture (named for that old gap) boots into a chapter-3
+    // room; H now offers ch3.vampire's nudge. The "nothing to hint at" path
+    // itself is covered by the unit tests (hints-voiced, live-interrupt).
     await start(page, "ch3-no-hints");
 
     await page.keyboard.press("h");
-    await expect(live(page)).toContainText(
-      "There is nothing to hint at right now.",
-    );
+    await expect(live(page)).toContainText("Keep going. Something is waiting further on.");
+    await expect(live(page)).not.toContainText("There is nothing to hint at right now.");
   });
 });
 

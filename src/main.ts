@@ -20,7 +20,7 @@ import { mapEngineError } from "./engine/error-lines.js";
 import { CrossingSkip } from "./engine/crossing-skip.js";
 import { StatusTracker } from "./engine/status.js";
 import { installSpeechlog, isSpeechlogEnabled, type Speechlog } from "./engine/speechlog.js";
-import { Persistence, probeSaves } from "./engine/persistence.js";
+import { Persistence, chapterSlot, probeSaves } from "./engine/persistence.js";
 import { SaveManager } from "./engine/save-manager.js";
 import { setLoadIntent, takeLoadIntent } from "./engine/load-intent.js";
 import { buildHotspotList, type Hotspot } from "./model/hotspot-list.js";
@@ -100,6 +100,7 @@ const HELP_SHORT =
   "Up or Enter interacts with the focused thing. Down examines it. " +
   "Slash opens a command box to type a plain command. " +
   "L reads the whole room. H asks the ghost for a hint. " +
+  "Tab opens your inventory. " +
   "F1 or question mark reads this help. " +
   "Press F1 again for more.";
 
@@ -131,6 +132,8 @@ const HELP_TEXT =
   "M mutes the sonar sound; the text keeps working. " +
   "C saves your progress. O loads your most recent save. " +
   "Your progress also saves by itself whenever you move to a new room. " +
+  "Q, pressed twice, saves and goes back to the start screen, where you can " +
+  "pick any chapter you've reached. " +
   screenReaderTip() + " " +
   BUILD_LINE;
 
@@ -854,7 +857,23 @@ export async function boot(): Promise<void> {
       setLoadIntent(slot);
       location.reload();
     },
+    // Give the screen reader a moment to say QUIT_LINE before the reload.
+    reloadToStart: () => window.setTimeout(() => location.reload(), 1500),
   });
+
+  // The quit key (Q) needs two presses in a row: the first only explains.
+  let quitArmed = false;
+  const quitKey = (): void => {
+    if (!quitArmed) {
+      quitArmed = true;
+      live.announce(
+        "Press Q again to save and go back to the start screen, where you can pick a chapter you've reached.",
+      );
+      return;
+    }
+    quitArmed = false;
+    saveManager.quit();
+  };
 
   // A thin adapter view whose send() routes through sendCommand (for the
   // crossing skip), delegating start()/onEvent() to the real adapter. The
@@ -905,6 +924,10 @@ export async function boot(): Promise<void> {
     // Save (C) and load (O) keys (save-progress R2.2, R2.4).
     save: () => saveManager.save(),
     load: () => saveManager.load(),
+    quit: quitKey,
+    resetQuit: () => {
+      quitArmed = false;
+    },
   });
 
   // Route adapter events to the model and UI.
@@ -1220,6 +1243,9 @@ export async function boot(): Promise<void> {
       // first-room gate was already spent by applyRoom's initial entry, so a
       // room change via a door always autosaves.
       saveManager.onRoomChange();
+      // A new chapter also gets its own save, for the start screen's chapter
+      // list (tester feedback, 16 Nov).
+      if (diff.chapter) saveManager.onChapterStart(diff.chapter[1]);
       showHighlight(list.current());
       return;
     }
@@ -1406,6 +1432,8 @@ export async function boot(): Promise<void> {
   // keyboard focus along the page, ending on the Source code link, so Enter
   // opened the link instead of continuing. Undefined while no such gate shows.
   let gateDefault: HTMLButtonElement | undefined;
+  // Chapters (2 and up) with a chapter save, from the pre-boot save probe.
+  let reachedChapters: number[] = [];
 
   /**
    * Render a single Start button into the gate (the fresh-visit variant) and
@@ -1514,6 +1542,52 @@ export async function boot(): Promise<void> {
    * Continue — the fix for the spike-10 bug where VoiceOver stayed on a Start
    * button that a save had made obsolete.
    */
+  /**
+   * The chapter list (tester feedback, 16 Nov: "how do you go back to a
+   * previous chapter?"). Chapter 1 starts a new game; every chapter the player
+   * has reached boots its chapter save (CHAPTER_SLOT_BASE + n), like Continue.
+   */
+  const renderChapterChoice = (resumeSlot: number | undefined): void => {
+    gateHandlesAnyKey = false;
+    gateDefault = undefined;
+    const instruction = doc.getElementById("gate-instruction");
+    if (instruction)
+      instruction.textContent = "Choose a chapter to play from its start.";
+    const box = doc.createElement("div");
+    box.id = "chapter-choice";
+    const chapterButton = (n: number, onClick: () => void): HTMLButtonElement => {
+      const b = doc.createElement("button");
+      b.type = "button";
+      b.id = `chapter-${n}`;
+      const name = pack.chapterName(n);
+      b.textContent = name ? `Chapter ${n}: ${name}` : `Chapter ${n}`;
+      b.addEventListener("click", onClick);
+      return b;
+    };
+    const first = chapterButton(1, () => void startPlaying());
+    box.append(first);
+    for (const n of reachedChapters) {
+      box.append(
+        chapterButton(n, () => {
+          if (adapter instanceof LiveAdapter) adapter.setSaveSlot(chapterSlot(n));
+          bootedIntoSlot = true;
+          void startPlaying();
+        }),
+      );
+    }
+    const back = doc.createElement("button");
+    back.type = "button";
+    back.id = "chapter-back";
+    back.textContent = "Back";
+    back.addEventListener("click", () => renderResumeChoice(resumeSlot));
+    box.append(back);
+    gateActions.replaceChildren(box);
+    live.announce(
+      `Choose a chapter: ${reachedChapters.length + 1} to choose from. Each starts at the beginning of that chapter.`,
+    );
+    first.focus();
+  };
+
   const renderResumeChoice = (resumeSlot: number | undefined): void => {
     gateHandlesAnyKey = false; // the buttons own the keys now
 
@@ -1552,9 +1626,18 @@ export async function boot(): Promise<void> {
 
     // Continue first, then New game: the reading and Tab order a returning
     // player meets.
+    resumeChoice.append(continueButton, newGameButton);
+    if (reachedChapters.length > 0) {
+      const chaptersButton = doc.createElement("button");
+      chaptersButton.id = "chapters-button";
+      chaptersButton.type = "button";
+      chaptersButton.textContent = "Choose a chapter";
+      chaptersButton.addEventListener("click", () =>
+        renderChapterChoice(resumeSlot),
+      );
+      resumeChoice.append(chaptersButton);
+    }
     resumeChoice.append(
-      continueButton,
-      newGameButton,
       guideButton(() =>
         openGuide("Back to Continue", () => {
           const intro = startGate.querySelector("p");
@@ -1636,6 +1719,7 @@ export async function boot(): Promise<void> {
       (): import("./engine/persistence.js").ProbeResult => ({ hasSave: false }),
     );
     if (result.hasSave) {
+      reachedChapters = result.chapters ?? [];
       renderResumeChoice(result.latestSlot);
     } else {
       renderStartAction();

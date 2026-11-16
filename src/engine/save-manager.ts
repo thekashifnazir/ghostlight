@@ -21,7 +21,7 @@
 
 import type { Command } from "./adapter.js";
 import type { Persistence, SaveKind } from "./persistence.js";
-import { slotForSave } from "./persistence.js";
+import { chapterOfSlot, chapterSlot, slotForSave } from "./persistence.js";
 
 /** Wording decided in review (save-progress design, open question 4). */
 export const SAVED_LINE = "Saved.";
@@ -29,6 +29,8 @@ export const SAVE_UNAVAILABLE_LINE =
   "Progress can't be saved in this browser, so it'll be lost when you close the page.";
 export const SAVE_FAILED_LINE = "Progress can't be saved right now.";
 export const LOAD_FAILED_LINE = "That saved game couldn't be loaded.";
+/** Spoken as the quit key's save lands, just before the start screen loads. */
+export const QUIT_LINE = "Saved. Back to the start screen.";
 
 /** How long to wait for an A11Y_SAVED before declaring a save failed (ms). */
 export const SAVE_WATCHDOG_MS = 4000;
@@ -70,6 +72,11 @@ export interface SaveManagerDeps {
    * and calls location.reload().
    */
   requestReloadInto: (slot: number) => void;
+  /**
+   * Go back to the start screen (the quit key), after QUIT_LINE is announced.
+   * Optional so tests that predate quitting need not wire it.
+   */
+  reloadToStart?: () => void;
   /** Cancellable timer for the save watchdog; defaults to window timers. */
   timer?: Timer;
   /** Watchdog window; defaults to SAVE_WATCHDOG_MS. */
@@ -100,6 +107,14 @@ export class SaveManager {
    * speaks — see handleError.
    */
   private pendingAuto = false;
+  /**
+   * A chapter save waiting for the room-change autosave to finish (the engine
+   * takes one command at a time), or in flight. Quiet, like an autosave.
+   */
+  private pendingChapter: number | undefined;
+  private chapterInFlight = false;
+  /** Set by quit(): once the manual save lands, go back to the start screen. */
+  private quitting = false;
 
   constructor(deps: SaveManagerDeps) {
     this.d = deps;
@@ -122,6 +137,7 @@ export class SaveManager {
     this.clearPending();
     this.pendingManual = this.timer.set(() => {
       this.pendingManual = undefined;
+      this.quitting = false;
       this.d.announce(SAVE_FAILED_LINE);
     }, this.watchdogMs);
     this.d.send({ verb: "save", slot: slotForSave("manual") });
@@ -139,12 +155,59 @@ export class SaveManager {
     if (slot === autoSlot) {
       this.pendingAuto = false;
       await this.d.persistence.commit();
+      this.sendPendingChapter();
+      return;
+    }
+    if (chapterOfSlot(slot) !== undefined) {
+      this.chapterInFlight = false;
+      await this.d.persistence.commit();
       return;
     }
     // Manual save: resolve the watchdog and report the outcome.
     this.clearPending();
     const ok = await this.d.persistence.commit();
+    if (ok && this.quitting) {
+      this.quitting = false;
+      this.d.announce(QUIT_LINE);
+      this.d.reloadToStart?.();
+      return;
+    }
+    this.quitting = false;
     this.d.announce(ok ? SAVED_LINE : SAVE_FAILED_LINE);
+  }
+
+  /**
+   * Called when the player reaches a new chapter (2 and up). Saves the start of
+   * the chapter into its own slot, quietly, so the start screen can offer it
+   * later. Sent after the room-change autosave lands, since the engine takes
+   * one command at a time.
+   */
+  onChapterStart(chapter: number): void {
+    if (chapter < 2 || !this.d.persistence.isAvailable()) return;
+    this.pendingChapter = chapterSlot(chapter);
+    if (!this.pendingAuto) this.sendPendingChapter();
+  }
+
+  /**
+   * The quit key's second press: save to the manual slot (so Continue resumes
+   * right here), then go back to the start screen. If saving isn't possible,
+   * say so and stay in the game.
+   */
+  quit(): void {
+    if (!this.d.persistence.isAvailable()) {
+      this.d.announce(SAVE_UNAVAILABLE_LINE);
+      return;
+    }
+    this.quitting = true;
+    this.save();
+  }
+
+  private sendPendingChapter(): void {
+    if (this.pendingChapter === undefined) return;
+    const slot = this.pendingChapter;
+    this.pendingChapter = undefined;
+    this.chapterInFlight = true;
+    this.d.send({ verb: "save", slot });
   }
 
   /**
@@ -180,8 +243,9 @@ export class SaveManager {
    * ours and is returned for announcement.
    */
   handleError(message: string): boolean {
-    if (this.pendingAuto && isSaveError(message)) {
+    if ((this.pendingAuto || this.chapterInFlight) && isSaveError(message)) {
       this.pendingAuto = false;
+      this.chapterInFlight = false;
       // Log only; never spoken. Keeps the room line intact at a room change.
       console.warn(`[ghostlight] autosave error (not announced): ${message}`);
       return true;

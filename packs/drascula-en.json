@@ -71,6 +71,26 @@
       "name": "The village",
       "startRoom": 14,
       "summary": "You searched the village for a way to fight Drascula. Professor Von Braun tested your nerve, made you a brew against vampire bites and told you about an old well by the church."
+    },
+    "3": {
+      "name": "Below the well",
+      "startRoom": 20,
+      "summary": "You climbed down the old well and found a way on underground. A vampire blocked your path, and you used the crucifix on him to get past."
+    },
+    "4": {
+      "name": "The castle",
+      "startRoom": 21,
+      "summary": "You got into Drascula's castle and dressed up as Drascula to fool Igor out of the living-room keys. With an axe from the living room you cut a branch, tied your rope to it and used it to climb the tower."
+    },
+    "5": {
+      "name": "The castle",
+      "startRoom": 45,
+      "summary": "You reached Drascula's castle, found B.J. locked in its dungeon and brought Drascula's monster to life to get past a barred gate. But Drascula's coffin was empty: it was a trap, and he ordered Igor to take you to the pendulum."
+    },
+    "6": {
+      "name": "Drascula's lair",
+      "startRoom": 102,
+      "summary": "Drascula caught you, got the brew recipe out of you and left you under a pendulum. You broke free, found B.J., got Drascula to drink a scotch to cancel out the brew, and finished him with the crucifix."
     }
   },
   "rooms": {
@@ -2129,6 +2149,577 @@
         "clue": "The well is in the yard behind the church. Go through the church and out of the small door.",
         "answer": "In the churchyard behind the church, walk into the well."
       }
+    },
+    {
+      "id": "ch3.start",
+      "chapter": 3,
+      "title": "Climbed down the well",
+      "when": { "chapter": 3 },
+      "rooms": [20],
+      "recap": "You climbed down the well and came out in a room below it.",
+      "hints": {
+        "nudge": "You're underground now. There's only one way to go.",
+        "clue": "There's a door at the far right of this room.",
+        "answer": "Walk through the door on the far right."
+      }
+    },
+    {
+      "id": "ch3.vampire",
+      "chapter": 3,
+      "title": "Met the vampire",
+      "after": ["ch3.start"],
+      "when": { "flags": { "3": 1 } },
+      "rooms": [20, 13],
+      "recap": "You went through the door, and a vampire stepped out to block your way.",
+      "hints": {
+        "nudge": "Keep going. Something is waiting further on.",
+        "clue": "Go through the door on the far right, then head into the next room.",
+        "answer": "From where you arrived, walk through the door on the far right. In the next room, walk towards the vampire."
+      },
+      "note": "Flag 3 is set by animation_6_3, which update_13 runs as soon as the hero is right of x 55 in room 13. The hero arrives at x 45, so the first step into the room, or any walk to the vampire, sets it."
+    },
+    {
+      "id": "ch3.past-vampire",
+      "chapter": 3,
+      "title": "Got past the vampire",
+      "after": ["ch3.vampire"],
+      "end": true,
+      "rooms": [13],
+      "recap": "You used the crucifix on the vampire and the way ahead was clear.",
+      "hints": {
+        "nudge": "He's a vampire. You came prepared for one of those.",
+        "clue": "Talking or paying won't shift him. Something from the church will. Check your inventory.",
+        "answer": "Use the crucifix on the vampire."
+      }
+    },
+    {
+      "id": "ch4.start",
+      "chapter": 4,
+      "title": "Reached Drascula's castle",
+      "when": { "chapter": 4 },
+      "rooms": [21],
+      "recap": "You arrived outside Drascula's castle.",
+      "hints": {
+        "nudge": "You're outside the castle, and the front door won't open for you. Have a look round the grounds first.",
+        "clue": "The castle door is locked. There's a way behind the small tree in the castle grounds.",
+        "answer": "In the castle grounds, walk through the small tree to get behind it."
+      }
+    },
+    {
+      "id": "ch4.magpie",
+      "chapter": 4,
+      "title": "Got the magpie out of the way",
+      "after": ["ch4.start"],
+      "when": { "flags": { "26": 1 } },
+      "rooms": [22],
+      "recap": "You used your coin on the magpie behind the tree, and it was out of the way.",
+      "hints": {
+        "nudge": "Something behind the tree is being guarded. Deal with the guard before you try to take it.",
+        "clue": "The magpie won't let you near the key. Magpies like shiny things, and you have one.",
+        "answer": "Behind the tree, use the coin on the magpie."
+      }
+    },
+    {
+      "id": "ch4.inside",
+      "chapter": 4,
+      "title": "Unlocked the castle door",
+      "after": ["ch4.magpie"],
+      "when": { "flags": { "28": 1 } },
+      "rooms": [21, 22],
+      "recap": "You took the key from behind the tree and unlocked the castle door.",
+      "hints": {
+        "nudge": "What the magpie was guarding is free to take now. Then try the front of the castle again.",
+        "clue": "The key is behind the small tree, and the castle door in the grounds is locked.",
+        "answer": "Behind the tree, take the key. Back in the castle grounds, use the key on the castle door, then walk through it."
+      }
+    },
+    {
+      "id": "ch4.draskis",
+      "chapter": 4,
+      "title": "Found the draskis",
+      "after": ["ch4.inside"],
+      "when": { "flags": { "11": 1 } },
+      "rooms": [23],
+      "recap": "You closed the front door behind you and found the draskis in the entrance hall.",
+      "hints": {
+        "nudge": "Something in the entrance hall is out of sight. Think about what you left open when you came in.",
+        "clue": "While the door on the far right, back outside, stands open, it hides something near the table.",
+        "answer": "In the entrance hall, close the door on the far right, back outside. Then take the draskis."
+      }
+    },
+    {
+      "id": "ch4.lab",
+      "chapter": 4,
+      "title": "Found the secret lab",
+      "after": ["ch4.inside"],
+      "when": { "flags": { "25": 1 } },
+      "rooms": [27, 34],
+      "recap": "You opened the closet in the torch room upstairs. There was a pine stake in it, and a way through to a secret lab.",
+      "hints": {
+        "nudge": "One of the rooms upstairs has more behind it than it seems.",
+        "clue": "The closet in the torch room. The torch room is through the door on the right of the upstairs landing.",
+        "answer": "From the entrance hall, open the door on the far left and go through. In the tapestry corridor, take the staircase up. On the landing, go through the door on the right to the torch room. Open the closet, then walk into it."
+      }
+    },
+    {
+      "id": "ch4.cloak",
+      "chapter": 4,
+      "title": "Took the cloak",
+      "after": ["ch4.lab"],
+      "when": { "flags": { "14": 1 } },
+      "rooms": [35],
+      "recap": "You took a black cloak from the stand in the secret lab.",
+      "hints": {
+        "nudge": "Something in the lab would look right on Drascula himself.",
+        "clue": "There's a cloak on a stand on the right of the secret lab.",
+        "answer": "In the secret lab, take the cloak."
+      }
+    },
+    {
+      "id": "ch4.lubricant",
+      "chapter": 4,
+      "title": "Found the lubricant",
+      "after": ["ch4.lab"],
+      "when": { "flags": { "15": 1, "17": 0 } },
+      "rooms": [35],
+      "recap": "You took some brains from the jars in the lab. That uncovered a can of lubricant, and you took that too.",
+      "hints": {
+        "nudge": "Something small in the lab is tucked out of reach. Clear the way to it.",
+        "clue": "The jars of brains in the middle of the lab are hiding something at the left end of the cabinet.",
+        "answer": "In the secret lab, take the jars of brains. Then take the lubricant that turns up."
+      },
+      "note": "Flag 15 is set by taking the brains and stays 1. Flag 17 goes to 1 with the brains and back to 0 when the lubricant is taken, so 15=1 with 17=0 means the lubricant is held."
+    },
+    {
+      "id": "ch4.flour",
+      "chapter": 4,
+      "title": "Got the bag of flour",
+      "after": ["ch4.lubricant"],
+      "when": { "flags": { "22": 1 } },
+      "rooms": [29, 30],
+      "recap": "You oiled the rusty hinges on the pantry closet and found a bag of flour inside.",
+      "hints": {
+        "nudge": "Something past the kitchen won't open. It needs a little help.",
+        "clue": "The closet in the pantry has rusty hinges. You picked up something in the lab that would loosen them.",
+        "answer": "On the landing, go through the door left of centre to the kitchen, then open the door on the right and go into the pantry. Use the lubricant on the closet, then open the closet."
+      }
+    },
+    {
+      "id": "ch4.wig",
+      "chapter": 4,
+      "title": "Took the wig",
+      "after": ["ch4.draskis", "ch4.cloak", "ch4.flour"],
+      "when": { "flags": { "12": 1 } },
+      "rooms": [26],
+      "recap": "Once you had the draskis, the cloak and the flour, Igor went off to supper. You took the wig from his room, and Igor locked the door on you.",
+      "hints": {
+        "nudge": "Igor hasn't vanished. He's gone to supper, so his room is unguarded and he can't stop you now.",
+        "clue": "Go back to Igor's room. The wig he guarded is still there, low down at the far right.",
+        "answer": "From the tapestry corridor, open the door on the far left and go into Igor's room. Take the wig."
+      },
+      "note": "Igor leaves (flag 18) the moment the last of draskis, flour and cloak is taken. Before that, taking the wig only gets Igor's refusal."
+    },
+    {
+      "id": "ch4.disguise",
+      "chapter": 4,
+      "title": "Fooled Igor in disguise",
+      "after": ["ch4.wig"],
+      "when": { "has": [17] },
+      "rooms": [26],
+      "recap": "You dressed up as Drascula. Igor took you for his master, let you out, and you came away with the living-room keys.",
+      "hints": {
+        "nudge": "You're locked in, and Igor won't open up for a stranger. He would for his master.",
+        "clue": "With the wig, the draskis, the flour and the cloak you have everything you need to look like Drascula.",
+        "answer": "In Igor's room, use the wig on yourself (type: use wig on yourself). The draskis, flour or cloak on yourself works too."
+      },
+      "note": "Any of items 10, 8, 12 or 16 used on the hero (object 50) runs the disguise scene once flags 18 and 12 are both 1. The keys arrive as you step into the corridor."
+    },
+    {
+      "id": "ch4.living-room",
+      "chapter": 4,
+      "title": "Unlocked the living room",
+      "after": ["ch4.disguise"],
+      "when": { "flags": { "23": 1 } },
+      "rooms": [27],
+      "recap": "You unlocked the living room upstairs with Igor's keys.",
+      "hints": {
+        "nudge": "Igor mentioned a room he keeps locked. It's upstairs.",
+        "clue": "On the upstairs landing, the door at the far left of the row is the locked one.",
+        "answer": "On the upstairs landing, use the living-room keys on the door at the far left of the row, then walk through it."
+      }
+    },
+    {
+      "id": "ch4.axe",
+      "chapter": 4,
+      "title": "Took the axe",
+      "after": ["ch4.living-room"],
+      "when": { "flags": { "13": 1 } },
+      "rooms": [31],
+      "recap": "You took the axe from above the fireplace in the living room.",
+      "hints": {
+        "nudge": "Something on the living room wall would make short work of wood.",
+        "clue": "The axe above the fireplace.",
+        "answer": "In the living room, take the axe."
+      }
+    },
+    {
+      "id": "ch4.rope",
+      "chapter": 4,
+      "title": "Took the rope",
+      "after": ["ch4.axe"],
+      "when": { "flags": { "10": 1 } },
+      "rooms": [21],
+      "recap": "You picked up a rope lying in the castle grounds.",
+      "hints": {
+        "nudge": "Not everything outside the castle is scenery. Something there is worth carrying.",
+        "clue": "There's a rope lying in the castle grounds.",
+        "answer": "In the castle grounds, take the rope."
+      },
+      "note": "Placed after ch4.axe so its hint doesn't compete with the castle steps. It still latches whenever the rope is taken, which most players do on arrival."
+    },
+    {
+      "id": "ch4.branch",
+      "chapter": 4,
+      "title": "Cut a branch",
+      "after": ["ch4.axe"],
+      "when": { "flags": { "24": 1 } },
+      "rooms": [22],
+      "recap": "You cut a branch from the tree behind the castle grounds with the axe.",
+      "hints": {
+        "nudge": "Back outside, something was too tough to take by hand. Now you have a blade.",
+        "clue": "The branch behind the small tree. You couldn't pull it off, but the axe can cut it.",
+        "answer": "Go back out to the castle grounds and behind the small tree. Use the axe on the branch."
+      }
+    },
+    {
+      "id": "ch4.grapple",
+      "chapter": 4,
+      "title": "Tied the rope to the branch",
+      "after": ["ch4.rope", "ch4.branch"],
+      "when": { "any": [{ "has": [21] }, { "flags": { "10": 1, "24": 1 }, "lacks": [18, 19] }] },
+      "recap": "You tied the rope to the branch.",
+      "hints": {
+        "nudge": "Two things you're carrying would work better together.",
+        "clue": "The rope and the branch, both in your inventory.",
+        "answer": "In your inventory, use the rope on the branch (type: use rope on branch)."
+      },
+      "note": "No flag is set. Item 21 can sit on the cursor rather than in the inventory, so the second branch covers rope and branch both gone after both were picked up."
+    },
+    {
+      "id": "ch4.tower",
+      "chapter": 4,
+      "title": "Climbed the tower",
+      "after": ["ch4.grapple"],
+      "end": true,
+      "rooms": [21],
+      "recap": "You used the rope and branch on the tower and climbed up.",
+      "hints": {
+        "nudge": "The way up to the towers isn't through the castle. Try from outside.",
+        "clue": "The tower at the far right of the castle grounds. Your rope and branch could get you up it.",
+        "answer": "In the castle grounds, use the rope tied to a branch on the tower."
+      }
+    },
+    {
+      "id": "ch5.start",
+      "chapter": 5,
+      "title": "Reached the castle towers",
+      "when": { "chapter": 5 },
+      "rooms": [45],
+      "recap": "You reached the towers of Drascula's castle, still looking for B.J.",
+      "hints": {
+        "nudge": "You're outside the castle. Every tower is a way in.",
+        "clue": "Three towers are open to you: the small one on the left, the tall one left of centre and the one on the right.",
+        "answer": "Go into each open tower in turn. Start with the tall tower left of centre."
+      }
+    },
+    {
+      "id": "ch5.werewolf",
+      "chapter": 5,
+      "title": "Met the werewolf",
+      "after": ["ch5.start"],
+      "when": { "flags": { "7": 1 } },
+      "rooms": [45, 49],
+      "recap": "You found a werewolf in a tower study. He'd rather talk philosophy than fight, but he won't let you past.",
+      "hints": {
+        "nudge": "One of the towers is lived in. Its owner is worth meeting.",
+        "clue": "The tall tower left of centre leads to a study.",
+        "answer": "From the castle towers, go into the tall tower left of centre."
+      }
+    },
+    {
+      "id": "ch5.bj",
+      "chapter": 5,
+      "title": "Found B.J.",
+      "after": ["ch5.start"],
+      "when": { "flags": { "0": 1 } },
+      "rooms": [51, 54],
+      "optional": true,
+      "recap": "You found B.J. locked in a cell in the dungeon and talked to her through the door. There was no way to open it yet.",
+      "hints": {
+        "nudge": "B.J. is somewhere in this castle. Try the lowest floor.",
+        "clue": "The tower on the right leads down to a dungeon with a cell door.",
+        "answer": "Go into the tower on the right, down through the opening in the floor, and talk to the cell door."
+      },
+      "note": "Flag 0 is set in animation_1_5 when you first talk to or look at the cell door. Choosing GIVE ME A HAIRPIN gives the hairpin (item 10), but it only breaks on the lock and sets no flag, so it has no milestone. B.J. can't be freed in this chapter."
+    },
+    {
+      "id": "ch5.skeleton",
+      "chapter": 5,
+      "title": "Talked to the skeleton",
+      "after": ["ch5.start"],
+      "when": { "flags": { "14": 1 } },
+      "rooms": [54],
+      "optional": true,
+      "recap": "A talking skeleton in the dungeon told you Drascula takes parts from him for a monster he's building.",
+      "hints": {
+        "nudge": "Not everyone in the dungeon is as dead as he looks.",
+        "clue": "The skeleton hanging on the wall, right of the cell door.",
+        "answer": "In the dungeon, talk to the skeleton."
+      }
+    },
+    {
+      "id": "ch5.bone",
+      "chapter": 5,
+      "title": "Got a bone",
+      "after": ["ch5.werewolf"],
+      "when": { "flags": { "13": 1 } },
+      "rooms": [51, 54],
+      "recap": "You took a bone from the foot of the skeleton in the dungeon. He said you could keep it.",
+      "hints": {
+        "nudge": "The werewolf says he's given up meat, but he hasn't stopped craving it. Something in the castle might tempt him.",
+        "clue": "Ask the werewolf why he doesn't eat people. Then look around the skeleton in the dungeon.",
+        "answer": "In the dungeon, take the bone. It lies at the foot of the skeleton, right of the cell door."
+      },
+      "note": "The werewolf's reason is behind the choice WHAT ARE YOU DOING HERE INSTEAD OF BEING EATING PEOPLE? (op_9 option 2, talk sequence 7)."
+    },
+    {
+      "id": "ch5.werewolf-gone",
+      "chapter": 5,
+      "title": "Got past the werewolf",
+      "after": ["ch5.bone"],
+      "when": { "flags": { "6": 1 } },
+      "rooms": [49],
+      "recap": "You tempted the werewolf with the bone and he left his study. A fourth tower, right of centre, opened up outside.",
+      "hints": {
+        "nudge": "You're carrying something the werewolf can't resist.",
+        "clue": "Offer it to him in his study.",
+        "answer": "In the werewolf's study, use the bone on the werewolf."
+      }
+    },
+    {
+      "id": "ch5.screws",
+      "chapter": 5,
+      "title": "Got the screws",
+      "after": ["ch5.werewolf-gone"],
+      "when": { "flags": { "8": 1 } },
+      "rooms": [45, 52, 55],
+      "recap": "You took some loose screws in the corridor with the sign.",
+      "hints": {
+        "nudge": "With the werewolf gone, a new way into the castle has opened.",
+        "clue": "The tower right of centre leads down to a corridor. Something there isn't fixed down properly. The barred gate won't let you through, so don't fight it.",
+        "answer": "Go into the tower right of centre, down through the opening in the floor, and take the screws in the corridor."
+      }
+    },
+    {
+      "id": "ch5.power",
+      "chapter": 5,
+      "title": "Powered the laboratory",
+      "after": ["ch5.start"],
+      "when": { "flags": { "2": 1 } },
+      "rooms": [50, 53],
+      "recap": "You plugged the laboratory machines into the wall socket.",
+      "hints": {
+        "nudge": "There's a laboratory under the small tower, and nothing in it works yet.",
+        "clue": "A plug lies on the floor on the left, near a socket low on the wall.",
+        "answer": "In the laboratory, take the plug, then use the plug on the wall socket. Do it straight away: the plug stays in your hand, and if you use it on anything else it drops back on the floor."
+      }
+    },
+    {
+      "id": "ch5.brains",
+      "chapter": 5,
+      "title": "Gave the creature brains",
+      "after": ["ch5.start"],
+      "when": { "flags": { "4": 1 } },
+      "rooms": [53],
+      "recap": "You gave the creature in the laboratory the brains you were carrying.",
+      "hints": {
+        "nudge": "Drascula's monster isn't finished. It's missing something you might already be carrying.",
+        "clue": "Check your inventory for something the creature in the chair needs in his head.",
+        "answer": "In the laboratory, use the brains on the creature in the chair."
+      }
+    },
+    {
+      "id": "ch5.fix-screws",
+      "chapter": 5,
+      "title": "Gave the creature screws",
+      "after": ["ch5.screws"],
+      "when": { "flags": { "3": 1 } },
+      "rooms": [53],
+      "recap": "You gave the creature in the laboratory the screws.",
+      "hints": {
+        "nudge": "The monster isn't quite holding together. You picked up something that would help.",
+        "clue": "Take the screws from the corridor to the creature in the chair.",
+        "answer": "In the laboratory, use the screws on the creature in the chair."
+      }
+    },
+    {
+      "id": "ch5.switch",
+      "chapter": 5,
+      "title": "Brought the creature to life",
+      "after": ["ch5.power", "ch5.brains", "ch5.fix-screws"],
+      "when": { "flags": { "1": 1 } },
+      "rooms": [53],
+      "recap": "You threw the switch and lightning brought the creature to life. He stormed off, and you followed him to the far side of the barred gate.",
+      "hints": {
+        "nudge": "The monster has everything it needs. Now it wants a jolt.",
+        "clue": "The machine on the left has a switch. If it says there's no power, something is still missing: the plug in the socket, the screws or the brains.",
+        "answer": "In the laboratory, push the on and off switch."
+      }
+    },
+    {
+      "id": "ch5.coffin",
+      "chapter": 5,
+      "title": "Opened Drascula's coffin",
+      "after": ["ch5.switch"],
+      "end": true,
+      "rooms": [56, 57],
+      "recap": "You opened Drascula's coffin and found it empty. It was a trap, and Drascula had Igor take you to the pendulum.",
+      "hints": {
+        "nudge": "You're past the gate at last. Drascula sleeps somewhere close by.",
+        "clue": "The door ahead leads to his bedroom. Vampires sleep in one place only.",
+        "answer": "Go through the door to Drascula's bedroom, then open the coffin."
+      }
+    },
+    {
+      "id": "ch6.start",
+      "chapter": 6,
+      "title": "Strapped under the pendulum",
+      "when": { "chapter": 6 },
+      "rooms": [102],
+      "recap": "Drascula caught you and made you tell him the recipe for Von Braun's brew. Then he left you strapped under a swinging pendulum.",
+      "hints": {
+        "nudge": "You can't get up, but you're not completely helpless.",
+        "clue": "Look at what's right beside you on the slab.",
+        "answer": "Take your hand. Then use the thing from your hand on the pendulum."
+      },
+      "note": "Reached on entering the chapter, like ch1.start and ch2.start. The engine enters room 58 for the opening cutscene, then room 102, where the player first has control."
+    },
+    {
+      "id": "ch6.hand",
+      "chapter": 6,
+      "title": "Found something in your hand",
+      "after": ["ch6.start"],
+      "when": { "any": [{ "has": [20] }, { "flags": { "2": 1 } }] },
+      "rooms": [102],
+      "recap": "Strapped to the slab, you took something from your own hand.",
+      "hints": {
+        "nudge": "You can't reach much from the slab. Start with what's closest to you.",
+        "clue": "Your own hand, strapped down beside you. You did say your nails need cutting.",
+        "answer": "On the slab, take your hand."
+      },
+      "note": "Item 20 is removed again when you escape, hence the any with flag 2."
+    },
+    {
+      "id": "ch6.free",
+      "chapter": 6,
+      "title": "Escaped the pendulum",
+      "after": ["ch6.hand"],
+      "when": { "flags": { "2": 1 } },
+      "rooms": [102],
+      "recap": "You used the swinging pendulum to break free, and got out into a cell with a torch on the wall.",
+      "hints": {
+        "nudge": "The thing that's meant to kill you could set you free instead.",
+        "clue": "The pendulum blade swings right over you. Give it something to work with.",
+        "answer": "Use the thing from your hand on the pendulum."
+      }
+    },
+    {
+      "id": "ch6.torch",
+      "chapter": 6,
+      "title": "Opened the secret door",
+      "after": ["ch6.free"],
+      "when": { "flags": { "8": 1 } },
+      "rooms": [58],
+      "recap": "You moved the torch in the cell, and the secret door opened.",
+      "hints": {
+        "nudge": "There's a door in this cell, but it won't open the usual way.",
+        "clue": "The torch on the wall isn't just there for light.",
+        "answer": "Push the torch. Then walk through the secret door on the far left."
+      }
+    },
+    {
+      "id": "ch6.bj",
+      "chapter": 6,
+      "title": "Found B.J.",
+      "after": ["ch6.torch"],
+      "when": { "flags": { "11": 1 } },
+      "rooms": [59],
+      "optional": true,
+      "recap": "You found B.J. tied to a bed. Then Von Braun phoned to warn you that alcohol cancels out his brew.",
+      "hints": {
+        "nudge": "You came all this way to rescue someone. She's close.",
+        "clue": "B.J. is on the bed on the left. Ask her what happened.",
+        "answer": "In B.J.'s bedroom, talk to B.J. Then listen to the phone call."
+      },
+      "note": "Optional in engine terms: nothing in the bar checks flag 11. The phone call is the only place the game explains why Drascula needs a drink."
+    },
+    {
+      "id": "ch6.piano",
+      "chapter": 6,
+      "title": "Made a racket on the piano",
+      "after": ["ch6.torch"],
+      "when": { "flags": { "7": 1 } },
+      "rooms": [60],
+      "recap": "You banged on the piano in the bar, and the bartender told you to shut up.",
+      "hints": {
+        "nudge": "Everyone in the bar wants to watch the game in peace. You could spoil that.",
+        "clue": "The piano on the right. Nobody's playing it.",
+        "answer": "In the bar, push the piano."
+      }
+    },
+    {
+      "id": "ch6.scotch",
+      "chapter": 6,
+      "title": "Got a scotch",
+      "after": ["ch6.piano"],
+      "when": { "flags": { "10": 1 } },
+      "rooms": [60],
+      "recap": "You threatened to keep playing the piano, and the bartender gave you a scotch on the rocks.",
+      "hints": {
+        "nudge": "Now someone in the bar knows how annoying you can be. Use that.",
+        "clue": "Talk to the bartender and ask for a drink. This time, threaten him with more noise.",
+        "answer": "Talk to the bartender and choose EITHER YOU GET ME A SCOTCH ON THE ROCKS OR I'LL PLAY THE PIANO UNTIL THE GAME IS OVER."
+      },
+      "note": "That choice replaces GIVE ME A SCOTCH ON THE ROCKS only once flag 7 is set."
+    },
+    {
+      "id": "ch6.drink",
+      "chapter": 6,
+      "title": "Gave Drascula a drink",
+      "after": ["ch6.scotch"],
+      "when": { "flags": { "6": 1 } },
+      "rooms": [60],
+      "recap": "You gave Drascula the scotch, and he drank it.",
+      "hints": {
+        "nudge": "Drascula knows Von Braun's recipe now. Think about what undoes the brew.",
+        "clue": "Von Braun warned that alcohol cancels out his brew. Drascula is in the middle of the bar, and you're holding a drink.",
+        "answer": "In the bar, use the scotch on the rocks on Drascula."
+      }
+    },
+    {
+      "id": "ch6.end",
+      "chapter": 6,
+      "title": "Defeated Drascula",
+      "after": ["ch6.drink"],
+      "when": { "flags": { "5": 1 } },
+      "rooms": [60],
+      "recap": "You held up the crucifix to Drascula and finished him. Back in the bedroom, B.J. had gone and left you a goodbye letter.",
+      "hints": {
+        "nudge": "Drascula's protection is gone. Finish what you came to do.",
+        "clue": "You've carried something holy since the start of this chapter. Show it to Drascula.",
+        "answer": "In the bar, use the crucifix on Drascula."
+      },
+      "note": "Uses when, not end: there is no chapter 7, so end: true would never be reached. Flag 5 is set at the start of the ending scene. The engine sends no state after the ending, so this may never latch in play."
     }
   ]
 }
