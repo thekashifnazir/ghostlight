@@ -1,5 +1,5 @@
 // A tester (16 Nov) couldn't type "push torch" in chapter 6: the exit is named
-// "secret door to B.J.'s bedroom, opens after the torch", so the two tied and
+// "secret door to B.J.'s bedroom that opens after the torch", so the two tied and
 // the parser asked "Did you mean ...". A tie now goes to the one name the query
 // covers completely; real ties still ask.
 import { describe, expect, it } from "vitest";
@@ -17,7 +17,7 @@ const hs = (name: string, num: number, kind: Hotspot["kind"] = "object"): Hotspo
 
 describe("ties go to the whole name", () => {
   const torch = hs("torch", 103);
-  const door = hs("secret door to B.J.'s bedroom, opens after the torch", 104, "exit");
+  const door = hs("secret door to B.J.'s bedroom that opens after the torch", 104, "exit");
 
   it("push torch pushes the torch", () => {
     const m = parsePhrase("push torch", [door, torch], [], CTX);

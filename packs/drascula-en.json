@@ -157,8 +157,8 @@
           "type": "object",
           "note": "Hotspot rectangle is 0,0,0,0 in the data, so it can never be hovered. Kept for completeness."
         },
-        "131": { "name": "gravestone, left", "type": "object", "description": "A rounded gravestone in the bottom left corner." },
-        "132": { "name": "gravestone, front", "type": "object", "description": "A small gravestone at the front." },
+        "131": { "name": "gravestone on the left", "type": "object", "description": "A rounded gravestone in the bottom left corner." },
+        "132": { "name": "gravestone at the front", "type": "object", "description": "A small gravestone at the front." },
         "133": { "name": "mausoleum", "type": "object", "description": "A small white tomb house with a barred door." },
         "165": {
           "name": "fence spike",
@@ -331,7 +331,7 @@
       "short": "A room with a door on the far left and a vampire standing right of centre, who won't let you through.",
       "long": "A room where a vampire stands in your way, a little right of centre. The game describes him as looking like Yoda, but a little taller, and he won't let you come through. A door on the far left leads back to where you arrived.",
       "seen": false,
-      "exits": { "101": { "label": "door on the far left, back to where you arrived", "to": 20, "direction": "left" } },
+      "exits": { "101": { "label": "door on the far left to where you arrived", "to": 20, "direction": "left" } },
       "objects": {
         "51": {
           "name": "vampire",
@@ -466,7 +466,7 @@
           "direction": "up",
           "note": "Hidden all chapter (visible 0) and not shown to the player. Census says toRoom 20 with a destination point at (126, 154), inside this room's own walking area, so it loops back to room 20 rather than reaching a new room. Not a real way out; review whether to omit it from the merged pack."
         },
-        "100": { "label": "door on the far right, to the vampire's room", "to": 13, "direction": "right" }
+        "100": { "label": "door on the far right to the vampire's room", "to": 13, "direction": "right" }
       },
       "objects": {}
     },
@@ -478,7 +478,7 @@
       "seen": false,
       "exits": {
         "100": {
-          "label": "small tree, leads behind it",
+          "label": "small tree with a way behind it",
           "to": 22,
           "direction": "ahead",
           "note": "Engine name is ARBOLITO (Spanish, small tree). Look gives no line. Please confirm the tree really is the way through."
@@ -549,13 +549,13 @@
       "seen": false,
       "exits": {
         "103": {
-          "label": "door on the far right, back outside",
+          "label": "door on the far right going back outside",
           "to": 21,
           "direction": "right",
           "note": "Look gave only filler. Destination from meta.json."
         },
         "104": {
-          "label": "door on the far left, to the corridor",
+          "label": "door on the far left to the corridor",
           "to": 24,
           "direction": "left",
           "note": "Look gave only filler. Destination from meta.json. Room 24 has no name from the game, so 'corridor' is my wording; reviewer to confirm."
@@ -596,19 +596,19 @@
       "seen": false,
       "exits": {
         "105": {
-          "label": "door on the right, back to the entrance hall",
+          "label": "door on the right to the entrance hall",
           "to": 23,
           "direction": "right",
           "note": "Look gave only filler. Destination from meta.json."
         },
         "106": {
-          "label": "door on the far left, to Igor's room",
+          "label": "door on the far left to Igor's room",
           "to": 26,
           "direction": "left",
           "note": "Look gave only filler. Destination from meta.json. 'Igor's room' comes from the coverage report, not from the game; reviewer to confirm a blind player should hear it before meeting him."
         },
         "108": {
-          "label": "staircase in the middle, going up",
+          "label": "staircase in the middle going up",
           "to": 27,
           "direction": "up",
           "note": "Engine name ESCALERAS (Spanish, stairs). Look was silent."
@@ -631,7 +631,7 @@
       "seen": false,
       "exits": {
         "107": {
-          "label": "door in the back wall, to the corridor",
+          "label": "door in the back wall to the corridor",
           "to": 24,
           "direction": "back",
           "note": "Engine name DOOR. Look was silent. Destination from meta.json. Rect x 93 to 133, left of centre."
@@ -696,25 +696,25 @@
       "seen": false,
       "exits": {
         "109": {
-          "label": "staircase at the far left, down to the corridor",
+          "label": "staircase at the far left down to the corridor",
           "to": 24,
           "direction": "down",
           "note": "Engine name ESCALERAS (Spanish, stairs). Look was silent. Destination from meta.json."
         },
         "110": {
-          "label": "door in the middle, to a dark room",
+          "label": "door in the middle to a dark room",
           "to": 28,
           "direction": "ahead",
           "note": "Look was silent. Destination from meta.json. 'Dark room' comes from the room 28 look line; reviewer to confirm a blind player should hear it."
         },
         "112": {
-          "label": "door left of centre, to the kitchen",
+          "label": "door left of centre to the kitchen",
           "to": 29,
           "direction": "left",
           "note": "Look was silent. Destination from meta.json. 'Kitchen' comes from the coverage report, not the game; reviewer to confirm."
         },
         "118": {
-          "label": "door on the right, to the torch room",
+          "label": "door on the right to the torch room",
           "to": 34,
           "direction": "right",
           "note": "Look was silent. Destination from meta.json. 'Torch room' comes from the coverage report, not the game; reviewer to confirm."
@@ -755,7 +755,7 @@
       "seen": false,
       "exits": {
         "111": {
-          "label": "the way out, along the right edge, to the landing",
+          "label": "the way out along the right edge to the landing",
           "to": 27,
           "direction": "right",
           "note": "Engine name SALIDA (Spanish, exit). Hotspot is a tall strip along the right edge. Look gave the 'too dark' line. Destination from meta.json."
@@ -784,13 +784,13 @@
       "seen": false,
       "exits": {
         "113": {
-          "label": "door on the far left, back to the landing",
+          "label": "door on the far left to the landing",
           "to": 27,
           "direction": "left",
           "note": "Look was silent. Destination from meta.json. Rect x 31 to 66."
         },
         "114": {
-          "label": "door on the right, to the pantry",
+          "label": "door on the right to the pantry",
           "to": 30,
           "direction": "right",
           "note": "Look gave only filler. Destination from meta.json. 'Pantry' comes from the coverage report, not the game; reviewer to confirm. Rect x 250 to 280."
@@ -837,7 +837,7 @@
       "seen": false,
       "exits": {
         "115": {
-          "label": "door in the middle, back to the kitchen",
+          "label": "door in the middle to the kitchen",
           "to": 29,
           "direction": "back",
           "note": "Look was silent. Destination from meta.json. Rect x 143 to 180."
@@ -878,7 +878,7 @@
       "seen": false,
       "exits": {
         "117": {
-          "label": "doorway on the right, back to the landing",
+          "label": "doorway on the right to the landing",
           "to": 27,
           "direction": "right",
           "note": "Look was silent. Destination from engine state. Rect x 246 to 274."
@@ -919,7 +919,7 @@
       "seen": false,
       "exits": {
         "119": {
-          "label": "door on the right, back to the landing",
+          "label": "door on the right to the landing",
           "to": 27,
           "direction": "right",
           "note": "Look gave only filler. Destination from meta.json. Rect x 236 to 269."
@@ -954,7 +954,7 @@
       "seen": false,
       "exits": {
         "121": {
-          "label": "archway on the left, back to the torch room",
+          "label": "archway on the left to the torch room",
           "to": 34,
           "direction": "left",
           "note": "Engine name PASADIZO. Look was silent. Destination from engine state. Rect x 23 to 55."
@@ -989,7 +989,7 @@
       "seen": false,
       "exits": {
         "123": {
-          "label": "way back on the left, to the torch room",
+          "label": "way back on the left to the torch room",
           "to": 34,
           "direction": "left",
           "note": "Look was silent. Destination from engine state."
@@ -1165,7 +1165,7 @@
       "seen": false,
       "exits": {
         "139": {
-          "label": "way out on the left, back to the torch room",
+          "label": "way out on the left to the torch room",
           "to": 34,
           "direction": "left",
           "note": "Engine name DOOR. Look was silent. Destination from engine state (walked: 44 to 34). Rect x 0 to 31."
@@ -1206,8 +1206,8 @@
       "long": "A round study in a tower. A tall shelf of books stands on the left. In the middle, the werewolf sits at a desk with a typewriter on it. A dark arched window is in the back wall, with a framed diploma and then a poster to its right. A red rug covers the floor. Dark doorways lead out on the left and on the right.",
       "seen": true,
       "exits": {
-        "109": { "label": "doorway on the left, back outside", "to": 45, "direction": "left" },
-        "110": { "label": "doorway on the right, back outside", "to": 45, "direction": "right" }
+        "109": { "label": "doorway on the left going back outside", "to": 45, "direction": "left" },
+        "110": { "label": "doorway on the right going back outside", "to": 45, "direction": "right" }
       },
       "objects": {
         "51": { "name": "werewolf", "type": "npc", "description": "The werewolf, sitting at his desk. He seems quite rational." },
@@ -1229,9 +1229,9 @@
       "long": "A crumbling tower room with wooden floorboards and a small window high on the back wall. Dark doorways lead out on the left and on the right. In the middle of the floor there is an opening that leads down.",
       "seen": true,
       "exits": {
-        "106": { "label": "doorway on the left, back outside", "to": 45, "direction": "left" },
-        "107": { "label": "doorway on the right, back outside", "to": 45, "direction": "right" },
-        "112": { "label": "opening in the floor, down to the laboratory", "to": 53, "direction": "down" }
+        "106": { "label": "doorway on the left going back outside", "to": 45, "direction": "left" },
+        "107": { "label": "doorway on the right going back outside", "to": 45, "direction": "right" },
+        "112": { "label": "opening in the floor down to the laboratory", "to": 53, "direction": "down" }
       },
       "objects": {}
     },
@@ -1242,8 +1242,8 @@
       "long": "A crumbling tower room with wooden floorboards and a small window high on the back wall. The right-hand wall is cracked. A dark doorway on the left leads back outside, and a wide opening in the middle of the floor leads down.",
       "seen": true,
       "exits": {
-        "108": { "label": "doorway on the left, back outside", "to": 45, "direction": "left" },
-        "113": { "label": "opening in the floor, down to the dungeon", "to": 54, "direction": "down" }
+        "108": { "label": "doorway on the left going back outside", "to": 45, "direction": "left" },
+        "113": { "label": "opening in the floor down to the dungeon", "to": 54, "direction": "down" }
       },
       "objects": {}
     },
@@ -1254,8 +1254,8 @@
       "long": "A crumbling tower room with wooden floorboards and a small window high on the back wall. A dark doorway on the right leads back outside, and there is an opening in the floor in the middle.",
       "seen": true,
       "exits": {
-        "111": { "label": "doorway on the right, back outside", "to": 45, "direction": "right" },
-        "114": { "label": "opening in the floor, down to the corridor", "to": 55, "direction": "down" }
+        "111": { "label": "doorway on the right going back outside", "to": 45, "direction": "right" },
+        "114": { "label": "opening in the floor down to the corridor", "to": 55, "direction": "down" }
       },
       "objects": {}
     },
@@ -1265,7 +1265,7 @@
       "short": "A laboratory full of machines. A big creature sits strapped into a chair on the right.",
       "long": "A laboratory full of machines. On the left stands a tall machine with dials and a switch, with a socket low on the wall beside it and a plug on the floor nearby. Above it, a big contraption with metal globes and a drill hangs from the ceiling. In the middle at the back, an archway leads out. On the right, a big creature sits strapped into a metal chair.",
       "seen": true,
-      "exits": { "116": { "label": "archway at the back, up to the tower", "to": 50, "direction": "back" } },
+      "exits": { "116": { "label": "archway at the back up to the tower", "to": 50, "direction": "back" } },
       "objects": {
         "52": {
           "name": "creature in the chair",
@@ -1299,7 +1299,7 @@
       "short": "A green stone dungeon. A cell door with a barred window is in the middle, and a skeleton hangs on the right.",
       "long": "A green stone dungeon hung with cobwebs. On the left, a doorway with steps leads back up. In the middle is a heavy wooden cell door with a barred window and a lock. A skeleton hangs on the wall right of the door, and a skull lies on the floor on the right.",
       "seen": true,
-      "exits": { "115": { "label": "doorway on the left, up the stairs", "to": 51, "direction": "left" } },
+      "exits": { "115": { "label": "doorway on the left up the stairs", "to": 51, "direction": "left" } },
       "objects": {
         "53": {
           "name": "skeleton",
@@ -1322,7 +1322,7 @@
       "short": "A stone corridor. A sign in Spanish over a barred gate says that Drascula doesn't sleep here.",
       "long": "A stone corridor. On the left, steps lead back up. A camera is fixed high on the wall, and below it a machine with an orange light stands by the wall. In the middle, a barred gate fills an archway. Over the arch, a sign painted in Spanish says that Drascula doesn't sleep here, with two yellow arrows pointing at the gate.",
       "seen": true,
-      "exits": { "117": { "label": "steps on the left, back up the tower", "to": 52, "direction": "left" } },
+      "exits": { "117": { "label": "steps on the left back up the tower", "to": 52, "direction": "left" } },
       "objects": {
         "122": { "name": "screws", "type": "object", "description": "Screws that don't seem to be tightened properly." },
         "204": { "name": "camera", "type": "object", "description": "A hidden camera high on the wall, pointing at you." },
@@ -1340,7 +1340,7 @@
       "short": "A bedroom with a coffin on a draped table in the middle. A door is on the left.",
       "long": "A stone bedroom under wooden beams. On the left is the door you came in by, and a tall grandfather clock stands beside it. In the middle, a black coffin rests on a table draped in purple cloth. On the right is a small bedside table with bottles on it.",
       "seen": true,
-      "exits": { "105": { "label": "door on the left, back to the landing", "to": 57, "direction": "left" } },
+      "exits": { "105": { "label": "door on the left to the landing", "to": 57, "direction": "left" } },
       "objects": {
         "124": { "name": "coffin", "type": "object", "description": "A pine wood coffin on a table draped in purple cloth." },
         "207": {
@@ -1358,7 +1358,7 @@
       "short": "The corridor with the sign, seen from behind the barred gate. A door leads on to a bedroom.",
       "long": "The same corridor with the Spanish sign, but you are now behind the barred gate, under the arch. The door through the gate leads on to a bedroom.",
       "seen": true,
-      "exits": { "104": { "label": "door through the gate, to the bedroom", "to": 56, "direction": "ahead" } },
+      "exits": { "104": { "label": "door through the gate to the bedroom", "to": 56, "direction": "ahead" } },
       "objects": {}
     },
     "58": {
@@ -1367,7 +1367,7 @@
       "short": "A cell with a torch on the wall and a door on the far left.",
       "long": "A cell. A torch hangs on the wall left of centre, and on the far left is a door, which the game calls obviously a secret door. It stays shut until you deal with the torch.",
       "seen": true,
-      "exits": { "104": { "label": "secret door to B.J.'s bedroom, opens after the torch", "to": 59 } },
+      "exits": { "104": { "label": "secret door to B.J.'s bedroom that opens after the torch", "to": 59 } },
       "objects": {
         "103": {
           "name": "torch",
@@ -1383,7 +1383,7 @@
       "short": "A bedroom where B.J. lies on a bed on the left. A wardrobe stands at the back and a trunk on the right.",
       "long": "A bedroom with a green rug. On the far left is a door, with a lamp on the wall beside it. B.J. lies on a bed on the left, under an oval mirror on the wall. At the back, right of centre, stands a tall wooden wardrobe. A window is on the right wall, with a wooden trunk below it.",
       "seen": true,
-      "exits": { "108": { "label": "door on the far left, to the bar", "to": 60, "direction": "left" } },
+      "exits": { "108": { "label": "door on the far left to the bar", "to": 60, "direction": "left" } },
       "objects": {
         "51": { "name": "B.J.", "type": "npc", "description": "B.J., lying on the bed." },
         "105": {
@@ -1413,8 +1413,8 @@
       "long": "A bar with a wooden floor. On the left is an exit sign by some stairs, and a crowd of fans stands near it. The bartender is at the back in the middle, under a poster for burgers. Drascula, in his cape, stands in the middle of the room. On the right, behind a red curtain at the back, is a doorway, and another door is on the far right. A piano with a skull on it stands on the right. Barrels fill the foreground.",
       "seen": true,
       "exits": {
-        "109": { "label": "doorway at the back, to B.J.'s bedroom", "to": 59, "direction": "back" },
-        "110": { "label": "door on the far right, to the back room", "to": 61, "direction": "right" }
+        "109": { "label": "doorway at the back to B.J.'s bedroom", "to": 59, "direction": "back" },
+        "110": { "label": "door on the far right to the back room", "to": 61, "direction": "right" }
       },
       "objects": {
         "52": {
@@ -1574,7 +1574,7 @@
       "description": "A hand-rolled cigarette of Von Braun's brew. He says it protects against vampire bites."
     },
     { "id": 22, "chapters": [2, 3], "name": "B.J.'s handbag", "description": "A lady's handbag." },
-    { "id": 23, "chapters": [2, 3], "name": "earplugs, in your ears", "description": "You're wearing the earplugs." },
+    { "id": 23, "chapters": [2, 3], "name": "earplugs in your ears", "description": "You're wearing the earplugs." },
     { "id": 7, "chapters": [4], "name": "key", "description": "A key." },
     { "id": 8, "chapters": [4], "name": "draskis", "description": "A bottle of draskis." },
     { "id": 10, "chapters": [4], "name": "wig", "description": "A wig." },
