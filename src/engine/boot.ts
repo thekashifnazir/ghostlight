@@ -106,9 +106,9 @@ export function launchArguments(
   //
   // --music-volume=51 launches the game's music at about 20% of ScummVM's
   // default (255), low enough that the actors' spoken lines stand out clearly
-  // over it under a screen reader. The ghost whisper and sonar pings play
+  // over it under a screen reader. The ghost whisper plays
   // through the page's own Web Audio graph (not the engine mixer), boosted
-  // above unity so they too sit clearly over the music. ScummVM exposes no
+  // above unity so it too sits clearly over the music. ScummVM exposes no
   // runtime music-volume command to the a11y layer, so the music level is fixed
   // at launch, not ducked further live per-cue (see audio.ts comments).
   const args = [
@@ -116,8 +116,8 @@ export function launchArguments(
     "--subtitles",
     "--music-volume=51",
     // --speech-volume=255 keeps the actors' voices at full level so they sit
-    // clearly over the music (which launches at 51); the ghost whisper and
-    // sonar play through the page's own Web Audio graph, not this mixer.
+    // clearly over the music (which launches at 51); the ghost whisper plays
+    // through the page's own Web Audio graph, not this mixer.
     "--speech-volume=255",
   ];
   // --save-slot=<n> is the engine's launch-time load (save-progress R5.1). It

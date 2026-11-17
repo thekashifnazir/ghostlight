@@ -50,7 +50,7 @@ export function guidePages(tip: string): GuidePage[] {
         "Each room tells you what's worth a look, straight after its name.",
         "Stuck? H gives a clue. Press H again for the answer.",
         "The ghost speaks its hints aloud. G turns its voice off, and the hint is read as text instead.",
-        "S plays a sonar sweep of the room from left to right. N and P step through things one at a time, and M mutes it.",
+        "S counts what's in the room from left to right. N and P step through things one at a time.",
       ],
     },
     {

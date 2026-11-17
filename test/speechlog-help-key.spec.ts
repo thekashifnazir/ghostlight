@@ -34,7 +34,7 @@ const HELP_QUESTION_MARK = "F1 or question mark reads this help.";
 const HELP_MORE = "Press F1 again for every other key";
 // A line only the full page carries (the sonar keys), so it tells the two
 // pages apart.
-const HELP_FULL_ONLY = "scans the room as sound";
+const HELP_FULL_ONLY = "counts what is here";
 
 test.describe("'?' reads the controls help (F1 alias)", () => {
   test("on the start gate, '?' reads help and does NOT start", async ({ page }) => {

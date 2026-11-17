@@ -38,7 +38,7 @@ List mode is the primary interface and works from the keyboard alone. No mouse i
 | **H** | hint |
 | **L** | read the room again |
 | **R** | repeat the last line |
-| **S / N / P / M** | sonar: sweep, next, previous, summary |
+| **S / N / P** | sonar: count what's in the room, next thing, previous thing |
 | **F1** | Ghostlight's own help |
 | **C / O** | save now / load your latest save |
 | **Q** (twice) | save and go back to the start screen, where you can choose any chapter you've reached |
@@ -62,7 +62,7 @@ Typing plain English (`look`, `use the coins on the machine`, `go through the ba
 
 **Hints and the ghost voice.** Each milestone in the pack carries three hint tiers: a nudge that points at the area, a clue that names the place and the thing, and an answer that gives the exact action in game verbs. A hint is only offered once its prerequisites are reached and the milestone is not yet done, so it never reveals a puzzle the player has not got to. The hints are also voiced as an interruptible whisper, generated with the ElevenLabs API (the Alice voice on the `eleven_v4` model), layered on top of the text, which already works on its own. Every hint is voiced (195 lines, 16 Nov), including chapters 3 to 6, which were added after a tester got stuck in chapter 4.
 
-**Sonar.** On a key press the player sweeps the current room: each object and exit is played in turn, panned left to right by screen position, with pitch for height and a filter for distance, followed by one summary line to a polite live region. All of it is synthesised with Web Audio, with no audio files.
+**Sonar.** S gives a quick spoken count of the room, left to right ("10 things, left to right: 3 people, 4 objects, 3 exits."), and N and P step through the things one at a time with each one's direction and distance. It's text, read by your screen reader. The first design also played a tone for each thing, panned by position. The tones were removed, because more sound on top of the music, the ghost voice and the screen reader would get in the way.
 
 **drascula-mcp.** A small MCP server (in `mcp/`) exposes the game as tools, one per verb, so an agent and the Playwright checks can drive the game through the engine's own command set. It imports the command serialiser and the line parser from `src/engine/`, so the player, the tests and the server share one contract.
 
@@ -143,7 +143,7 @@ npx tsc --noEmit      # typecheck
 Counts re-counted from the suites on 17 November 2026, on the frozen build.
 
 ```sh
-npm test                        # player: 579 tests across 71 files, all passing
+npm test                        # player: 568 tests across 70 files, all passing
 npm --prefix packs/tools test   # pack tools: 43 tests across 7 files, all passing
 npm --prefix tests/engine test  # engine harness: 40 passing, 2 skipped, across 8 files
 npm --prefix mcp test           # drascula-mcp: 68 tests across 17 files, all passing

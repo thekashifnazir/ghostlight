@@ -50,9 +50,9 @@ Dev and survey only:
 
 ## Sound
 
-- All sound cues and sonar are synthesised with Web Audio. No audio files.
+- All sound cues are synthesised with Web Audio. No audio files.
 - Earcons: room entry, successful action, error, and per object type.
-- Sonar: a key plays each object and exit in turn, panned by position, pitch for height, lowpass for distance, then one summary line to a polite live region.
+- Sonar: text only. S writes one summary line to a polite live region; N and P step through each thing with its direction and distance. (The tones were removed on 17 Nov 2026.)
 
 ## Hosting and licensing
 

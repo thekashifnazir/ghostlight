@@ -1,5 +1,7 @@
 # Requirements: sonar (hear the room's layout)
 
+> **Descoped, 17 Nov 2026: the sonar tones.** Sonar is text only now. Kash had meant to drop the tones, because more sound on top of the music, the ghost voice and the screen reader would annoy players. On 17 Nov the tone code was found still in, wired to an audio context that was never set, so it had played nothing on the live site since 7 Nov. The audio layer (`src/sonar/audio.ts`) and the M (mute) key were removed. S, N and P keep the text: the summary line and each step's name, direction and distance. The requirements below about pings, sound, stop and mute are kept as the original design record.
+
 ## Introduction
 
 Sonar lets a blind player hear where everything in the room is. The ordered hotspot list (player spec) already lets a player cycle every thing, person and exit one at a time and hear its name. Sonar adds the spatial picture the list cannot give: where each thing sits left to right and near to far, as sound, from the same room state the engine already sends. A scan plays one short synthesised ping per visible thing, left to right, panned by its x, with timbre carrying its kind and pitch its height, then drops one summary line into the live region. Stepping with next and previous plays one ping and announces that thing's name, direction and distance. Every ping has a text equivalent, any key stops sound at once, and a mute toggle turns the sound off while the text keeps working.

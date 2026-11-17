@@ -127,7 +127,7 @@ export interface ControllerDeps {
    * behaves as before (no backlog is dropped).
    */
   dropPendingDialogue?: () => void;
-  /** Room sonar: scan, step, mute (sonar spec R2, R3, R5, R6). */
+  /** Room sonar: scan and step, as text (sonar spec R2, R3, R6). */
   sonar: Sonar;
   /**
    * Save progress to the manual slot (save-progress R2.2). Optional so
@@ -302,25 +302,18 @@ export class Controller {
         return true;
       case "s":
       case "S":
-        // Sonar scan: one ping per thing, then a summary line (sonar R2).
-        // stopAudio() already ran at the top of handleKey, so any scan in
-        // progress is stopped before this new one starts (sonar R6.4).
+        // Sonar scan: one summary line counting the room left to right (R2).
         this.d.sonar.scan();
         return true;
       case "n":
       case "N":
-        // Step to the next thing: one ping and its name/direction/distance.
+        // Step to the next thing: its name, direction and distance.
         this.d.sonar.next();
         return true;
       case "p":
       case "P":
         // Step to the previous thing.
         this.d.sonar.prev();
-        return true;
-      case "m":
-      case "M":
-        // Toggle sonar sound; the text equivalents keep working when muted.
-        this.d.sonar.toggleMute();
         return true;
       case "c":
       case "C":

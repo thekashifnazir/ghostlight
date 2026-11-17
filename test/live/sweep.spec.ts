@@ -155,7 +155,7 @@ test.describe("live sweep (Chrome + WebKit)", () => {
     // The full tester DM key map (src/ui/controller.ts + F1 HELP_TEXT), each
     // pressed against the live engine. None may throw, reload the page, or leave
     // the live region empty; the game must stay in the tavern throughout (these
-    // are all reads/navigation/sound toggles, none of which leaves room 62).
+    // are all reads/navigation/ghost toggles, none of which leaves room 62).
     const keys = [
       "ArrowRight", // next hotspot
       "ArrowLeft", // previous hotspot
@@ -169,7 +169,6 @@ test.describe("live sweep (Chrome + WebKit)", () => {
       "s", // sonar scan
       "n", // sonar next
       "p", // sonar previous
-      "m", // toggle sonar sound
       "F1", // read help
       "Backspace", // re-read focus (nothing to cancel in list mode)
     ];

@@ -1,5 +1,7 @@
 # Design: sonar (hear the room's layout)
 
+> **Descoped, 17 Nov 2026: the sonar tones.** Sonar is text only now. Kash had meant to drop the tones, because more sound on top of the music, the ghost voice and the screen reader would annoy players. On 17 Nov the tone code was found still in, wired to an audio context that was never set, so it had played nothing on the live site since 7 Nov. The audio layer (`src/sonar/audio.ts`) and the M (mute) key were removed. S, N and P keep the text: the summary line and each step's name, direction and distance. The requirements below about pings, sound, stop and mute are kept as the original design record.
+
 ## Overview
 
 Sonar turns the room state the player already holds into sound and text that tell a blind player where everything is. It has three layers:

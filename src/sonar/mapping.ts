@@ -9,8 +9,10 @@
 // This module is pure: room state and hotspot list in, Ping[] out. No Web
 // Audio, DOM, timers or engine access. The property tests pin the invariants
 // here (ordering by centre x, pan within -1..1 and monotonic in x, exactly one
-// ping per visible thing). Constants are named exports so the audio layer and
-// any future settings reference the same values the spike proved.
+// ping per visible thing). Sonar is text only: the tones were removed on
+// 17 Nov 2026, so the player reads pan (as direction), distance and text, and
+// the sound fields (pitch, cutoff, gain, onset) are kept only as the spike's
+// values.
 
 import type { RoomState } from "../engine/adapter.js";
 import type { Hotspot } from "../model/hotspot-list.js";
@@ -26,7 +28,7 @@ export type Direction = "left" | "ahead" | "right";
 
 /**
  * One scheduled sound for one visible thing, plus its text equivalent. A Ping
- * is a plain value: the audio layer voices it, the sonar controller announces
+ * is a plain value: the sonar controller announces
  * its `text`, and the tests assert on its fields.
  */
 export interface Ping {
@@ -85,7 +87,7 @@ export const CUTOFF_FAR = 1100;
 
 /**
  * Peak gain for the nearest thing. Kept at 1 (full-scale per ping); the extra
- * loudness that lifts pings over the game music comes from SonarAudio's master
+ * loudness that lifted pings over the game music came from the removed tone player's master
  * boost, not from pushing a single ping's gain past unity, so a near ping never
  * clips on its own.
  */

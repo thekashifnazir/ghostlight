@@ -129,9 +129,8 @@ const HELP_TEXT =
   "reader does not read them too; press D if you would rather have them, and " +
   "the ghost's hints, read as text as well. " +
   "F1 or question mark reads this help. Escape skips. " +
-  "S scans the room as sound, left to right, then counts what is here. " +
-  "N and P step to the next and previous thing, playing its place. " +
-  "M mutes the sonar sound; the text keeps working. " +
+  "S counts what is here, left to right. " +
+  "N and P step to the next and previous thing, saying where it is. " +
   "C saves your progress. O loads your most recent save. " +
   "Your progress also saves by itself whenever you move to a new room. " +
   "Q, pressed twice, saves and goes back to the start screen, where you can " +
@@ -248,7 +247,7 @@ const GHOSTLIGHT_TITLE = GAME.title;
  * and is testable immediately, whereas a build flag would be unverifiable until
  * the 10 MB wasm is rebuilt and redeployed (which this spec does not do). No
  * functional audio is lost — the game's music plays through SDL audio at the
- * launch --music-volume, and our sonar/earcons/ghost use the page's own Web
+ * launch --music-volume, and our earcons and ghost use the page's own Web
  * Audio graph, none of which touch Web MIDI. Returning a rejecting promise
  * (not deleting the property) keeps any feature-detect-then-call path happy: it
  * simply fails to get a MIDI port, with no UI. The rejection is a standard
@@ -483,15 +482,11 @@ export async function boot(): Promise<void> {
   // The ghost whisper player, created once the audio context exists (start
   // gate). Until then it is undefined and the stop/play hooks are no-ops.
   let ghostAudio: GhostAudio | undefined;
-  // The start-gate audio context, set when the player starts (user gesture).
-  // Sonar reads it through getContext and stays text-only until it exists.
-  let audioContext: AudioContext | undefined;
 
   // Room sonar: builds pings from the current room state and hotspot list and
-  // voices them, writing every line to the same live region (sonar spec).
+  // writes every line, as text, to the same live region (sonar spec).
   const sonar = new Sonar({
     live,
-    getContext: () => audioContext,
     // The nudge follows the short scan summary (tester feedback, 14 Nov).
     nudge: () => hintEngine.worthALook(state.room, (r) => pack.roomName(r)),
   });
@@ -508,8 +503,6 @@ export async function boot(): Promise<void> {
   // or focus change interrupts a playing whisper.
   const stopAudio = (): void => {
     ghostAudio?.stop();
-    // Any key press also stops a sonar scan in progress (sonar R5.1, R6.4).
-    sonar.stop();
   };
 
   // Ask the ghost for a hint (hints-and-ghost R5, R6.1). The hint is voiced by
