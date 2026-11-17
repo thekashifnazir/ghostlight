@@ -2173,8 +2173,8 @@
       "recap": "You went through the door, and a vampire stepped out to block your way.",
       "hints": {
         "nudge": "Keep going. Something is waiting further on.",
-        "clue": "Go through the door on the far right, then head into the next room.",
-        "answer": "From where you arrived, walk through the door on the far right. In the next room, walk towards the vampire."
+        "clue": "Below the well, the door on the far right leads on. In the room after it, go further in.",
+        "answer": "If you're still below the well, walk through the door on the far right. Then walk towards the vampire."
       },
       "note": "Flag 3 is set by animation_6_3, which update_13 runs as soon as the hero is right of x 55 in room 13. The hero arrives at x 45, so the first step into the room, or any walk to the vampire, sets it."
     },
