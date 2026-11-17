@@ -325,8 +325,11 @@
            is the right control. -->
       <div id="start-gate">
         <p>
-          Ghostlight makes Drascula playable with the keyboard and your screen
-          reader. <!-- The first sentence is variant-specific (a fresh Start, or
+          <span id="gate-intro">Ghostlight makes Drascula playable with the
+          keyboard and your screen reader.</span> <!-- The gate-intro sentence is
+          per game (GameConfig.gateIntro, set by boot()); for ?game=queen it also
+          says how much of the game is described. -->
+          <!-- The first sentence is variant-specific (a fresh Start, or
           the Continue / New game choice) and is set by boot() in
           renderStartAction / renderResumeChoice; its default below is the
           fresh-visit wording. --><span id="gate-instruction">Press the Start

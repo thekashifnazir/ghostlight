@@ -4,13 +4,15 @@
 
 Ghostlight makes *Drascula: The Vampire Strikes Back*, the 1996 freeware point-and-click adventure, playable with a screen reader in a web browser. The real game runs in ScummVM, so room contents, exits, inventory and progress come straight from the engine, and your own screen reader reads back what happened.
 
+Chad Bouton, a blind accessibility consultant and host of The Unsyted Radio podcast, played Drascula start to finish with a screen reader on 16 Nov. He wrote afterwards: "it works beautifully! I was actually able to complete the entire game."
+
 Live: [ghostlight.kashifnazir.com/?live](https://ghostlight.kashifnazir.com/?live) · Demo video: coming (by 1 December) · Devpost: coming (by 4 December)
 
 **Kiroween 2026 · category: Resurrection · November 2026**
 
 Built with Kiro · ScummVM Drascula engine · TypeScript · Web Audio · ElevenLabs voice · Cloudflare + R2 hosting
 
-> Ghostlight is a work in progress. All six chapters can be played to the final ending, every one of the 57 rooms has a description, and every chapter has hints (16 Nov).
+> Ghostlight is frozen for Kiroween 2026 judging. All six chapters can be played to the final ending, every one of the 57 rooms has a description, and every chapter has hints.
 >
 > Tested with NVDA in Chrome, Edge and Firefox, JAWS in Chrome, Edge and Firefox (Windows 11), and VoiceOver in Chrome, Edge, Safari and Firefox (macOS).
 
@@ -70,7 +72,17 @@ Ghostlight is built in Kiro. Two documents track that in detail: [`docs/kiro-fea
 
 In short, the build uses spec-driven development (one spec per area, each going requirements to design to tasks), steering files for the accessibility and process rules, hooks for save-time and task-time checks, the `drascula-mcp` MCP server plus Playwright for UI checks, Kiro Powers (including a custom ScummVM Access power and ElevenLabs), a reusable workflow for spec verification, a custom verifier agent, and property-based tests for the parser, the pack, the hints, the engine diff and the sonar mapping.
 
+71 of 374 commits are by Kiro Agent, and the IDE sessions commit under my name; every step is in [`docs/kiro-process.md`](docs/kiro-process.md) (17 Nov).
+
 Code is AI-generated under my direction in Kiro.
+
+## Beyond Drascula
+
+Flight of the Amazon Queen, a second ScummVM game, opens from the same WebAssembly build with [`?game=queen`](https://ghostlight.kashifnazir.com/?game=queen): its four opening rooms are described and were surveyed by the Crew. The accessibility pack is a documented format with a schema and a validator, so another ScummVM game needs a pack and an engine layer, not a new player.
+
+Flight of the Amazon Queen is in as a second-engine proof: the hotel opening (4 rooms) is described and has hints. Past it the game still runs and speaks, but rooms are read by the game's own object names, with no descriptions or hints. The start screen says so. The jungle map further on needs a mouse, so play stops there.
+
+The work carries on in QuestAloud: bring-your-own-game tooling that lets anyone who owns a classic point-and-click adventure play it with a screen reader, built so an AI can walk a game and draft its accessibility pack. It's in progress and private for now, and will go public later. Ghostlight stays frozen at the submitted build for judging.
 
 ## Run it locally
 
@@ -128,30 +140,24 @@ npx tsc --noEmit      # typecheck
 
 ### Tests
 
-Counts re-counted from the suites on 7 November 2026.
+Counts re-counted from the suites on 17 November 2026, on the frozen build.
 
 ```sh
-npm test              # player: 155 tests across 24 files, all passing
+npm test                        # player: 579 tests across 71 files, all passing
+npm --prefix packs/tools test   # pack tools: 43 tests across 7 files, all passing
+npm --prefix tests/engine test  # engine harness: 40 passing, 2 skipped, across 8 files
+npm --prefix mcp test           # drascula-mcp: 68 tests across 17 files, all passing
 ```
 
-```sh
-npm --prefix packs/tools test   # pack tools: 12 tests across 3 files, all passing
-```
-
-```sh
-npm --prefix tests/engine test  # engine harness: 26 tests (24 passing); the two
-                                # replay assertions are work in progress while the
-                                # engine spec is still open
-```
+Playwright: 82 replay checks against the dev server, and 16 live checks that boot the real engine in Chromium, all passing.
 
 The player and pack suites use property-based tests (fast-check) alongside examples. Playwright drives the UI checks through `drascula-mcp`, and axe-core checks for accessibility violations across key states.
 
 ## Known limits
 
 - The pack covers **every room in all six chapters**, 57 of 57 (14 Nov), and has hints for every chapter (16 Nov). Every chapter can be played to the final ending.
-- The hints for chapters 3 to 6 were written from the engine's own code and haven't all been played through by a tester yet.
+- Every hint answer has been followed in the real engine by the Crew's hint walker (61 of 65 passed, 17 Nov), and a blind tester finished the whole game on 16 Nov.
 - Music is **made quieter** under the ghost's voice and the narration, but it is not ducked out of the way with proper sidechaining yet.
-- The hosted engine build will be **rebuilt after the engine spec closes**, so the live link can lag behind the engine patch in this repository.
 
 ## Credits and licences
 
@@ -170,7 +176,7 @@ The ghost's hint lines are voiced with the [ElevenLabs](https://elevenlabs.io/) 
 
 List mode, presenting the game as lists of objects, exits and inventory to move through, follows an idea Brandon Cole set out in [Adventuring Blind](https://www.brandoncole.net/?p=128) (August 2013), on how a blind player can work through a point-and-click adventure.
 
-This project does not make claims about what blind or low-vision players need without a source. Two testers, a blind accessibility consultant and a moderator of the Games for Blind Gamers community, were sent the build on 11 November 2026, and longer sessions are planned for 22 to 27 November, so findings come from them rather than being asserted here.
+This project does not make claims about what blind or low-vision players need without a source. Two testers, a blind accessibility consultant and a moderator of the Games for Blind Gamers community, played it during the build, and one finished the whole game on 16 Nov. Findings come from them rather than being asserted here.
 
 ## More
 

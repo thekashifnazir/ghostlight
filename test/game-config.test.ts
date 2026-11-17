@@ -35,6 +35,16 @@ describe("game configs", () => {
     expect(DRASCULA.commandExample).toBe("talk to drunk");
     expect(QUEEN.commandExample).toBe("look at chest");
   });
+
+  it("says on the start screen how much of a preview game is described", () => {
+    expect(DRASCULA.gateIntro).toContain("Drascula");
+    expect(DRASCULA.preview).toBeUndefined();
+    expect(QUEEN.preview).toBe(true);
+    expect(QUEEN.gateIntro).toContain("Flight of the Amazon Queen");
+    expect(QUEEN.gateIntro).toContain("This is a preview.");
+    expect(QUEEN.gateIntro).toContain("4 rooms, with hints");
+    expect(QUEEN.gateIntro).toContain("no descriptions or hints");
+  });
 });
 
 describe("save file names", () => {

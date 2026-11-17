@@ -29,6 +29,14 @@ export interface GameConfig {
   heroTarget?: number;
   /** Example phrase spoken in the command box announcement and help text. */
   commandExample: string;
+  /**
+   * The start screen's first sentences: what this page makes playable, and for
+   * a game with only part of it described, how much (Kash, 17 Nov: say plainly
+   * where the described part ends).
+   */
+  gateIntro: string;
+  /** True when only part of the game is described; the gate's buttons then carry gateIntro as their description. */
+  preview?: boolean;
 }
 
 export const DRASCULA: GameConfig = {
@@ -42,6 +50,8 @@ export const DRASCULA: GameConfig = {
   pack: "drascula-en",
   heroTarget: HERO_TARGET,
   commandExample: "talk to drunk",
+  gateIntro:
+    "Ghostlight makes Drascula playable with the keyboard and your screen reader.",
 };
 
 export const QUEEN: GameConfig = {
@@ -54,6 +64,9 @@ export const QUEEN: GameConfig = {
   flagCount: 211,
   pack: "queen-en",
   commandExample: "look at chest",
+  gateIntro:
+    "Ghostlight makes Flight of the Amazon Queen playable with the keyboard and your screen reader. This is a preview. Only the hotel opening is described: 4 rooms, with hints. Past it, the game still runs and speaks, but you'll hear the game's own names, with no descriptions or hints.",
+  preview: true,
 };
 
 /** The game named by the `game` query parameter; Drascula if missing or unknown. */

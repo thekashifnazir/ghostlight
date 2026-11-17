@@ -205,6 +205,10 @@ const GAME = currentGame();
 // The static command box help names an example phrase for this game.
 const commandExampleEl = document.getElementById("command-box-example");
 if (commandExampleEl) commandExampleEl.textContent = GAME.commandExample;
+// The start screen's first sentences name this game and, for a preview, how
+// much of it is described.
+const gateIntroEl = document.getElementById("gate-intro");
+if (gateIntroEl) gateIntroEl.textContent = GAME.gateIntro;
 const packJson = GAME.pack === "queen-en" ? queenPackJson : drasculaPackJson;
 
 function loadBundledPack(): Pack {
@@ -1483,6 +1487,15 @@ export async function boot(): Promise<void> {
     return b;
   };
 
+  /**
+   * For a game with only part of it described (GameConfig.preview), the focused
+   * gate button carries the gate's intro as its description, so a screen reader
+   * that lands straight on the button still hears how much is described.
+   */
+  const describePreview = (button: HTMLElement): void => {
+    if (GAME.preview) button.setAttribute("aria-describedby", "gate-intro");
+  };
+
   /** First visit: offer the guide (focused) or skip straight into the game. */
   const renderGuideOffer = (): void => {
     gateHandlesAnyKey = false;
@@ -1508,6 +1521,7 @@ export async function boot(): Promise<void> {
     gateActions.replaceChildren(start, skip);
     gateDefault = start;
     live.announce(text);
+    describePreview(start);
     holdFocusThroughLoad(start);
   };
 
@@ -1534,6 +1548,7 @@ export async function boot(): Promise<void> {
       startButton,
       guideButton(() => openGuide("Start the game", () => void startPlaying())),
     );
+    describePreview(startButton);
     holdFocusThroughLoad(startButton);
   };
 
@@ -1655,6 +1670,7 @@ export async function boot(): Promise<void> {
     live.announce(
       "You have a saved game. Press Continue to resume, or New game to start over.",
     );
+    describePreview(continueButton);
     holdFocusThroughLoad(continueButton);
   };
 
