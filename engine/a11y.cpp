@@ -1663,6 +1663,9 @@ bool A11yLayer::poll() {
 	readCommandFile();
 
 	bool ranCommand = false;
+	// Whether this frame's own diff reported the command's result (and so any
+	// room change). A `talk` emits its diffs from the converse hook instead.
+	bool diffCarriedRoom = false;
 	// Room at the start of the frame, to see whether this command changed it.
 	int cmdBeforeChapter = _engine->currentChapter;
 	int cmdBeforeRoom = _engine->_roomNumber;
@@ -1719,6 +1722,7 @@ bool A11yLayer::poll() {
 
 		// Skip if the converse hook already emitted this command's diff.
 		if (_mainCmdDiffPending) {
+			diffCarriedRoom = (g_errCount == errCountBefore);
 			emitDiff(cmd, before, errCountBefore);
 			_mainCmdDiffPending = false;
 		}
@@ -1740,11 +1744,17 @@ bool A11yLayer::poll() {
 
 	if (ranCommand) {
 		if (cmdChangedRoom) {
-			// The diff already carries the new room, so no separate room-state line.
 			// Re-stamp _lastPollMs: the walk and transition ran inside this frame, and
 			// a stale stamp would report busy.
 			if (g_system)
 				_lastPollMs = g_system->getMillis();
+			// Usually the diff already carries the new room, so no separate
+			// room-state line. But a conversation's diffs went out from the converse
+			// hook before it ended, and the game can then move the hero (thrown out
+			// of room 18 after the chapter 2 test, say). No diff names that room,
+			// so emit its state, as for a room change no command drove.
+			if (!diffCarriedRoom)
+				emitRoomState();
 			_lastChapter = _engine->currentChapter;
 			_lastRoom = _engine->_roomNumber;
 		} else {

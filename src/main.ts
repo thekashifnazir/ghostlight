@@ -1151,6 +1151,23 @@ export async function boot(): Promise<void> {
 
   }
 
+  // Apply a diff's inventory changes to the player's state and the inventory
+  // list, announcing each one. Used on every diff path, including a room
+  // change: a cutscene can move you and change what you carry in one diff (the
+  // chapter 4 disguise gives the living-room keys as it moves you to room 24).
+  function applyInventory(diff: Diff): void {
+    for (const added of diff.invAdded ?? []) {
+      if (!state.inventory.includes(added.id)) state.inventory.push(added.id);
+      inventory.setItems(state.inventory);
+      inventory.announceAdded(added);
+    }
+    for (const removed of diff.invRemoved ?? []) {
+      state.inventory = state.inventory.filter((id) => id !== removed.id);
+      inventory.setItems(state.inventory);
+      inventory.announceRemoved(removed);
+    }
+  }
+
   function applyDiff(diff: Diff): void {
     // Capture the resolved room descriptions BEFORE folding this diff, so a
     // same-room variant change can be detected and re-announced once
@@ -1212,6 +1229,9 @@ export async function boot(): Promise<void> {
         );
       }
       narrator.said(diff);
+      // What you carry can change in the same diff; apply it before the room
+      // reading, so the room is the last line.
+      applyInventory(diff);
       // A chapter change (the chapter 1 -> 2 crossing) is announced with the
       // new room so the player hears they have advanced — the bedtime cutscene
       // played and they are now in chapter 2. The live region holds only the
@@ -1272,16 +1292,7 @@ export async function boot(): Promise<void> {
     // player hears (the live region keeps only the newest line).
     const isLookDiff = narrator.said(diff); // closes the examine window, de-duplicates said lines
 
-    for (const added of diff.invAdded ?? []) {
-      if (!state.inventory.includes(added.id)) state.inventory.push(added.id);
-      inventory.setItems(state.inventory);
-      inventory.announceAdded(added);
-    }
-    for (const removed of diff.invRemoved ?? []) {
-      state.inventory = state.inventory.filter((id) => id !== removed.id);
-      inventory.setItems(state.inventory);
-      inventory.announceRemoved(removed);
-    }
+    applyInventory(diff);
 
     // "Nothing happened." is the right feedback for an action that did nothing,
     // but never for a look: examine already announced the pack description (or
