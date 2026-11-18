@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import type { Command, Diff, EngineAdapter } from "../src/engine/adapter.js";
+import type { Command, Diff, EngineAdapter, EnginePhase } from "../src/engine/adapter.js";
 import type { Hotspot } from "../src/model/hotspot-list.js";
 import { loadPack, Pack, type PackData } from "../src/model/pack.js";
 import type { Inventory } from "../src/ui/inventory.js";
@@ -32,8 +32,13 @@ function realPack(): Pack {
 /** A LiveRegion stand-in recording announced lines; `last` is the newest. */
 class FakeLive {
   lines: string[] = [];
+  /** How many times examine held its description for the engine's reply. */
+  holds = 0;
   announce(text: string): void {
     this.lines.push(text);
+  }
+  holdForReply(): void {
+    this.holds += 1;
   }
   get last(): string | undefined {
     return this.lines[this.lines.length - 1];
@@ -77,7 +82,7 @@ const arch: Hotspot = {
  * suppressGenericLook before announcing, so the test exercises the same seam
  * the player uses.
  */
-function harness(focused: Hotspot) {
+function harness(focused: Hotspot, phase?: EnginePhase) {
   const live = new FakeLive();
   const adapter = new FakeAdapter();
   const pack = realPack();
@@ -99,6 +104,7 @@ function harness(focused: Hotspot) {
     askHint: () => {},
     toggleGhostVoice: () => {},
     sonar: { stop: () => {} } as unknown as Sonar,
+    enginePhase: () => phase,
   });
 
   // Mirror of main.ts announceSaid: the look diff's spoken text, with the
@@ -162,7 +168,18 @@ describe("examine in room 62 announces the pack description", () => {
     controller.handleKey("ArrowDown");
 
     expect(live.last).toBe("A big bald man in a vest, leaning on the bar.");
+    // Held for the engine's reply, so it is not read over the hero's voice.
+    expect(live.holds).toBe(1);
     expect(adapter.sent).toEqual([{ verb: "look", target: 52 }]);
+  });
+
+  it("does not hold the description while the engine is busy", () => {
+    const { controller, live } = harness(bartender, "busy");
+
+    controller.handleKey("ArrowDown");
+
+    expect(live.last).toBe("A big bald man in a vest, leaning on the bar.");
+    expect(live.holds).toBe(0);
   });
 
   it("suppresses the generic engine reply for the bartender", () => {

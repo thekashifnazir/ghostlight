@@ -93,6 +93,11 @@ export class LiveRegion {
   private heldLines: string[] = [];
   /** Cancels the pending safety release, if any. */
   private cancelVoiceTimer: (() => void) | undefined;
+  /**
+   * True while a hold was started by {@link holdForReply} rather than by a
+   * voice, so the command's diff can release it when no actor speaks.
+   */
+  private replyHold = false;
   /** Starts the safety timer; returns a cancel function. Injectable for tests. */
   private readonly startVoiceTimer: (fn: () => void, ms: number) => () => void;
 
@@ -138,6 +143,9 @@ export class LiveRegion {
    */
   voiceStart(): void {
     this.voicePlaying = true;
+    // A voice took over any reply hold: only its end (or a key, or the safety
+    // timer) releases now, never a diff or error that lands mid-line.
+    this.replyHold = false;
     this.cancelVoiceTimer?.();
     this.cancelVoiceTimer = this.startVoiceTimer(
       () => this.voiceEnd(),
@@ -154,10 +162,35 @@ export class LiveRegion {
     this.cancelVoiceTimer?.();
     this.cancelVoiceTimer = undefined;
     this.voicePlaying = false;
+    this.replyHold = false;
     if (this.heldLines.length === 0) return;
     const joined = this.heldLines.join(" ");
     this.heldLines = [];
     this.setRegion(joined);
+  }
+
+  /**
+   * Hold region writes until the engine has answered the command about to be
+   * sent: the actor's line ending (voiceEnd) or, when nobody speaks, the
+   * command's diff or error (releaseReplyHold). Examine uses it. It announces
+   * the pack's description and then sends `look`, and the hero speaks his own
+   * look line about 0.3 to 1 s later. Written at once, the description was
+   * still being read when the voice started, and the voice hold began only
+   * with the voice (a blind tester, 18 Nov). The same safety timer and key
+   * release apply.
+   */
+  holdForReply(): void {
+    this.voiceStart();
+    this.replyHold = true;
+  }
+
+  /**
+   * The command's diff or error arrived. Release a {@link holdForReply} hold
+   * that no voice took over. A no-op when there is no reply hold (a voice
+   * already ended it, or none was started).
+   */
+  releaseReplyHold(): void {
+    if (this.replyHold) this.voiceEnd();
   }
 
   /** True while region writes are being held for a playing voice. */

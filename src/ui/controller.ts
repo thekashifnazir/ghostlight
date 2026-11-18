@@ -562,7 +562,14 @@ export class Controller {
     const authored =
       objectText ??
       (h.kind === "exit" ? this.d.pack.exitLabel(room, h.num) : undefined);
-    if (authored) this.d.live.announce(authored);
+    if (authored) {
+      // Held until the engine answers the look, so the screen reader does not
+      // read it over the hero's spoken look line (LiveRegion.holdForReply).
+      // Not while the engine is busy (a cutscene): the look would wait behind
+      // it, and the description with it.
+      if (this.d.enginePhase?.() !== "busy") this.d.live.holdForReply();
+      this.d.live.announce(authored);
+    }
     // Arm the text-path examine suppression before the look, so the engine's
     // hover/examine A11Y_TEXT lines that arrive for this look are filtered.
     this.d.beginExamine?.(h.num);

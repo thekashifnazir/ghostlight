@@ -948,6 +948,9 @@ export async function boot(): Promise<void> {
         break;
       case "diff":
         applyDiff(e.diff);
+        // An examine's held description, when no actor spoke (holdForReply).
+        // After applyDiff, so any line the diff adds is written with it.
+        live.releaseReplyHold();
         break;
       case "voiceEnd":
         // The actor's clip ended: write whatever the live region held back.
@@ -1003,6 +1006,8 @@ export async function boot(): Promise<void> {
           if (!mapped.silent) say(mapped.line);
           if (mapped.resync) sendCommand({ verb: "state" });
         }
+        // A refused command gets no diff: release an examine's held line.
+        live.releaseReplyHold();
         break;
       case "saved":
         // The save manager decides what to announce: "Saved." for a manual

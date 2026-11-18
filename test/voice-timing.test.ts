@@ -117,4 +117,54 @@ describe("LiveRegion voice hold", () => {
     expect(live.interrupt()).toBe(true);
     expect(document.getElementById("i")!.textContent).toMatch(/\u034f/);
   });
+
+  // Examine announces the pack's description and then sends `look`; the hero
+  // speaks his look line 0.3 to 1 s later (measured on live, 18 Nov). The
+  // description is held for the reply so the two are not heard at once.
+  describe("reply hold (examine)", () => {
+    it("holds the description through the hero's line and writes it at the end", () => {
+      live.holdForReply();
+      live.announce("A skull sitting on top of the piano.");
+      expect(text(region)).toBe("");
+      live.voiceStart(); // A11Y_VTEXT
+      live.releaseReplyHold(); // a diff or error mid-line must not release
+      expect(text(region)).toBe("");
+      live.voiceEnd(); // A11Y_VEND
+      expect(text(region)).toBe("A skull sitting on top of the piano.");
+      live.releaseReplyHold(); // the diff after VEND is a no-op
+      expect(text(region)).toBe("A skull sitting on top of the piano.");
+    });
+
+    it("writes the description with the diff's lines when nobody speaks", () => {
+      live.holdForReply();
+      live.announce("A piano.");
+      live.announce("Nothing happened.");
+      expect(text(region)).toBe("");
+      live.releaseReplyHold();
+      expect(text(region)).toBe("A piano. Nothing happened.");
+      expect(live.isVoicePlaying()).toBe(false);
+    });
+
+    it("keeps R correct while the description is held", () => {
+      live.holdForReply();
+      live.announce("A piano.");
+      expect(live.lastLine()).toBe("A piano.");
+    });
+
+    it("is released by the safety timer if no reply comes", () => {
+      live.holdForReply();
+      live.announce("A piano.");
+      fire!();
+      expect(text(region)).toBe("A piano.");
+    });
+
+    it("releaseReplyHold leaves a voice-only hold alone", () => {
+      live.voiceStart();
+      live.announce("Held.");
+      live.releaseReplyHold();
+      expect(text(region)).toBe("");
+      live.voiceEnd();
+      expect(text(region)).toBe("Held.");
+    });
+  });
 });

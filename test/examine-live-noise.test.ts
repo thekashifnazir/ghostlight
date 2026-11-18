@@ -43,8 +43,13 @@ function realPack(): Pack {
 /** A LiveRegion stand-in recording announced lines; `last` is the newest. */
 class FakeLive {
   lines: string[] = [];
+  /** How many times examine held its description for the engine's reply. */
+  holds = 0;
   announce(text: string): void {
     this.lines.push(text);
+  }
+  holdForReply(): void {
+    this.holds += 1;
   }
   get last(): string | undefined {
     return this.lines[this.lines.length - 1];
@@ -140,7 +145,12 @@ function harness(num: number) {
       isOpen: () => false,
       activeItemId: () => null,
     } as unknown as Inventory,
-    live: narrator as unknown as LiveRegion,
+    // The narrator stands in for the live region; examine's reply hold is a
+    // LiveRegion timing concern, covered in voice-timing.test.ts.
+    live: {
+      announce: (text: string) => narrator.announce(text),
+      holdForReply: () => live.holdForReply(),
+    } as unknown as LiveRegion,
     beginExamine: () => narrator.beginExamine(),
     showHighlight: () => {},
     readRoom: () => {},
