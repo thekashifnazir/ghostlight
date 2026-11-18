@@ -19,6 +19,11 @@
 #   converse.cpp   onConverseBegin/Frame/End around the modal conversation
 #                  loop, where poll() never runs.
 #   animation.cpp  onGameEnd() in animation_9_6(), before the credits.
+#   emscripten.cpp (ScummVM's web backend, not the engine) delayMillis()
+#                  sleeps in slices of at most 10 ms and runs the timers after
+#                  each, so the web mixer's timer keeps the audio fed through a
+#                  long sleep (the credits wait 1 s per frame). Native builds
+#                  don't compile this file.
 diff --git a/engines/drascula/animation.cpp b/engines/drascula/animation.cpp
 index 34526326dc..b5e3812dff 100644
 --- a/engines/drascula/animation.cpp
@@ -207,4 +212,36 @@ index d39d58f6f0..2b5df73420 100644
 +
  	char msg[200];
  	Common::strlcpy(msg, message, 200);
+ 
+diff --git a/backends/platform/sdl/emscripten/emscripten.cpp b/backends/platform/sdl/emscripten/emscripten.cpp
+--- a/backends/platform/sdl/emscripten/emscripten.cpp
++++ b/backends/platform/sdl/emscripten/emscripten.cpp
+@@ -226,11 +226,24 @@
+ 		return;
+ 	}
+ #ifdef ENABLE_EVENTRECORDER
+-	if (!g_eventRec.processDelayMillis())
++	if (g_eventRec.processDelayMillis()) {
++		((EmscriptenTimerManager *)_timerManager)->checkTimers();
++		lastSleep = getMillis();
++		return;
++	}
+ #endif
+-	SDL_Delay(msecs);
+-
+-	((EmscriptenTimerManager *)_timerManager)->checkTimers();
++	// Ghostlight: sleep in slices of at most 10 ms and run the timers after
++	// each one. The Emscripten mixer makes its audio in a timer proc, and the
++	// timers only run here, so one long sleep starved it: Drascula's credits
++	// wait 1 s per frame, and only about 0.1 s of each second played.
++	const uint32 start = getMillis();
++	uint32 elapsed = 0;
++	do {
++		const uint slice = msecs - elapsed < 10 ? msecs - elapsed : 10;
++		SDL_Delay(slice);
++		((EmscriptenTimerManager *)_timerManager)->checkTimers();
++		elapsed = getMillis() - start;
++	} while (elapsed < msecs);
+ 	lastSleep = getMillis();
+ }
  
