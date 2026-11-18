@@ -146,7 +146,7 @@ Counts re-counted from the suites on 17 November 2026, on the frozen build.
 npm test                        # player: 568 tests across 70 files, all passing
 npm --prefix packs/tools test   # pack tools: 43 tests across 7 files, all passing
 npm --prefix tests/engine test  # engine harness: 41 passing, 2 skipped, across 9 files
-npm --prefix mcp test           # drascula-mcp: 68 tests across 17 files, all passing
+npm --prefix mcp test           # drascula-mcp: 70 tests across 18 files, all passing
 ```
 
 Playwright: 83 replay checks against the dev server, and 16 live checks that boot the real engine in Chromium, all passing.

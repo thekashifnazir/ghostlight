@@ -11,7 +11,9 @@
 //    reporting a new room, and (per the engine design and tavern.json) it
 //    includes the new room's full object list, so we rebuild from it without an
 //    extra `state` call;
-//  - setRoom(): the `state` tool writes the current room back here.
+//  - setRoom(): the `state` tool writes the current room back here;
+//  - a room state the engine emits between commands, when the game moves the
+//    hero after the last command settled (the room 18 test puts you in 17).
 //
 // The tracked inventory is kept current the same way: a full room state and an
 // A11Y_INV line set it outright, and every diff's invAdded/invRemoved deltas
@@ -39,6 +41,11 @@ export class Session {
       await this.stop();
     }
     this.transport = transport;
+    // A room state the engine emits between commands (a move after the last
+    // command settled) replaces the tracked room, as a room-state line does.
+    transport.onRoomBetweenCommands?.((next) => {
+      if (this.transport === transport) this.currentRoom = next;
+    });
     const room = await transport.start();
     this.currentRoom = room;
     return room;

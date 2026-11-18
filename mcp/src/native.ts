@@ -168,6 +168,8 @@ export class NativeTransport implements Transport {
 
   /** One-shot resolver for the first room state during start(). */
   private awaitingRoom: ((room: RoomState) => void) | undefined;
+  /** Told about a room state that arrives with no command in flight. */
+  private roomBetweenCommands: ((room: RoomState) => void) | undefined;
   private awaitingRoomError: ((e: Error) => void) | undefined;
 
   /** The current in-flight command, if any (one at a time). */
@@ -487,6 +489,11 @@ export class NativeTransport implements Transport {
     else this.stderrBuffer = buffer;
   }
 
+  /** Register the listener for room states that arrive between commands. */
+  onRoomBetweenCommands(listener: (room: RoomState) => void): void {
+    this.roomBetweenCommands = listener;
+  }
+
   /** Parse one line and route the resulting event to start() or the pending send. */
   private onLine(line: string): void {
     const event = parseA11yLine(line);
@@ -558,7 +565,14 @@ export class NativeTransport implements Transport {
    */
   private routeToPending(event: EngineEvent): void {
     const p = this.pending;
-    if (!p) return; // a stray line between commands (e.g. a late talk diff); ignore.
+    if (!p) {
+      // A room state between commands is the engine reporting a move that came
+      // after the last command settled (the room 18 test puts you in room 17):
+      // pass it on, so the session's room stays true. Any other stray line
+      // between commands (e.g. a late talk diff) is ignored.
+      if (event.type === "room") this.roomBetweenCommands?.(event.state);
+      return;
+    }
 
     // The engine drops a command written while it is busy and emits this with
     // no A11Y_CMD echo (engine/queen/a11y.cpp:819-823, engine/a11y.cpp:3237).

@@ -78,6 +78,13 @@ export interface Transport {
    * back to the room it already tracks.
    */
   snapshot(): Promise<RoomState | null>;
+  /**
+   * Optional: be told about a room state the engine emits between commands,
+   * with no command waiting for it. The engine does this when the game moves
+   * the hero after a command has settled (a conversation ends and the room 18
+   * test puts you in room 17). Only the native transport implements it.
+   */
+  onRoomBetweenCommands?(listener: (room: RoomState) => void): void;
   /** End the session and release resources. Safe to call with no session (Req 4.4). */
   stop(): Promise<void>;
 }
