@@ -207,26 +207,22 @@ export function parsePhrase(
   const splitAt = rest.findIndex((w) => SPLIT_WORDS.has(w));
   const left = splitAt >= 0 ? rest.slice(0, splitAt).filter((w) => !STOP_WORDS.has(w)) : [];
   if (splitAt >= 0 && (verb === "use" || verb === undefined) && left.length > 0) {
-    const right = rest.slice(splitAt + 1).filter((w) => !STOP_WORDS.has(w));
-
-    const itemMatch = bestItem(left, inventory);
-    if (itemMatch.item) {
-      // Target is a visible hotspot or another carried item.
-      const targetHotspot = bestHotspots(right, visible);
-      const targetItem = bestItem(right, inventory);
-      if (
-        targetHotspot.score > 0 &&
-        targetHotspot.score >= targetItem.score &&
-        targetHotspot.top.length === 1
-      ) {
-        return { kind: "use", item: itemMatch.item, target: targetHotspot.top[0] };
+    // A split word can be part of the item's own name: "use scotch on the
+    // rocks on Drascula" split at the first "on" read as the scotch used on
+    // itself (a tester's run, 18 Nov). Try the later split words first, last
+    // to first. One counts only when every word before it belongs to the
+    // chosen item's name and it uses the item on something else. Otherwise
+    // the first split stands, as before.
+    for (let at = rest.length - 1; at > splitAt; at--) {
+      if (!SPLIT_WORDS.has(rest[at])) continue;
+      const later = useSplitAt(rest, at, visible, inventory);
+      if (later && later.kind === "use" && later.target !== later.item) {
+        const nameWords = new Set(normalise(later.item.name));
+        const before = rest.slice(0, at).filter((w) => !STOP_WORDS.has(w));
+        if (before.every((w) => nameWords.has(w))) return later;
       }
-      if (targetItem.item && targetItem.score > 0) {
-        return { kind: "use", item: itemMatch.item, target: targetItem.item };
-      }
-      return { kind: "none", present: presentNames(visible) };
     }
-    return { kind: "none", present: presentNames(visible) };
+    return useSplitAt(rest, splitAt, visible, inventory) ?? { kind: "none", present: presentNames(visible) };
   }
 
   // A bare name (optionally with a verb). Score against visible hotspots and
@@ -245,6 +241,38 @@ export function parsePhrase(
     return { kind: "item", item: itemMatch.item, verb };
   }
 
+  return { kind: "none", present: presentNames(visible) };
+}
+
+/**
+ * Read `rest` as "<item> <split word> <target>", split at index `at`. Returns
+ * the use (on a visible hotspot or another carried item), a `none` when the
+ * item is carried but the target is not found, or undefined when the left side
+ * names no carried item.
+ */
+function useSplitAt(
+  rest: string[],
+  at: number,
+  visible: Hotspot[],
+  inventory: InvItem[],
+): Match | undefined {
+  const left = rest.slice(0, at).filter((w) => !STOP_WORDS.has(w));
+  const right = rest.slice(at + 1).filter((w) => !STOP_WORDS.has(w));
+  const itemMatch = bestItem(left, inventory);
+  if (!itemMatch.item) return undefined;
+  // Target is a visible hotspot or another carried item.
+  const targetHotspot = bestHotspots(right, visible);
+  const targetItem = bestItem(right, inventory);
+  if (
+    targetHotspot.score > 0 &&
+    targetHotspot.score >= targetItem.score &&
+    targetHotspot.top.length === 1
+  ) {
+    return { kind: "use", item: itemMatch.item, target: targetHotspot.top[0] };
+  }
+  if (targetItem.item && targetItem.score > 0) {
+    return { kind: "use", item: itemMatch.item, target: targetItem.item };
+  }
   return { kind: "none", present: presentNames(visible) };
 }
 
@@ -267,13 +295,17 @@ function parseSelfUse(words: string[], inventory: InvItem[]): InvItem | undefine
     itemWords = content(words.slice(2));
   } else if (lead === "use" || lead === "put") {
     const rest = words.slice(1);
-    const splitAt = rest.findIndex((w) => SPLIT_WORDS.has(w));
+    // The split before the hero, not the first one: an item's name can hold a
+    // split word ("use scotch on the rocks on me").
+    const toSelf = (at: number): boolean => {
+      const right = content(rest.slice(at + 1));
+      return (
+        right.length === 1 &&
+        (SELF_WORDS.has(right[0]) || (lead === "put" && EAR_WORDS.has(right[0])))
+      );
+    };
+    const splitAt = rest.findIndex((w, i) => SPLIT_WORDS.has(w) && toSelf(i));
     if (splitAt < 0) return undefined;
-    const right = content(rest.slice(splitAt + 1));
-    const toSelf =
-      right.length === 1 &&
-      (SELF_WORDS.has(right[0]) || (lead === "put" && EAR_WORDS.has(right[0])));
-    if (!toSelf) return undefined;
     itemWords = content(rest.slice(0, splitAt));
   } else {
     return undefined;
