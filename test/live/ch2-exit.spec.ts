@@ -107,8 +107,9 @@ test.describe("live chapter-2 inn-bar -> street exit (Chrome)", () => {
   test.skip(!existsSync(WASM) || !existsSync(PACKET), SKIP_MESSAGE);
 
   // The route plays the full bartender conversation and the chapter crossing
-  // before the exit under test, so give it a long budget.
-  test.setTimeout(480_000);
+  // (the bedtime scene plays out, about 3 min 30 s) before the exit under
+  // test, so give it a long budget.
+  test.setTimeout(600_000);
 
   test("using the street exit returns to ready, speaks the street room, and shows room 12", async ({
     page,
@@ -162,8 +163,8 @@ test.describe("live chapter-2 inn-bar -> street exit (Chrome)", () => {
     }
     expect(handedOver, "bartender never handed over the room").toBe(true);
 
-    // 2. Walk through the curtained doorway (exit 105). The player pages the
-    //    single `skip` that advances the bedtime cutscene automatically.
+    // 2. Walk through the curtained doorway (exit 105). The bedtime cutscene
+    //    plays to its end and the engine settles chapter 2 on its own.
     let onDoorway = false;
     for (let i = 0; i < 14 && !onDoorway; i++) {
       await page.keyboard.press("ArrowRight");
@@ -179,7 +180,7 @@ test.describe("live chapter-2 inn-bar -> street exit (Chrome)", () => {
     await page.keyboard.press("Enter"); // walk 105 -> crossing
 
     // The crossing lands in chapter 2 with the announcement, and settles.
-    await expect(live).toContainText("Chapter 2:", { timeout: 120_000 });
+    await expect(live).toContainText("Chapter 2:", { timeout: 300_000 });
     await waitReady(page, 120_000);
     // We are now in chapter 2 room 14 (the inn bar).
     await page.waitForFunction(
