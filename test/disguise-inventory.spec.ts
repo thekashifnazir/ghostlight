@@ -29,9 +29,15 @@ test("the disguise scene adds the living-room keys and takes the disguise", asyn
   await page.keyboard.type("use wig on yourself");
   await page.keyboard.press("Enter");
 
-  // The room changed to 24, and the inventory changes were announced with it.
-  await expect.poll(() => spoken(page)).toContain("Received living-room keys.");
-  expect(await spoken(page)).toContain("You no longer have the wig.");
+  // The room changed to 24, and the inventory changes were announced with it,
+  // in one line (the live region keeps only the newest line).
+  await expect
+    .poll(async () =>
+      (await spoken(page)).some(
+        (l) => l.startsWith("Received living-room keys.") && l.includes("You no longer have") && l.includes("the wig"),
+      ),
+    )
+    .toBe(true);
 
   // The inventory itself has the keys and no longer has the wig.
   await page.keyboard.press("Tab");

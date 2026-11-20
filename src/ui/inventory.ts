@@ -73,9 +73,12 @@ export class Inventory {
     return this.activeId;
   }
 
-  /** Resolve an item id's spoken name (pack, else a placeholder). */
-  private nameOf(id: number): string {
-    return this.pack.itemName(id, this.cb.chapter()) ?? `item ${id}`;
+  /**
+   * Resolve an item id's spoken name (pack, else a placeholder), in the
+   * current chapter unless another is given.
+   */
+  private nameOf(id: number, chapter: number = this.cb.chapter()): string {
+    return this.pack.itemName(id, chapter) ?? `item ${id}`;
   }
 
   /** Update the carried set from the engine's current inventory ids. */
@@ -188,14 +191,28 @@ export class Inventory {
     }
   }
 
-  /** Announce an item gained (R6.6). */
-  announceAdded(item: InvItem): void {
-    this.cb.announce(`Received ${this.nameOf(item.id)}.`);
-  }
-
-  /** Announce an item lost or used up (R6.7). */
-  announceRemoved(item: InvItem): void {
-    this.cb.announce(`You no longer have the ${this.nameOf(item.id)}.`);
+  /**
+   * Announce what one diff gained (R6.6) and lost or used up (R6.7), as ONE
+   * line: the live region keeps only the newest line, so separate lines for a
+   * combine ("use rope on branch" gains one item and loses two) left only
+   * "You no longer have the branch." and the new item was never heard (a blind
+   * tester, 20 Nov). Says nothing when the diff changes nothing carried.
+   *
+   * `removedChapter` names the removed items in the chapter they were carried
+   * in: a crossing diff takes the rope tied to a branch as chapter 5 begins,
+   * and item ids are reused per chapter, so it was "the item 21".
+   */
+  announceChanges(added: InvItem[], removed: InvItem[], removedChapter?: number): void {
+    const parts: string[] = [];
+    if (added.length > 0) {
+      parts.push(`Received ${joinNames(added.map((it) => this.nameOf(it.id)))}.`);
+    }
+    if (removed.length > 0) {
+      parts.push(
+        `You no longer have ${joinNames(removed.map((it) => `the ${this.nameOf(it.id, removedChapter)}`))}.`,
+      );
+    }
+    if (parts.length > 0) this.cb.announce(parts.join(" "));
   }
 
   private render(): void {
@@ -251,4 +268,10 @@ export class Inventory {
     this.open = false;
     this.el.hidden = true;
   }
+}
+
+/** "a", "a and b", "a, b and c". */
+function joinNames(names: string[]): string {
+  if (names.length <= 1) return names.join("");
+  return `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
 }

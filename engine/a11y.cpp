@@ -147,13 +147,28 @@ void A11yLayer::onText(const char *message) {
 
 	_lastText = message;
 
+	// The drunk's song about Von Braun (animation_16_2) draws its four lines
+	// of lyrics while the song plays as music, with no voice sample, so
+	// soundIsActive() is false. It is still heard, so it is a voiced line: with
+	// dialogue reading off the player drops it like any other (a blind tester,
+	// 20 Nov). There is no clip to wait for, so its A11Y_VEND follows at once.
+	bool sung = false;
+	if (_engine->_texthis) {
+		for (int i = 1; i <= 4; i++) {
+			if (_engine->_texthis[i] && strcmp(message, _engine->_texthis[i]) == 0)
+				sung = true;
+		}
+	}
+
 	// A line drawn while talkInit()'s voice sample plays is spoken by the game,
 	// so mark it A11Y_VTEXT and let the player skip reading it aloud.
-	const bool voiced = _engine->soundIsActive();
+	const bool voiced = sung || _engine->soundIsActive();
 	emitLine(Common::String(voiced ? "A11Y_VTEXT " : "A11Y_TEXT ") + message);
+	if (sung)
+		emitLine("A11Y_VEND");
 	// A voiced clip is now playing: remember it so checkVoiceEnd() can emit one
 	// A11Y_VEND when the sample stops (voice timing).
-	if (voiced) {
+	if (voiced && !sung) {
 		_voicePlaying = true;
 		// Characters (not bytes) of this line, for the reading pause estimate.
 		_voiceLen = 0;

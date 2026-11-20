@@ -67,6 +67,11 @@ const VERB_WORDS: Record<string, EngineVerb> = {
   go: "walk",
   enter: "walk",
   use: "use",
+  // "give X to Y" and "throw X at Y" are uses. As plain words they counted
+  // against the item's name, so "give scotch on the rocks to the bartender"
+  // only resolved through a hotspot-wins tie.
+  give: "use",
+  throw: "use",
 };
 
 const SPLIT_WORDS = new Set(["on", "with", "in", "to", "into", "at", "onto"]);
@@ -260,12 +265,15 @@ function useSplitAt(
   const right = rest.slice(at + 1).filter((w) => !STOP_WORDS.has(w));
   const itemMatch = bestItem(left, inventory);
   if (!itemMatch.item) return undefined;
-  // Target is a visible hotspot or another carried item.
+  // Target is a visible hotspot or another carried item. A carried item wins
+  // a tie: behind the castle tree the cut branch is still listed as a room
+  // thing, so "use rope on branch" went to the room's branch (use 19 140,
+  // "Nothing happened.") and the rope was never tied (a blind tester, 20 Nov).
   const targetHotspot = bestHotspots(right, visible);
   const targetItem = bestItem(right, inventory);
   if (
     targetHotspot.score > 0 &&
-    targetHotspot.score >= targetItem.score &&
+    targetHotspot.score > targetItem.score &&
     targetHotspot.top.length === 1
   ) {
     return { kind: "use", item: itemMatch.item, target: targetHotspot.top[0] };

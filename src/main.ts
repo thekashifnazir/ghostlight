@@ -17,7 +17,6 @@ import type {
 import { LiveAdapter } from "./engine/live-adapter.js";
 import { ReplayAdapter } from "./engine/replay-adapter.js";
 import { mapEngineError } from "./engine/error-lines.js";
-import { CrossingSkip } from "./engine/crossing-skip.js";
 import { StatusTracker } from "./engine/status.js";
 import { installSpeechlog, isSpeechlogEnabled, type Speechlog } from "./engine/speechlog.js";
 import { Persistence, chapterSlot, probeSaves } from "./engine/persistence.js";
@@ -341,12 +340,6 @@ export async function boot(): Promise<void> {
   const status = new StatusTracker();
   status.publish();
 
-  // The chapter-crossing cutscene skip scheduler. Forward-declared here because
-  // the live.announce tap below feeds it lines, but the instance can only be
-  // built once the adapter exists (its skip goes through the adapter). Stays
-  // undefined until then; the tap's `crossingSkip?.noteLine()` is a no-op
-  // meanwhile. See engine/crossing-skip.ts.
-  let crossingSkip: CrossingSkip | undefined;
   // The console mirror (?speechlog), the other observer-only test aid beside
   // window.__ghostlight. Off unless the ?speechlog query param is present. When
   // on, it mirrors every live-region line to console.log as `[say] <text>` (via
@@ -371,11 +364,6 @@ export async function boot(): Promise<void> {
     liveAnnounce(text);
     status.recordLine(text);
     speechlog?.say(text);
-    // While a chapter-crossing cutscene is playing, every announced line is a
-    // cutscene line still arriving: push the crossing scheduler's quiet period
-    // out so its single skip only fires once the lines have stopped. Forward-
-    // referenced because the scheduler is built later (it needs the adapter).
-    crossingSkip?.noteLine();
   };
 
   // Same tap for interrupt(). The default cut is silent (two or three
@@ -447,9 +435,6 @@ export async function boot(): Promise<void> {
       // An actor's recorded line is starting: cut any long readout still in
       // progress so the screen reader does not talk over it.
       live.interrupt();
-      // A suppressed voiced line is still a cutscene line arriving: keep the
-      // crossing scheduler's quiet timer honest so its skip waits for the end.
-      crossingSkip?.noteLine();
     },
   });
 
@@ -600,36 +585,16 @@ export async function boot(): Promise<void> {
 
   // The command seam every player action goes through: the controller, the
   // typed command box, the verb menu and the inventory all send here instead
-  // of calling adapter.send() directly, so the one cross-chapter-crossing rule
-  // below is applied to every walk however it was issued.
+  // of calling adapter.send() directly.
   //
-  // Crossing the chapter 1 -> 2 boundary (the bedtime cutscene, "THERE IS NO
-  // PLACE LIKE HOME"): a `walk` through the curtained doorway (the scripted
-  // exit the pack marks with `to: null`) makes the live engine run its
-  // animation_2_1 cutscene, which BLOCKS the engine's main loop and only
-  // advances when a single `skip` is written to the command file WHILE the
-  // cutscene is running (a skip written before the cutscene's own event loop
-  // starts is consumed as a no-op — engine process log). The web player's keys
-  // reach the engine as commands, but nothing was sending that skip, so the
-  // cutscene played and the player never reached chapter 2.
-  //
-  // The skip must NOT be sent at a fixed delay: a fixed 400 ms skip landed so
-  // early that it skipped the cutscene from the very start, so its dialogue
-  // ('...I JUST WAXED THE FLOOR', '...WAKE UP!...', 'THERE IS NO PLACE LIKE
-  // HOME') was never announced (a live line-log check caught this). Instead the
-  // CrossingSkip scheduler waits until the cutscene's lines have stopped
-  // arriving (no new announced line for CROSSING_QUIET_MS, measured from the
-  // last line) and the chapter has not already advanced, then sends exactly ONE
-  // skip to clear the final blocked frame. If engine truth reports `control`
-  // (phase) or the chapter changes first, the cutscene ended on its own and
-  // nothing is sent — which makes it a no-op on the replay adapter (whose
-  // `walk` settles the chapter synchronously). Exactly one skip ever:
-  // over-skipping corrupts the hero mid-animation (engine process log), and the
-  // scheduler disarms after the single skip to guarantee it.
-  //
-  // The scheduler sends through the raw adapter (not sendCommand) so the paced
-  // skip does not open a fresh narration window or re-enter this crossing path.
-  crossingSkip = new CrossingSkip(() => adapter.send({ verb: "skip" }));
+  // A walk through a scripted crossing exit (the pack marks it with
+  // `to: null`: the chapter 1 curtained doorway, the chapter 2 well) runs a
+  // chapter cutscene. The player sends nothing more: the cutscene plays to its
+  // end and the engine settles the chapter on its own (the bedtime scene takes
+  // about 3 min 40 s on the native engine, 20 Nov). Escape still skips it the
+  // game's own way. Until 20 Nov the player sent one `skip` after 4 s with no
+  // new line, which cut the scene in its first silent animation, so B.J. was
+  // never met (a blind tester's report).
   const sendCommand = (cmd: Command): void => {
     const crossing =
       cmd.verb === "walk" && pack.isScriptedExit(state.room, cmd.target);
@@ -642,18 +607,8 @@ export async function boot(): Promise<void> {
     // walk runs the blocking cutscene (phase 'cutscene'), every other command
     // is a plain 'busy' that settles on its quiet period / diff.
     status.onSend(crossing);
-    if (crossing) {
-      // Arm the settle-then-skip scheduler BEFORE the send, so a synchronous
-      // adapter (the ReplayAdapter settles the chapter during send()) fires its
-      // chapter-change event while the scheduler is armed and cancels it at
-      // once — no dangling skip on replay. On the live engine the send only
-      // triggers the blocking cutscene, whose lines then drive the quiet
-      // period. The scheduler watches the cutscene's lines, the engine phase
-      // and the chapter (fed below) and sends the single skip only once the
-      // lines go quiet with the chapter unchanged.
-      crossingSkip?.arm(state.chapter);
-    }
-    adapter.send(cmd);  };
+    adapter.send(cmd);
+  };
 
   // Turn #game into the role="application" surface the screen reader treats as
   // a focus-mode application. Done once, when the game starts — NOT in the
@@ -949,12 +904,14 @@ export async function boot(): Promise<void> {
       case "diff":
         applyDiff(e.diff);
         // An examine's held description, when no actor spoke (holdForReply).
-        // After applyDiff, so any line the diff adds is written with it.
-        live.releaseReplyHold();
+        // After applyDiff, so any line the diff adds is written with it. Only
+        // the diff of the look it waits on releases it.
+        live.releaseReplyHold(e.diff.cmd);
         break;
       case "voiceEnd":
-        // The actor's clip ended: write whatever the live region held back.
-        live.voiceEnd();
+        // The actor's clip ended: write whatever the live region held back
+        // (unless an examine's hold still waits on its own look's answer).
+        live.engineVoiceEnd();
         break;
       case "voiceHold":
         // The engine's reading pause started; nothing to announce yet.
@@ -1048,9 +1005,6 @@ export async function boot(): Promise<void> {
         // Track engine truth for the controller (Fix B): the live phase gates
         // the list-mode Escape `skip` and the choice-menu R re-read.
         lastEnginePhase = e.phase;
-        // Feed the crossing scheduler engine truth: `control` means the
-        // bedtime cutscene ended on its own, so it disarms and sends no skip.
-        crossingSkip?.notePhase(e.phase);
         // Engine-truth control phase (A11Y_PHASE). It drives the readiness
         // signal via status.onEvent(e) above and is internal diagnostics, not
         // player output, so nothing is announced here
@@ -1099,9 +1053,6 @@ export async function boot(): Promise<void> {
   function applyRoom(s: RoomState): void {
     state.chapter = s.chapter;
     state.room = s.room;
-    // A room state that advances the chapter ends a crossing: the scheduler
-    // disarms and sends no skip (the engine moved on its own).
-    crossingSkip?.noteChapter(s.chapter);
     state.hero = s.hero;
     state.objects = s.objects;
     state.inventory = s.inventory;
@@ -1157,19 +1108,23 @@ export async function boot(): Promise<void> {
   }
 
   // Apply a diff's inventory changes to the player's state and the inventory
-  // list, announcing each one. Used on every diff path, including a room
+  // list, announcing them in one line. Used on every diff path, including a room
   // change: a cutscene can move you and change what you carry in one diff (the
   // chapter 4 disguise gives the living-room keys as it moves you to room 24).
   function applyInventory(diff: Diff): void {
-    for (const added of diff.invAdded ?? []) {
-      if (!state.inventory.includes(added.id)) state.inventory.push(added.id);
-      inventory.setItems(state.inventory);
-      inventory.announceAdded(added);
+    const added = diff.invAdded ?? [];
+    const removed = diff.invRemoved ?? [];
+    for (const item of added) {
+      if (!state.inventory.includes(item.id)) state.inventory.push(item.id);
     }
-    for (const removed of diff.invRemoved ?? []) {
-      state.inventory = state.inventory.filter((id) => id !== removed.id);
+    if (removed.length > 0) {
+      const gone = new Set(removed.map((item) => item.id));
+      state.inventory = state.inventory.filter((id) => !gone.has(id));
+    }
+    if (added.length > 0 || removed.length > 0) {
       inventory.setItems(state.inventory);
-      inventory.announceRemoved(removed);
+      // What a chapter crossing takes away was carried in the old chapter.
+      inventory.announceChanges(added, removed, diff.chapter?.[0]);
     }
   }
 
@@ -1202,9 +1157,6 @@ export async function boot(): Promise<void> {
       // #game names where the player is now (one short phrase). Not while
       // #game has focus: focusGame names it as focus comes back.
       if (doc.activeElement !== gameEl) updateGameLabel();
-      // A chapter change settles any pending crossing: the engine advanced on
-      // its own, so the scheduler disarms and sends no skip.
-      if (diff.chapter) crossingSkip?.noteChapter(diff.chapter[1]);
       if (diff.objects) {
         state.objects = diff.objects;
         currentList = buildHotspotList(

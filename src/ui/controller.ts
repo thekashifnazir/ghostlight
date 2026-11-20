@@ -7,7 +7,7 @@
 // commands through the adapter targeting hotspot numbers, and returns focus to
 // the list after actions.
 
-import type { Command, Diff, EngineAdapter, EnginePhase } from "../engine/adapter.js";
+import { serializeCommand, type Command, type Diff, type EngineAdapter, type EnginePhase } from "../engine/adapter.js";
 import { currentGame } from "../engine/game.js";
 import type { Hotspot } from "../model/hotspot-list.js";
 import type { Pack } from "../model/pack.js";
@@ -563,11 +563,12 @@ export class Controller {
       objectText ??
       (h.kind === "exit" ? this.d.pack.exitLabel(room, h.num) : undefined);
     if (authored) {
-      // Held until the engine answers the look, so the screen reader does not
+      // Held until the engine answers this look, so the screen reader does not
       // read it over the hero's spoken look line (LiveRegion.holdForReply).
-      // Not while the engine is busy (a cutscene): the look would wait behind
-      // it, and the description with it.
-      if (this.d.enginePhase?.() !== "busy") this.d.live.holdForReply();
+      // Also while the engine is busy: the hero may still be answering the
+      // last look, and his next line follows. A key press or the 15 s safety
+      // timer still releases it (a cutscene the look waits behind).
+      this.d.live.holdForReply(serializeCommand({ verb: "look", target: h.num }));
       this.d.live.announce(authored);
     }
     // Arm the text-path examine suppression before the look, so the engine's

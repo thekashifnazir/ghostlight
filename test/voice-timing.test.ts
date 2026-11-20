@@ -158,6 +158,48 @@ describe("LiveRegion voice hold", () => {
       expect(text(region)).toBe("A piano.");
     });
 
+    it("a second examine while the hero still answers the first waits for its own look", () => {
+      // Look 1: the hero's line is playing.
+      live.holdForReply("look 204");
+      live.announce("A bin.");
+      live.voiceStart(); // VTEXT "IT'S A BIN"
+      // Down on the next thing: the key releases the playing line's hold.
+      live.voiceEnd();
+      expect(text(region)).toBe("A bin.");
+      live.holdForReply("look 201");
+      live.announce("A small blackboard.");
+      live.engineVoiceEnd(); // look 1's VEND arrives after the new hold
+      expect(text(region)).toBe("A bin.");
+      live.releaseReplyHold("look 204"); // look 1's diff
+      expect(text(region)).toBe("A bin.");
+      live.voiceStart(); // look 2's VTEXT
+      live.engineVoiceEnd(); // look 2's VEND
+      expect(text(region)).toBe("A small blackboard.");
+    });
+
+    it("its own look's diff releases it when nobody speaks", () => {
+      live.holdForReply("look 201");
+      live.announce("A small blackboard.");
+      live.releaseReplyHold("look 204");
+      expect(text(region)).toBe("");
+      live.releaseReplyHold("look 201");
+      expect(text(region)).toBe("A small blackboard.");
+    });
+
+    it("an error (no command named) releases it", () => {
+      live.holdForReply("look 201");
+      live.announce("A small blackboard.");
+      live.releaseReplyHold();
+      expect(text(region)).toBe("A small blackboard.");
+    });
+
+    it("an engine voice end with no reply hold writes as before", () => {
+      live.voiceStart();
+      live.announce("Held.");
+      live.engineVoiceEnd();
+      expect(text(region)).toBe("Held.");
+    });
+
     it("releaseReplyHold leaves a voice-only hold alone", () => {
       live.voiceStart();
       live.announce("Held.");

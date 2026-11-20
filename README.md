@@ -143,9 +143,9 @@ npx tsc --noEmit      # typecheck
 Counts re-counted from the suites on 17 November 2026, on the frozen build.
 
 ```sh
-npm test                        # player: 582 tests across 71 files, all passing
+npm test                        # player: 586 tests across 71 files, all passing
 npm --prefix packs/tools test   # pack tools: 43 tests across 7 files, all passing
-npm --prefix tests/engine test  # engine harness: 41 passing, 2 skipped, across 9 files
+npm --prefix tests/engine test  # engine harness: 42 passing, 2 skipped, across 10 files
 npm --prefix mcp test           # drascula-mcp: 70 tests across 18 files, all passing
 ```
 

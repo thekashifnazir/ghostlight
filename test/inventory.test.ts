@@ -15,7 +15,7 @@ const pack = loadPack({
   ],
 } as unknown as PackData);
 
-function setup(ids: number[] = [13, 9, 28]) {
+function setup(ids: number[] = [13, 9, 28], chapter = 2) {
   document.body.innerHTML = `<div id="i" role="menu"></div>`;
   const el = document.getElementById("i")!;
   const announce = vi.fn();
@@ -27,7 +27,7 @@ function setup(ids: number[] = [13, 9, 28]) {
     useOnItem,
     useOnSelf,
     returnToList,
-    chapter: () => 2,
+    chapter: () => chapter,
   });
   inv.setItems(ids);
   return { el, inv, announce, useOnItem, useOnSelf, returnToList };
@@ -97,12 +97,41 @@ describe("Inventory", () => {
 
   it("announces Received X on add and no-longer-have on remove", () => {
     const { inv, announce } = setup();
-    inv.announceAdded({ id: 9, name: "CRUZ" });
+    inv.announceChanges([{ id: 9, name: "CRUZ" }], []);
     expect(announce).toHaveBeenLastCalledWith("Received crucifix.");
-    inv.announceRemoved({ id: 13, name: "CHICLE" });
+    inv.announceChanges([], [{ id: 13, name: "CHICLE" }]);
     expect(announce).toHaveBeenLastCalledWith(
       "You no longer have the bubble gum.",
     );
+  });
+
+  // A blind tester, 20 Nov: "use rope on branch" seemed to do nothing, because
+  // the three lines it made were written one after another and only the last,
+  // "You no longer have the branch.", was heard.
+  it("says a combine's gain and losses in one line", () => {
+    const { inv, announce } = setup();
+    inv.announceChanges([{ id: 9, name: "CRUZ" }], [{ id: 13, name: "CHICLE" }, { id: 9, name: "CRUZ" }]);
+    expect(announce).toHaveBeenCalledTimes(1);
+    expect(announce).toHaveBeenLastCalledWith(
+      "Received crucifix. You no longer have the bubble gum and the crucifix.",
+    );
+  });
+
+  // kiro-ideas, Edge + NVDA, 20 Nov: the climb into chapter 5 takes the rope
+  // tied to a branch (id 21, a chapter 4 item) and said "the item 21".
+  it("names an item a chapter crossing takes in the chapter it was carried in", () => {
+    // Now in chapter 3, where id 13 names nothing.
+    const { inv, announce } = setup([], 3);
+    inv.announceChanges([], [{ id: 13, name: "" }]);
+    expect(announce).toHaveBeenLastCalledWith("You no longer have the item 13.");
+    inv.announceChanges([], [{ id: 13, name: "" }], 2);
+    expect(announce).toHaveBeenLastCalledWith("You no longer have the bubble gum.");
+  });
+
+  it("says nothing for a diff that changes nothing carried", () => {
+    const { inv, announce } = setup();
+    inv.announceChanges([], []);
+    expect(announce).not.toHaveBeenCalled();
   });
 
   // Tester feedback 14 Nov: the earplugs puzzle needs "use earplugs on yourself"

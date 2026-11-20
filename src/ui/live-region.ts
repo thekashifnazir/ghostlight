@@ -98,6 +98,8 @@ export class LiveRegion {
    * voice, so the command's diff can release it when no actor speaks.
    */
   private replyHold = false;
+  /** The command a reply hold waits on (e.g. "look 201"), when known. */
+  private replyFor: string | undefined;
   /** Starts the safety timer; returns a cancel function. Injectable for tests. */
   private readonly startVoiceTimer: (fn: () => void, ms: number) => () => void;
 
@@ -146,6 +148,7 @@ export class LiveRegion {
     // A voice took over any reply hold: only its end (or a key, or the safety
     // timer) releases now, never a diff or error that lands mid-line.
     this.replyHold = false;
+    this.replyFor = undefined;
     this.cancelVoiceTimer?.();
     this.cancelVoiceTimer = this.startVoiceTimer(
       () => this.voiceEnd(),
@@ -163,6 +166,7 @@ export class LiveRegion {
     this.cancelVoiceTimer = undefined;
     this.voicePlaying = false;
     this.replyHold = false;
+    this.replyFor = undefined;
     if (this.heldLines.length === 0) return;
     const joined = this.heldLines.join(" ");
     this.heldLines = [];
@@ -178,19 +182,40 @@ export class LiveRegion {
    * still being read when the voice started, and the voice hold began only
    * with the voice (a blind tester, 18 Nov). The same safety timer and key
    * release apply.
+   *
+   * `cmd` is the command being answered (e.g. "look 201"). Only that
+   * command's diff releases the hold: pressing Down on a second thing while
+   * the hero is still answering the first, the first look's diff and voice end
+   * arrive after the hold began and must not write the description just
+   * before the hero's next line (a blind tester, 20 Nov).
    */
-  holdForReply(): void {
+  holdForReply(cmd?: string): void {
     this.voiceStart();
     this.replyHold = true;
+    this.replyFor = cmd;
   }
 
   /**
-   * The command's diff or error arrived. Release a {@link holdForReply} hold
-   * that no voice took over. A no-op when there is no reply hold (a voice
+   * The engine says a voiced clip ended (A11Y_VEND). While a reply hold still
+   * waits for its command's answer, no voice has started since the hold, so
+   * the clip that ended is an earlier line: keep holding. Otherwise this is
+   * {@link voiceEnd}.
+   */
+  engineVoiceEnd(): void {
+    if (this.replyHold) return;
+    this.voiceEnd();
+  }
+
+  /**
+   * A command's diff or error arrived. Release a {@link holdForReply} hold
+   * that no voice took over, when `cmd` is the command it waits on (or either
+   * is unknown, as for an error). A no-op when there is no reply hold (a voice
    * already ended it, or none was started).
    */
-  releaseReplyHold(): void {
-    if (this.replyHold) this.voiceEnd();
+  releaseReplyHold(cmd?: string): void {
+    if (!this.replyHold) return;
+    if (cmd !== undefined && this.replyFor !== undefined && cmd !== this.replyFor) return;
+    this.voiceEnd();
   }
 
   /** True while region writes are being held for a playing voice. */

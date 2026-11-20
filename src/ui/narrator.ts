@@ -250,7 +250,7 @@ export class Narrator {
       return;
     }
     // Through the normal announce path, so the main.ts tap still feeds the
-    // readiness status, ?speechlog and the crossing-skip quiet timer.
+    // readiness status and ?speechlog.
     this.announce(line);
   }
 

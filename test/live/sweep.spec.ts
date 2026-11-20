@@ -16,10 +16,11 @@ import { expect, test, type Page } from "@playwright/test";
 //      action (the old bug sent L/O/K… to the controller while typing).
 //   2. The chapter 1 -> 2 crossing: walking through the curtained doorway runs
 //      the bedtime cutscene (animation_2_1, "THERE IS NO PLACE LIKE HOME"),
-//      which blocks the engine until a single `skip` is written WHILE it runs.
-//      The web player now pages that skip automatically on a scripted-exit walk,
-//      so the player reaches chapter 2 with an announcement — this test proves
-//      it against the live engine (keyboard only, never canvas pixels).
+//      where John meets B.J. It plays to its end on its own (about 3 min 40 s)
+//      and the player reaches chapter 2 with an announcement. Until 20 Nov the
+//      player sent a `skip` after 4 s of quiet, which cut the scene before B.J.
+//      spoke (a blind tester's report); this test checks her lines are heard
+//      and the chapter arrives, against the live engine (keyboard only).
 //
 // Like the other live specs, it SKIPS with a clear message when there is no
 // local wasm build, so the replay suite and a build-less machine stay green
@@ -244,8 +245,8 @@ test.describe("live sweep (Chrome + WebKit)", () => {
   }) => {
     // The bartender conversation plays in full (no skipping), then the crossing
     // runs the bedtime cutscene, so this one test needs a long budget: up to
-    // ~4 min waiting on the conversation plus 120 s on the crossing.
-    test.setTimeout(480_000);
+    // about 1.5 min on the conversation plus about 3 min 40 s on the crossing.
+    test.setTimeout(600_000);
 
     const live = page.locator(LIVE);
     await bootToTavern(page);
@@ -315,15 +316,20 @@ test.describe("live sweep (Chrome + WebKit)", () => {
       }
     }
     expect(onDoorway).toBe(true);
-    await page.keyboard.press("Enter"); // walk 105 -> crossing; player pages skip
+    await page.keyboard.press("Enter"); // walk 105 -> crossing; the scene plays out
 
     // 3. The crossing lands in chapter 2 with the announcement. The pack names
     //    chapter 2 "The village", so the new room reading is prefixed
     //    "Chapter 2: The village." — the proof the player advanced a chapter,
-    //    not merely a room. Generous timeout: the cutscene runs for a while.
+    //    not merely a room. Generous timeout: the cutscene runs about 3 min 40 s.
     await expect(live).toContainText("Chapter 2: The village.", {
-      timeout: 120_000,
+      timeout: 300_000,
     });
+    // B.J.'s own lines were heard on the way (the scene was not cut short).
+    const heard = await page.evaluate(() =>
+      (window.__ghostlight?.lines ?? []).map((l) => l.text).join("\n"),
+    );
+    expect(heard).toContain("MY NAME IS BILLIE JEAN");
 
     // 4. Reaching chapter 2 also saved the chapter's start (slot 92) for the
     //    start screen's chapter list (tester feedback, 16 Nov).

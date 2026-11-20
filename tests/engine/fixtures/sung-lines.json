@@ -1,0 +1,23 @@
+{
+  "label": "sung-lines",
+  "note": "Regression for the drunk's song about Von Braun read with dialogue reading off (a blind tester, 20 Nov). Recorded from a native run with the fix applied, from the walkthrough's chapter 2 save in slot 12 (inn bar, room 14): talk 53, choose 1, then choose 2 (who is Von Braun?) plays animation_16_2. Its four lines of lyrics are drawn while the song plays as music, with no voice sample, so before the fix they came out as A11Y_TEXT and the player's dialogue setting never hid them. Now each is A11Y_VTEXT followed at once by A11Y_VEND, and voiced in the diff's said.",
+  "lines": [
+    "A11Y_CMD choose 2",
+    "A11Y_VTEXT who is that guy NAMED VON BRAUN?",
+    "A11Y_VEND",
+    "A11Y_VTEXT THE ONLY PERSON IN THE VILLAGE WHO KNOWS HOW TO GET TO DRASCULA IS A CULTIVATED PERSON",
+    "A11Y_VEND",
+    "A11Y_VTEXT AND WHY DOESN'T HE DO IT?",
+    "A11Y_VEND",
+    "A11Y_VTEXT A long time ago, it seems that Drascula killed Von Braun's wife, and then, as he intended to face the count, Von Braun started to research all he could find on vampires.",
+    "A11Y_VEND",
+    "A11Y_VTEXT When he thought he was ready, he went up to the castle and had a very violent encounter with Drascula.",
+    "A11Y_VEND",
+    "A11Y_VTEXT Nobody knows exactly what happened there. Although Von Braun lost, Drascula could not kill him.",
+    "A11Y_VEND",
+    "A11Y_VTEXT Von Braun felt humiliated by his defeat, he run away from the castle and has never dared to face Drascula again.",
+    "A11Y_VEND",
+    "A11Y_CHOICES {\"choices\":[{\"n\":1,\"text\":\"but, what's the matter with that drascula\",\"used\":true},{\"n\":2,\"text\":\"who is that guy NAMED VON BRAUN?\",\"used\":true},{\"n\":3,\"text\":\"AND WHERE CAN I FIND VON BRAUN?\",\"used\":false},{\"n\":4,\"text\":\"WELL. THANKS AND GOODBYE.\",\"used\":false,\"ends\":true}]}",
+    "A11Y_DIFF {\"cmd\":\"choose 2\",\"said\":[{\"color\":\"yellow\",\"text\":\"who is that guy NAMED VON BRAUN?\",\"voiced\":true},{\"color\":\"darkgreen\",\"text\":\"THE ONLY PERSON IN THE VILLAGE WHO KNOWS HOW TO GET TO DRASCULA IS A CULTIVATED PERSON\",\"voiced\":true},{\"color\":\"yellow\",\"text\":\"AND WHY DOESN'T HE DO IT?\",\"voiced\":true},{\"color\":\"darkgreen\",\"text\":\"A long time ago, it seems that Drascula killed Von Braun's wife, and then, as he intended to face the count, Von Braun started to research all he could find on vampires.\",\"voiced\":true},{\"color\":\"darkgreen\",\"text\":\"When he thought he was ready, he went up to the castle and had a very violent encounter with Drascula.\",\"voiced\":true},{\"color\":\"darkgreen\",\"text\":\"Nobody knows exactly what happened there. Although Von Braun lost, Drascula could not kill him.\",\"voiced\":true},{\"color\":\"darkgreen\",\"text\":\"Von Braun felt humiliated by his defeat, he run away from the castle and has never dared to face Drascula again.\",\"voiced\":true}],\"changed\":false}"
+  ]
+}

@@ -34,11 +34,14 @@ class FakeLive {
   lines: string[] = [];
   /** How many times examine held its description for the engine's reply. */
   holds = 0;
+  /** The command each hold waits on. */
+  holdFor: (string | undefined)[] = [];
   announce(text: string): void {
     this.lines.push(text);
   }
-  holdForReply(): void {
+  holdForReply(cmd?: string): void {
     this.holds += 1;
+    this.holdFor.push(cmd);
   }
   get last(): string | undefined {
     return this.lines[this.lines.length - 1];
@@ -170,16 +173,18 @@ describe("examine in room 62 announces the pack description", () => {
     expect(live.last).toBe("A big bald man in a vest, leaning on the bar.");
     // Held for the engine's reply, so it is not read over the hero's voice.
     expect(live.holds).toBe(1);
+    expect(live.holdFor).toEqual(["look 52"]);
     expect(adapter.sent).toEqual([{ verb: "look", target: 52 }]);
   });
 
-  it("does not hold the description while the engine is busy", () => {
+  it("holds the description while the engine is busy too (the hero still answering)", () => {
     const { controller, live } = harness(bartender, "busy");
 
     controller.handleKey("ArrowDown");
 
     expect(live.last).toBe("A big bald man in a vest, leaning on the bar.");
-    expect(live.holds).toBe(0);
+    expect(live.holds).toBe(1);
+    expect(live.holdFor).toEqual(["look 52"]);
   });
 
   it("suppresses the generic engine reply for the bartender", () => {
