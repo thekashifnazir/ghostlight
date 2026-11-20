@@ -1,0 +1,8 @@
+{
+  "label": "cut-branch",
+  "note": "Regression for room 22's cut branch being listed again (found while checking a tester's 20 Nov report). Recorded from a native run with the fix applied, from the walkthrough's chapter 4 save in slot 17 (castle grounds, room 21; the branch cut and carried, the magpie gone): walk 100 goes behind the tree. Before the fix, updateVisible()'s magpie rule set visible[1] (the branch, 140) back to 1 on every visit; now flags[24] keeps it hidden.",
+  "lines": [
+    "A11Y_CMD walk 100",
+    "A11Y_DIFF {\"cmd\":\"walk 100\",\"room\":[21,22],\"objects\":[{\"num\":102,\"name\":\"SALIDA\",\"rect\":[0,191,319,8],\"walkTo\":[154,199],\"visible\":true,\"door\":true,\"toRoom\":21},{\"num\":140,\"name\":\"BRANCH\",\"rect\":[111,107,49,12],\"walkTo\":[170,163],\"visible\":false,\"door\":false},{\"num\":52,\"name\":\"MAGPIE\",\"rect\":[130,87,27,39],\"walkTo\":[190,177],\"visible\":false,\"door\":false},{\"num\":180,\"name\":\"KEY\",\"rect\":[200,84,19,11],\"walkTo\":[207,160],\"visible\":false,\"door\":false}],\"hero\":{\"x\":172,\"y\":179},\"changed\":true}"
+  ]
+}

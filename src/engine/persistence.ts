@@ -110,7 +110,8 @@ export interface ProbeResult {
  * folder as an IndexedDB database named after the mountpoint ("/saves") with a
  * FILE_DATA object store keyed by absolute path. This opens that database
  * read-only and looks for keys under "/saves/" that match a Drascula save-file
- * name, ignoring the command file. On any error (no database, no IndexedDB,
+ * name, ignoring the command file, and picks the newest progress save by the
+ * timestamp IDBFS stores with each file. On any error (no database, no IndexedDB,
  * blocked storage) it resolves { hasSave: false }, so a first visit or a
  * browser without IndexedDB falls through to a new game (R3.6). Read-only: it
  * never creates the database.
@@ -145,48 +146,85 @@ export function probeSaves(
           return;
         }
         const tx = db.transaction("FILE_DATA", "readonly");
-        const keysReq = tx.objectStore("FILE_DATA").getAllKeys();
+        const store = tx.objectStore("FILE_DATA");
+        const slotOf = (key: IDBValidKey): number | undefined => {
+          const path = String(key);
+          const name = path.startsWith(`${SAVE_DIR}/`)
+            ? path.slice(SAVE_DIR.length + 1)
+            : path;
+          const m = saveFileRe().exec(name);
+          return m ? Number(m[1]) : undefined;
+        };
+        const finish = (found: { slot: number; at?: number }[]): void => {
+          db.close();
+          if (found.length === 0) {
+            resolve({ hasSave: false });
+            return;
+          }
+          // Chapter saves are where a chapter began, not the player's own
+          // progress, so Continue never picks one over a progress save.
+          const progress = found.filter((s) => chapterOfSlot(s.slot) === undefined);
+          const chapters = found
+            .map((s) => chapterOfSlot(s.slot))
+            .filter((c): c is number => c !== undefined)
+            .sort((a, b) => a - b);
+          let latestSlot: number;
+          if (progress.length === 0) {
+            latestSlot = chapterSlot(chapters[chapters.length - 1]);
+          } else if (progress.every((s) => s.at !== undefined)) {
+            // Continue resumes the newest progress save, as the load key does
+            // (latestSlot() after boot). IDBFS keeps each file's time and
+            // indexes it, so it's cheap to read here. Tester report, 20 Nov:
+            // a manual save always beat the autosave, so a player who saved
+            // once in chapter 4 and played on was put back in chapter 4.
+            const timed = [...progress].sort((a, b) => b.at! - a.at! || b.slot - a.slot);
+            latestSlot = timed[0].slot;
+          } else {
+            // No times (a store written without them): prefer the highest
+            // MANUAL slot (a slot the player deliberately wrote), and fall back
+            // to the autosave only when no manual save exists. The plain
+            // Math.max would favour the autosave slot (AUTOSAVE_SLOT = 99) over
+            // any low manual slot.
+            const all = progress.map((s) => s.slot);
+            const manual = all.filter((s) => s !== AUTOSAVE_SLOT);
+            latestSlot = manual.length > 0 ? Math.max(...manual) : Math.max(...all);
+          }
+          resolve({ hasSave: true, latestSlot, chapters });
+        };
+        // IDBFS indexes FILE_DATA by timestamp: the key cursor gives each
+        // file's time and path without reading its bytes. A store without the
+        // index (or without indexNames at all) falls back to the keys alone.
+        if (store.indexNames?.contains("timestamp") === true) {
+          const found: { slot: number; at?: number }[] = [];
+          const cursorReq = store.index("timestamp").openKeyCursor();
+          cursorReq.onerror = () => {
+            db.close();
+            resolve({ hasSave: false });
+          };
+          cursorReq.onsuccess = () => {
+            const cursor = cursorReq.result;
+            if (!cursor) {
+              finish(found);
+              return;
+            }
+            const slot = slotOf(cursor.primaryKey);
+            if (slot !== undefined) found.push({ slot, at: timeMs(cursor.key) });
+            cursor.continue();
+          };
+          return;
+        }
+        const keysReq = store.getAllKeys();
         keysReq.onerror = () => {
           db.close();
           resolve({ hasSave: false });
         };
         keysReq.onsuccess = () => {
-          const slots: number[] = [];
+          const found: { slot: number }[] = [];
           for (const key of keysReq.result as IDBValidKey[]) {
-            const path = String(key);
-            const name = path.startsWith(`${SAVE_DIR}/`)
-              ? path.slice(SAVE_DIR.length + 1)
-              : path;
-            const m = saveFileRe().exec(name);
-            if (m) slots.push(Number(m[1]));
+            const slot = slotOf(key);
+            if (slot !== undefined) found.push({ slot });
           }
-          db.close();
-          if (slots.length === 0) {
-            resolve({ hasSave: false });
-          } else {
-            // The probe cannot read mtimes cheaply; "most recent" is refined by
-            // the mounted-FS latestSlot() after boot. For onboarding, prefer the
-            // highest MANUAL slot (a slot the player deliberately wrote), and
-            // only fall back to the autosave slot when no manual save exists —
-            // so Continue resumes a real quick-save when there is one. Picking
-            // the plain Math.max here would instead favour the high-numbered
-            // autosave slot (AUTOSAVE_SLOT = 99) over any low manual slot.
-            // Chapter saves are neither: they're where a chapter began, so
-            // Continue never picks one over the player's own progress.
-            const progress = slots.filter((s) => chapterOfSlot(s) === undefined);
-            const manual = progress.filter((s) => s !== AUTOSAVE_SLOT);
-            const chapters = slots
-              .map(chapterOfSlot)
-              .filter((c): c is number => c !== undefined)
-              .sort((a, b) => a - b);
-            const latestSlot =
-              manual.length > 0
-                ? Math.max(...manual)
-                : progress.length > 0
-                  ? Math.max(...progress)
-                  : chapterSlot(chapters[chapters.length - 1]);
-            resolve({ hasSave: true, latestSlot, chapters });
-          }
+          finish(found);
         };
       } catch {
         try {
@@ -252,6 +290,12 @@ function pathExists(fs: PersistenceFS, path: string): boolean {
   } catch {
     return false;
   }
+}
+
+/** Milliseconds from an IDBFS timestamp key (a Date, or epoch ms), else undefined. */
+function timeMs(key: IDBValidKey): number | undefined {
+  if (key instanceof Date) return key.getTime();
+  return typeof key === "number" ? key : undefined;
 }
 
 /** Milliseconds from a stat mtime (Date or epoch ms), 0 when absent. */

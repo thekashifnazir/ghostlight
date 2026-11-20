@@ -19,6 +19,9 @@
 #   converse.cpp   onConverseBegin/Frame/End around the modal conversation
 #                  loop, where poll() never runs.
 #   animation.cpp  onGameEnd() in animation_9_6(), before the credits.
+#   objects.cpp    updateVisible() keeps room 22's cut branch hidden once
+#                  it's cut (flags[24]); the game's own rule showed it again
+#                  on every visit after the magpie had flown (tester, 20 Nov).
 #   emscripten.cpp (ScummVM's web backend, not the engine) delayMillis()
 #                  sleeps in slices of at most 10 ms and runs the timers after
 #                  each, so the web mixer's timer keeps the audio fed through a
@@ -213,6 +216,21 @@ index d39d58f6f0..2b5df73420 100644
  	char msg[200];
  	Common::strlcpy(msg, message, 200);
  
+diff --git a/engines/drascula/objects.cpp b/engines/drascula/objects.cpp
+--- a/engines/drascula/objects.cpp
++++ b/engines/drascula/objects.cpp
+@@ -257,6 +257,11 @@
+ 			visible[2] = 0;
+ 			visible[1] = 1;
+ 		}
++		// Ghostlight: the cut branch (hotspot 140) stays gone. room_22 hides it
++		// when it's cut (flags[24]), but the rule above shows it again on every
++		// visit once the magpie has flown.
++		if (_roomNumber == 22 && flags[24] == 1)
++			visible[1] = 0;
+ 		if (_roomNumber == 22 && flags[27] == 1)
+ 			visible[3] = 0;
+ 		if (_roomNumber == 26 && flags[21] == 0)
 diff --git a/backends/platform/sdl/emscripten/emscripten.cpp b/backends/platform/sdl/emscripten/emscripten.cpp
 --- a/backends/platform/sdl/emscripten/emscripten.cpp
 +++ b/backends/platform/sdl/emscripten/emscripten.cpp

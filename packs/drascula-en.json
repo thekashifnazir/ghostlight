@@ -713,6 +713,13 @@
           "direction": "left",
           "note": "Look was silent. Destination from meta.json. 'Kitchen' comes from the coverage report, not the game; reviewer to confirm."
         },
+        "116": {
+          "label": "door at the far left of the row",
+          "to": 31,
+          "direction": "left",
+          "opensWhen": { "flags": { "5": 1, "23": 1 } },
+          "note": "Locked until the living-room keys are used on it (rooms.cpp room_27: flags 5 and 23; updateDoor makes it a door). Look line: I CAN'T SEE ANYTHING IN PARTICULAR. Destination from the engine dump once open (toRoom 31, the living room). Was listed as an object (door 0 while locked) until 20 Nov."
+        },
         "118": {
           "label": "door on the right to the torch room",
           "to": 34,
@@ -721,12 +728,6 @@
         }
       },
       "objects": {
-        "116": {
-          "name": "door at the far left of the row",
-          "type": "object",
-          "description": "A door at the left end of the row along the back wall. It is not a way through.",
-          "note": "Not an engine exit (door 0 in the dump). Look line: I CAN'T SEE ANYTHING IN PARTICULAR. The coverage report lists it as an exit to room 31 (the living room), but the dump gives no destination. Reviewer: decide if this is an exit; if so it needs moving to exits."
-        },
         "150": {
           "name": "west wing",
           "type": "object",
@@ -923,21 +924,23 @@
           "to": 27,
           "direction": "right",
           "note": "Look gave only filler. Destination from meta.json. Rect x 236 to 269."
+        },
+        "120": {
+          "label": "closet",
+          "to": 35,
+          "direction": "ahead",
+          "opensWhen": { "flags": { "8": 1 } },
+          "note": "A door once opened (rooms.cpp doors table: chapter 4, door 120, flag 8; room_34 opens it). Destination from the engine dump once open (toRoom 35, the secret lab). The label stays plain so it doesn't give the puzzle away. Look line is only filler. Was listed as an object until 20 Nov. Rect x 182 to 224."
+        },
+        "122": {
+          "label": "shelf",
+          "to": 36,
+          "direction": "left",
+          "opensWhen": { "flags": { "7": 1 } },
+          "note": "A door once the torch is moved (rooms.cpp doors table: chapter 4, door 122, flag 7; animation_8_4 opens it). Destination room 36, whose way back (123) leads here. The label stays plain so it doesn't give the puzzle away. Look line is only filler. Was listed as an object until 20 Nov. Rect x 86 to 147."
         }
       },
       "objects": {
-        "120": {
-          "name": "closet",
-          "type": "object",
-          "description": "A closet right of centre, next to the door.",
-          "note": "Look line is only filler. The report says this is an exit to room 35, but the dump shows door 0 and no destination, so I kept it as an object. Reviewer: if it is an exit it needs moving to exits. Rect x 182 to 224."
-        },
-        "122": {
-          "name": "shelf",
-          "type": "object",
-          "description": "A shelf on the left side of the room.",
-          "note": "Look line is only filler. The report says this is an exit to room 36, but the dump shows door 0 and no destination, so I kept it as an object. Reviewer: if it is an exit it needs moving to exits. Rect x 86 to 147."
-        },
         "146": {
           "name": "torch",
           "type": "object",

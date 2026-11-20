@@ -147,3 +147,82 @@ test.describe("returning visit (save present): Continue, no Start", () => {
     await expect(page.locator("#live-region")).toContainText("saved game");
   });
 });
+
+// Continue resumes the newest save (tester report, 20 Nov 2026). A manual save
+// (slot 1) beat the autosave (slot 99) whatever their age, so a player who
+// saved once in chapter 4 and played on was put back in chapter 4 by Continue.
+// IDBFS keeps each file's time in FILE_DATA (with a `timestamp` index), so the
+// probe can pick the newest, as the load key does. Chapter saves (slots 92 to
+// 96) still never win over a progress save.
+test.describe("Continue picks the newest save", () => {
+  /** Seed saves the way IDBFS stores them: a timestamp per file, and its index. */
+  async function seedTimed(page: Page, saves: { slot: number; at: number }[]): Promise<void> {
+    await page.goto("/?replay=tavern");
+    await page.evaluate(
+      ({ dir, saves }) =>
+        new Promise<void>((resolve, reject) => {
+          const open = indexedDB.open(dir, 21);
+          open.onupgradeneeded = () => {
+            const db = open.result;
+            const store = db.objectStoreNames.contains("FILE_DATA")
+              ? open.transaction!.objectStore("FILE_DATA")
+              : db.createObjectStore("FILE_DATA");
+            if (!store.indexNames.contains("timestamp")) {
+              store.createIndex("timestamp", "timestamp", { unique: false });
+            }
+          };
+          open.onerror = () => reject(open.error);
+          open.onsuccess = () => {
+            const db = open.result;
+            const tx = db.transaction("FILE_DATA", "readwrite");
+            for (const s of saves) {
+              const name = `drascula.${String(s.slot).padStart(3, "0")}`;
+              tx.objectStore("FILE_DATA").put(
+                { timestamp: new Date(s.at), mode: 33206, contents: new Uint8Array() },
+                `${dir}/${name}`,
+              );
+            }
+            tx.oncomplete = () => {
+              db.close();
+              resolve();
+            };
+            tx.onerror = () => reject(tx.error);
+          };
+        }),
+      { dir: SAVE_DIR, saves },
+    );
+  }
+
+  const probe = (page: Page): Promise<{ hasSave: boolean; latestSlot?: number; chapters?: number[] }> =>
+    page.evaluate(async () => {
+      const mod = await import("/engine/persistence.ts" as string);
+      return mod.probeSaves();
+    });
+
+  const at = (h: number): number => Date.UTC(2026, 10, 20, h, 0);
+
+  test("an autosave newer than the manual save wins", async ({ page }) => {
+    await seedTimed(page, [
+      { slot: 1, at: at(10) },
+      { slot: 99, at: at(11) },
+    ]);
+    expect(await probe(page)).toEqual({ hasSave: true, latestSlot: 99, chapters: [] });
+  });
+
+  test("a manual save newer than the autosave wins", async ({ page }) => {
+    await seedTimed(page, [
+      { slot: 99, at: at(10) },
+      { slot: 1, at: at(11) },
+    ]);
+    expect(await probe(page)).toEqual({ hasSave: true, latestSlot: 1, chapters: [] });
+  });
+
+  test("a newer chapter save never wins over a progress save", async ({ page }) => {
+    await seedTimed(page, [
+      { slot: 1, at: at(9) },
+      { slot: 99, at: at(10) },
+      { slot: 95, at: at(11) },
+    ]);
+    expect(await probe(page)).toEqual({ hasSave: true, latestSlot: 99, chapters: [5] });
+  });
+});
