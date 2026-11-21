@@ -1,6 +1,6 @@
 # How accessible point-and-clicks handle input (6 Nov 2026)
 
-Prompted by an accessibility consultant on the Games for Blind Gamers Discord (she is not blind, and said so), who pointed at these as good examples. Researched from public pages (itch, Steam, brokgame.com/accessibility.php, BROK 1.3.0 devlog, caniplaythat.com and access-ability.uk reviews, Lirin111's GitHub READMEs and release notes). The BROK AudioGames thread and Steam reviews didn't load.
+Three games often given as good examples. Researched from public pages (itch, Steam, brokgame.com/accessibility.php, BROK 1.3.0 devlog, caniplaythat.com and access-ability.uk reviews, Lirin111's GitHub READMEs and release notes). The BROK AudioGames thread and Steam reviews didn't load.
 
 | Game | Finding things | Actions | Inventory | Speech |
 |---|---|---|---|---|
@@ -23,12 +23,10 @@ Prompted by an accessibility consultant on the Games for Blind Gamers Discord (s
 **Person worth knowing:** Lirin111 made the Loco Motive and The Drifter mods and consulted on BROK's blind access.
 
 
-## Feedback, 6 Nov 21:49 and 22:04 (Discord, the accessibility consultant who recommended these games; not blind)
+## Design notes, 6 Nov
 
 - Loco Motive mod: **focus order did not match the visual order** of things in the train. Keep the list strictly left to right (then top to bottom).
 - **Focusing something off-screen did not move the camera**, a problem when playing alongside someone sighted. Show the focused hotspot on the canvas (a highlight) and keep it in view, so a sighted co-player can follow. Also useful in the demo video.
-- **Neither game has room descriptions**, "which would have been helpful". Our pack descriptions are a real differentiator.
+- **Neither game has room descriptions.** Our pack descriptions are a real differentiator.
 - A Crisis of Fae lists its known bugs on its itch page.
 - **Room descriptions should change when something major changes**, e.g. a secret passage opens. So a room needs description variants keyed on progress (flags), not one fixed text.
-- She'd like to try an early version and is happy to be DM'd a link.
-- **Correction:** she isn't a blind player. Her input is expert advice, not end-user testing; we still need blind testers.

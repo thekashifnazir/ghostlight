@@ -182,7 +182,7 @@ The ghost's hint lines are voiced with the [ElevenLabs](https://elevenlabs.io/) 
 
 List mode, presenting the game as lists of objects, exits and inventory to move through, follows an idea Brandon Cole set out in [Adventuring Blind](https://www.brandoncole.net/?p=128) (August 2013), on how a blind player can work through a point-and-click adventure.
 
-This project does not make claims about what blind or low-vision players need without a source. A blind accessibility consultant tested it during the build and finished the whole game on 16 Nov, and a moderator of the Games for Blind Gamers community advised on the design. Findings come from them rather than being asserted here.
+This project does not make claims about what blind or low-vision players need without a source. A blind accessibility consultant tested it during the build and finished the whole game on 16 Nov. Findings come from that testing rather than being asserted here.
 
 ## More
 
