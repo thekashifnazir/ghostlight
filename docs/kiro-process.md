@@ -2303,3 +2303,10 @@ What was asked: apply a verified diff, as written. Kash (21 Nov): add the demo v
 What Kiro did: one headless kiro-cli run (fs_read and fs_write only), grouped edits per file. README.md: the video link, the preview block and "co-host". The preview image, docs/ghostlight-preview.gif (4.0 MB, 720 px), is binary, so it was copied into this commit by hand, not written by Kiro.
 Verification: Kiro's files byte-identical to the dry run; the preview's frames checked by eye (the inn bar, "bartender, 5 of 10", the nudge); no code change, so no test run and no deploy.
 Credits: 0.48.
+
+## 187 · docs · 2026-11-21 · The README says one person tested it, not two
+What was asked: apply a verified diff, as written. Kash (21 Nov): "Only chad tested no one else".
+- The README's sources paragraph said two testers played it during the build. Only the blind accessibility consultant played it; the Games for Blind Gamers moderator advised on the design in Discord. The 7 Nov description-variants spec is a dated record and stays as written.
+What Kiro did: one headless kiro-cli run (fs_read and fs_write only). README.md: the sources paragraph's tester sentence.
+Verification: Kiro's files byte-identical to the dry run; no code change, so no test run and no deploy.
+Credits: 0.49.
