@@ -334,8 +334,8 @@ export class Narrator {
 
   /**
    * Announce "Nothing happened." when an action changed no state and said
-   * nothing — but never for a look (examine already spoke), never for a save,
-   * and never when the command produced a choice menu, a spoken dialogue line,
+   * nothing — but never for a look (examine already spoke), never for a save
+   * or a skip, and never when the command produced a choice menu, a spoken dialogue line,
    * or a phase change to 'choice'. `isLook` is the value said() returned for
    * this diff.
    *
@@ -364,6 +364,12 @@ export class Narrator {
     // `readpause on|off` is a player setting, not a game action: its settle
     // diff must never say "Nothing happened."
     const isReadPause = diff.cmd?.startsWith("readpause ") === true;
+    // A skip (Escape) never says it either. The engine layer settles a skip
+    // with changed:false even when it cut a line or a scene short, so the line
+    // was often wrong, and each Escape pressed after "Chapter N: name." said it
+    // again and replaced the chapter line before a screen reader spoke it. A
+    // skip with nothing to skip stays quiet, and R still repeats the last line.
+    const isSkip = diff.cmd === "skip" || diff.cmd?.startsWith("skip ") === true;
     const producedSomething =
       this.producedChoices || this.producedDialogue || this.enteredChoicePhase;
     if (
@@ -372,6 +378,7 @@ export class Narrator {
       !isLook &&
       !isSave &&
       !isReadPause &&
+      !isSkip &&
       !producedSomething
     ) {
       this.announce("Nothing happened.");
