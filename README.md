@@ -4,9 +4,15 @@
 
 Ghostlight makes *Drascula: The Vampire Strikes Back*, the 1996 freeware point-and-click adventure, playable with a screen reader in a web browser. The real game runs in ScummVM, so room contents, exits, inventory and progress come straight from the engine, and your own screen reader reads back what happened.
 
-Chad Bouton, a blind accessibility consultant and host of The Unsyted Radio podcast, played Drascula start to finish with a screen reader on 16 Nov. He wrote afterwards: "it works beautifully! I was actually able to complete the entire game."
+Chad Bouton, a blind accessibility consultant and co-host of The Unsyted Radio podcast, played Drascula start to finish with a screen reader on 16 Nov. He wrote afterwards: "it works beautifully! I was actually able to complete the entire game."
 
-Live: [ghostlight.kashifnazir.com/?live](https://ghostlight.kashifnazir.com/?live) · Demo video: coming (by 1 December) · Devpost: coming (by 4 December)
+Live: [ghostlight.kashifnazir.com/?live](https://ghostlight.kashifnazir.com/?live) · Demo video: [youtu.be/gfpjhE8Vopw](https://youtu.be/gfpjhE8Vopw) · Devpost: coming (by 4 December)
+
+<p align="center">
+  <a href="https://youtu.be/gfpjhE8Vopw"><img src="docs/ghostlight-preview.gif" width="720" alt="Silent preview of the Ghostlight video: VoiceOver reads the inn bar, Right arrow moves to &quot;bartender, 5 of 10&quot;, then the room's nudge: &quot;It's late, and you'll need somewhere to sleep.&quot;"></a>
+  <br>
+  <sub>▶ Silent preview. <a href="https://youtu.be/gfpjhE8Vopw"><b>Watch the full video with sound</b></a></sub>
+</p>
 
 **Kiroween 2026 · category: Resurrection · November 2026**
 

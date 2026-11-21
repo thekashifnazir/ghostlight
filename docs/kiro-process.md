@@ -2295,3 +2295,11 @@ What was asked: apply a verified diff, as written. Kash (21 Nov): fix it in Ghos
 What Kiro did: one headless kiro-cli run (fs_read and fs_write only), grouped edits per file. src/ui/narrator.ts: maybeNothingHappened() never says "Nothing happened." for a skip; a line the skip's diff carries is still spoken. New test/skip-nothing-happened.test.ts (4). README counts.
 Verification: Kiro's files byte-identical to the dry run; tsc clean; unit 594/594 (the new skip test fails on the old narrator, 3 of 4); replay Playwright 86/86; live Chromium 16/16. No engine change.
 Credits: 0.79.
+
+## 186 · docs · 2026-11-21 · The README links the demo video, shows a silent preview, and calls Chad a co-host
+What was asked: apply a verified diff, as written. Kash (21 Nov): add the demo video and fix "host" to "co-host", README only, no deploy.
+- The demo video exists (unlisted until 1 Dec), so the README's "coming (by 1 December)" becomes the link, and a silent 24 s preview from the film (0:14 to 0:38: the inn bar, "bartender, 5 of 10" and the room's nudge) links to it, as in the Crew's README.
+- Chad co-hosts The Unsyted Radio podcast; the README said "host".
+What Kiro did: one headless kiro-cli run (fs_read and fs_write only), grouped edits per file. README.md: the video link, the preview block and "co-host". The preview image, docs/ghostlight-preview.gif (4.0 MB, 720 px), is binary, so it was copied into this commit by hand, not written by Kiro.
+Verification: Kiro's files byte-identical to the dry run; the preview's frames checked by eye (the inn bar, "bartender, 5 of 10", the nudge); no code change, so no test run and no deploy.
+Credits: 0.48.
