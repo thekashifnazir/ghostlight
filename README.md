@@ -24,7 +24,7 @@ _Kiroween 2026 · Resurrection · Companion: [Ghostlight Survey Crew](https://gi
 
 > **In 30 seconds.** Ghostlight makes *Drascula: The Vampire Strikes Back*, the 1996 freeware point-and-click adventure, playable with a screen reader in a web browser. The real game runs in ScummVM, so room contents, exits, inventory and progress come straight from the engine, and your own screen reader reads back what happened. Chad Bouton, a blind accessibility consultant and co-host of The Unsyted Radio podcast, played it start to finish with a screen reader on 16 Nov. He wrote afterwards: "it works beautifully! I was actually able to complete the entire game." Code is AI-generated under my direction in Kiro.
 
-| **57 of 57** rooms described | **6 of 6** chapters to the ending | **10** screen reader and browser pairs | **195** hint lines voiced | **86 of 389** commits by Kiro Agent |
+| **57 of 57** rooms described | **6 of 6** chapters to the ending | **10** screen reader and browser pairs | **195** hint lines voiced | **87 of 390** commits by Kiro Agent |
 |:---:|:---:|:---:|:---:|:---:|
 | every room has a description<br><sub>14 Nov</sub> | hints in every chapter<br><sub>16 Nov</sub> | NVDA, JAWS and VoiceOver<br><sub>Windows 11 and macOS</sub> | the ghost's whisper, ElevenLabs<br><sub>16 Nov</sub> | every step logged<br><sub>counted 23 Nov</sub> |
 
@@ -162,7 +162,7 @@ A small MCP server (in `mcp/`) exposes the game as tools, one per verb, so an ag
 
 ## 5. How Kiro was used
 
-**Built in Kiro, spec by spec: 86 of 389 commits are by Kiro Agent, and every step is in a dated log.**
+**Built in Kiro, spec by spec: 87 of 390 commits are by Kiro Agent, and every step is in a dated log.**
 
 <details>
 <summary><b>Features used, and where the record lives</b></summary>
@@ -173,7 +173,7 @@ Two documents track this in detail: [`docs/kiro-features.md`](docs/kiro-features
 
 In short, the build uses spec-driven development (one spec per area, each going requirements to design to tasks), steering files for the accessibility and process rules, hooks for save-time and task-time checks, the `drascula-mcp` MCP server plus Playwright for UI checks, Kiro Powers (including a custom ScummVM Access power and ElevenLabs), a reusable workflow for spec verification, a custom verifier agent, and property-based tests for the parser, the pack, the hints, the engine diff and the sonar mapping.
 
-86 of 389 commits are by Kiro Agent, and the IDE sessions commit under my name; every step is in [`docs/kiro-process.md`](docs/kiro-process.md) (counted 23 Nov). Code is AI-generated under my direction in Kiro.
+87 of 390 commits are by Kiro Agent, and the IDE sessions commit under my name; every step is in [`docs/kiro-process.md`](docs/kiro-process.md) (counted 23 Nov). Code is AI-generated under my direction in Kiro.
 
 The [Ghostlight Survey Crew](https://github.com/thekashifnazir/ghostlight-crew), a Kiro Crew, surveyed rooms overnight, drafted pack entries for human approval and replays the whole game.
 
