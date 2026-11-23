@@ -2317,3 +2317,10 @@ What was asked: apply a verified diff, as written. Kash (21 Nov): "Drop her as o
 What Kiro did: one headless kiro-cli run (fs_read and fs_write only), grouped edits per file. README.md (the sources paragraph), `.kiro/specs/description-variants/requirements.md` (the opening of the need), `reference/research/pnc-input-patterns.md` (the opening line, the feedback heading and three bullets), `docs/kiro-process.md` (entries 100 and 187, and this entry).
 Verification: Kiro's files byte-identical to the dry run; a search of the tree for the second person's role, community and Discord finds nothing; no code change, so no test run and no deploy.
 Credits: 0.81.
+
+## 189 · docs · 2026-11-23 · The README takes the layout of the other project READMEs
+What was asked: write a reviewed README, as written. Kash (23 Nov): "let's improve the readme to match how my other repo readmes look like", then yes to the Kiro run, the Devpost link and the new count.
+- The new layout has a centred title, badges, a link row, the preview, a 30-second summary, a five-number table, contents, and ten numbered sections that each open with one line and fold their detail. The content is the old README's, re-sorted. Factual changes: Kiro Agent 86 of 389 (this commit included; it said 71 of 374), the Devpost link, `/` in the keys table, "Not yet tested: Narrator, Orca, and phone screen readers" in Known limits, and the test counts re-dated to 23 Nov.
+What Kiro did: one headless kiro-cli run (fs_read and fs_write only). README.md, written whole, and this entry.
+Verification: Kiro's files byte-identical to the dry run; the four test suites re-run on 23 Nov match the counts (594, 43, 43 plus 2 skipped, 70); the served Drascula and Queen patches match the repo; no code change, so no deploy.
+Credits: 1.36.
